@@ -460,7 +460,7 @@ button { font-size: inherit; font-family: inherit; }
   transition: background 0.15s ease, transform 0.15s ease;
 }
 .btn:hover { background: rgba(255, 255, 255, 0.16); transform: translateY(-0.06em); }
-.btn.danger { border-color: #c9665f; color: #f5cdc8; }
+.btn.danger { border-color: #dba357; color: #fbe8cc; }
 .btn-row { display: flex; gap: 0.9em; justify-content: center; margin-top: 1.3em; }
 .panel {
   position: relative;
@@ -552,8 +552,8 @@ button { font-size: inherit; font-family: inherit; }
 .plague .num { font-family: Georgia, "Times New Roman", serif; font-size: 1.65em; line-height: 1.1; }
 .plague .zh { font-size: 0.8em; }
 .plague .lbl { font-size: 0.6em; opacity: 0.7; }
-.plague.open { border-color: #fff; background: rgba(110, 22, 22, 0.66); box-shadow: 0 0 0.6em rgba(163, 40, 42, 0.6); }
-.plague.open:hover { background: rgba(138, 28, 28, 0.82); }
+.plague.open { border-color: #fff; background: rgba(177, 107, 16, 0.66); box-shadow: 0 0 0.6em rgba(226, 144, 38, 0.6); }
+.plague.open:hover { background: rgba(208, 126, 19, 0.82); }
 .plague.locked { opacity: 0.55; }
 .plague.locked .zh { font-size: 0.66em; opacity: 0.85; }
 .plague.shake { animation: shake 0.42s ease; }
@@ -662,7 +662,7 @@ button { font-size: inherit; font-family: inherit; }
   background: #000; color: #aaa;
   font-size: 1.3em; letter-spacing: 0.2em;
 }
-#boot.error { color: #e88; letter-spacing: 0; padding: 2em; text-align: center; }
+#boot.error { color: #fac886; letter-spacing: 0; padding: 2em; text-align: center; }
 .debug-hud {
   position: absolute; left: 0.5em; top: 0.3em;
   z-index: 60;
@@ -714,7 +714,7 @@ button { font-size: inherit; font-family: inherit; }
 .rlp-err {
   position: absolute; left: 0; right: 0; top: 0; z-index: 99;
   display: none; padding: 6px 12px;
-  background: rgba(130, 24, 24, 0.94); color: #fff; font-size: 13px; line-height: 1.4;
+  background: rgba(200, 120, 15, 0.94); color: #fff; font-size: 13px; line-height: 1.4;
 }
 .rlp-err.show { display: block; }
 .rlp-diag {
