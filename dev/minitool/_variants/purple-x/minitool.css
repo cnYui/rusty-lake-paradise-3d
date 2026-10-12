@@ -1,0 +1,57 @@
+
+/* ------------------------------------------------------------------ 小红书小工具壳
+   游戏整个放在 #rot 里；rotate.js 在手机竖屏时把 #rot 转 90° 并把 --rw / --rh 写成转过来之后的宽高（px）。
+   舞台（16:9）按 #rot 的大小缩放，不再按窗口的 vw / vh（竖屏时窗口的宽高是反的）。 */
+#rot {
+  --rw: 100vw;
+  --rh: 100vh;
+  /* 舞台大小由 rotate.js 算好写进来（Chrome 61 不认 CSS 的 min()）；这里的默认值是 JS 没跑到时的兜底（按宽度铺满） */
+  --sw: 100vw;
+  --sh: 56.25vw;
+  --fs: 1.25vw;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #000;
+  transform-origin: 0 0;
+}
+#rot #stage {
+  width: var(--sw);
+  height: var(--sh);
+  font-size: var(--fs);
+}
+/* 竖屏时容器里没有“请把手机横过来”的余地，游戏自己转，不再弹提示 */
+.rotate-hint { display: none !important; }
+
+/* 载入页：上面转圈（只用 transform 的动画由合成线程跑，主线程忙着建世界时也照转，看得出页面没死），下面是 rotate.js 写的阶段文字 */
+#boot { flex-direction: column; gap: 1.1em; text-align: center; padding: 0 2em; }
+#boot::before {
+  content: '';
+  width: 2.2em; height: 2.2em;
+  border: 0.22em solid #2a2a2a; border-top-color: #9a9a9a; border-radius: 50%;
+  animation: rlp-spin 0.9s linear infinite;
+}
+#boot.error::before { display: none; }
+/* Chrome 84 以前 flex 的 gap 不生效（compat.js 判定后给 <html> 加 no-flexgap）：转圈和文字之间的间距改用 margin（::before 不是元素，build.py 生成的 "> * + *" 兜底管不到它） */
+html.no-flexgap #boot::before { margin-bottom: 1.1em; }
+@keyframes rlp-spin { to { transform: rotate(360deg); } }
+
+/* 报错横幅 / 排查面板（rotate.js 建在 #rot 里，跟着游戏一起转） */
+.rlp-err {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 99;
+  display: none; padding: 6px 12px;
+  background: rgba(119, 32, 163, 0.94); color: #fff; font-size: 13px; line-height: 1.4;
+}
+.rlp-err.show { display: block; }
+.rlp-diag {
+  position: absolute; left: 0; top: 0; z-index: 100; margin: 0; display: none;
+  max-width: 75%; padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.82); color: #9f9; font: 11px/1.45 monospace; white-space: pre-wrap; word-break: break-all;
+}
+.rlp-diag.show { display: block; }

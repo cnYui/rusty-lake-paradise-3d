@@ -15,7 +15,7 @@ export const ITEM_DEFS = [
   { id: 'shrimp', zh: '虾', en: 'Shrimp' },
   { id: 'leech', zh: '水蛭', en: 'Leech' },
   { id: 'jug', zh: '壶', en: 'Jug' },
-  { id: 'jug_blood', zh: '装有血的壶', en: 'Jug of blood' },
+  { id: 'jug_blood', zh: '装有x的壶', en: 'Jug of x' },
   { id: 'key', zh: '钥匙', en: 'Key' },
   { id: 'black_cube', zh: '黑方块', en: 'Black cube' },
 ];

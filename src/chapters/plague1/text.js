@@ -3,7 +3,7 @@ export const T = {
   narration: ['我还记得回到天堂岛的那一天……', '那座小岛，是我的家人世代栖居的地方。', '自从收到母亲的死讯，',
               '那些早已模糊的记忆，竟一点点清晰起来。', '天堂岛刚刚出现在眼前，', '我就仿佛感到，母亲的气息依然萦绕在身旁。',
               '她给了我那么多回忆——我无论如何也无法忘记。'],
-  chapter: ['第一灾', '血灾'],
+  chapter: ['第一灾', 'x灾'],
   hintRoam: 'WASD 走动 · 鼠标移向画面边缘转身', hintBack: '点击向下的箭头或按 S 返回', hintBolt: '点击插销把它拉开',
   hintTranslate: '点击文字来翻译', hintUseItem: '按数字键选中物品，再点场景使用；依次按两个数字键可合成',
   // 触屏版提示（手机 / 平板）
@@ -22,9 +22,9 @@ export const T = {
   // 房子室内、盘子、木桶、墙上的画
   hintHouse: '屋里也能用 WASD 走动 · 走回门口点门出去', hintHouseTouch: '屋里也能用摇杆走动 · 走回门口点门出去',
   prawnSplit: '虾壳裂开了，一条水蛭从里面钻了出来。',
-  bucketFilled: '暗红色的血灌满了木桶。',
+  bucketFilled: '暗红色的x灌满了木桶。',
   photoTitle: '艾兰德一家', portraitTitle: '卡罗琳·艾兰德',
-  soul: ['只有把我的记忆带回锈湖……', '……锈湖才会停止流血。'],
+  soul: ['只有把我的记忆带回锈湖……', '……锈湖才会停止流x。'],
   reflection: '这是……我。',
   memory: '请收下我们的献祭，指引我们吧。',
   ending: { zh: '第一灾 · 完', en: 'Plague I — complete' },
