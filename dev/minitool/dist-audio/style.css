@@ -1,0 +1,739 @@
+/* Rusty Lake Paradise 3D — overlay UI.
+   #stage is a 16:9 box of 80em × 45em (1em = stage width / 80 → 16 px at 1280×720).
+   Game viewport: 66.5625em × 45em at left 2.5em (inventory shown) or centred (6.71875em). */
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  overscroll-behavior: none;   /* 手机上不下拉刷新、不回弹 */
+}
+body {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: 100%;
+  touch-action: none;          /* 不缩放、不双击放大；可滚动的列表单独放开 */
+}
+
+/* 16:9 舞台按可见区域缩放；手机浏览器的地址栏会伸缩，支持 dvh 时用动态视口高度 */
+#stage {
+  /* [小红书小工具] 舞台大小由 minitool.css 的 #rot #stage + rotate.js 提供（Chrome 61 不认 CSS 的 min()） */
+  --vh: 1vh;
+  position: relative;
+  background: #000;
+  overflow: hidden;
+  --vp-left: 6.71875em;
+}
+@supports (height: 100dvh) {
+  #stage { --vh: 1dvh; }
+}
+#stage.inv-on { --vp-left: 2.5em; }
+
+#game, .vp {
+  position: absolute;
+  top: 0;
+  left: var(--vp-left);
+  width: 66.5625em;
+  height: 45em;
+  transition: left 0.7s cubic-bezier(0.45, 0, 0.25, 1);
+}
+#game { display: block; outline: none; }
+#stage.film-on #game { filter: grayscale(1) sepia(0.35) contrast(1.28) brightness(1.06); }
+#stage.locked #game { cursor: default !important; }
+
+#ui { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; }
+.vp { pointer-events: none; overflow: hidden; }
+
+/* ------------------------------------------------------------------ screen effects */
+.vp .dust, .vp .film, .vp .chalk, .vp .debug-layer {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+}
+.vp .dust { z-index: 2; }
+.vp .film { z-index: 4; }
+.vp .chalk { z-index: 6; }
+.vp .debug-layer { z-index: 19; }
+.grain {
+  position: absolute; top: -50%; right: -50%; bottom: -50%; left: -50%;
+  z-index: 3;
+  opacity: 0.075;
+  mix-blend-mode: overlay;
+  background-repeat: repeat;
+  background-size: 10em 10em;
+  pointer-events: none;
+  animation: grain 0.7s steps(5) infinite;
+}
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-3%, 2%); }
+  40% { transform: translate(2%, -3%); }
+  60% { transform: translate(-2%, -1%); }
+  80% { transform: translate(3%, 3%); }
+  100% { transform: translate(0, 0); }
+}
+.fade { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 14; background: #000; opacity: 0; pointer-events: none; }
+.flash { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 15; opacity: 0; pointer-events: none; }
+
+/* rounded old-TV frame; the band pushes its top edge down */
+.vignette {
+  position: absolute; left: 0; right: 0; bottom: 0; top: 0;
+  z-index: 16;
+  border-radius: 3.6em;
+  box-shadow:
+    0 0 0 40em #000,
+    inset 0 0 2.3em 1.1em rgba(0, 0, 0, 0.93),
+    inset 0 0 7em 1.2em rgba(0, 0, 0, 0.32);
+  pointer-events: none;
+  transition: top 0.3s ease;
+}
+#stage.band-on .vignette { top: 5em; }
+
+/* ----------------------------------------------------------------------- text */
+.band-text {
+  position: absolute; left: 4%; right: 4%; top: 0;
+  z-index: 17;
+  height: 2.7em; line-height: 2.7em;
+  font-size: 1.85em;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.band-text.show { opacity: 1; }
+.band-text.kind-thought { font-style: italic; color: #ece6d6; }
+.hint {
+  position: absolute; left: 4%; right: 4%; top: 1.2em;
+  z-index: 17;
+  font-size: 1.85em;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 0 0.3em rgba(0, 0, 0, 0.9), 0 0.06em 0.12em #000;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.hint.show { opacity: 1; }
+.narration {
+  position: absolute; left: 6%; right: 6%; top: 1.6em;
+  z-index: 8;
+  font-size: 1.7em;
+  color: #161616;
+  text-align: center;
+  text-shadow: 0 0 0.5em rgba(255, 255, 255, 0.55);
+  opacity: 0;
+  pointer-events: none;
+}
+.title-text {
+  position: absolute; left: 0; right: 0; top: 30.5em;
+  z-index: 7;
+  text-align: center;
+  color: #121212;
+  pointer-events: none;
+  display: none;
+}
+.title-text.show { display: block; }
+.title-text .line {
+  font-size: 2.45em;
+  line-height: 1.45;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 0.4em rgba(255, 255, 255, 0.35);
+  opacity: 0;
+}
+.logo {
+  position: absolute; left: 0; top: 0; width: 100%; height: 40%;
+  z-index: 7;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* buttons do not inherit the font size by default — every em below is relative to the stage */
+button { font-size: inherit; font-family: inherit; }
+
+/* --------------------------------------------------------------------- arrows */
+.arrows { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 18; pointer-events: none; }
+.arrow {
+  position: absolute;
+  width: 3.4em; height: 3.4em;
+  margin: -1.7em 0 0 -1.7em;
+  padding: 0; border: 0; background: none;
+  cursor: pointer;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s;
+}
+.arrow.show { opacity: 1; visibility: visible; pointer-events: auto; }
+.arrow i {
+  position: absolute; left: 50%; top: 50%;
+  width: 0; height: 0;
+  border-style: solid;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 0.1em rgba(255, 255, 255, 0.6));
+  transition: transform 0.15s ease;
+}
+.arrow:hover i { transform: translate(-50%, -50%) scale(1.25); }
+.arrow-left { left: 2em; top: 50%; }
+.arrow-left i { border-width: 0.46em 0.7em 0.46em 0; border-color: transparent #111 transparent transparent; }
+.arrow-right { left: calc(100% - 3.1em); top: 50%; }
+.arrow-right i { border-width: 0.46em 0 0.46em 0.7em; border-color: transparent transparent transparent #111; }
+.arrow-down { left: 50%; top: calc(100% - 2.35em); }
+.arrow-down i { border-width: 0.62em 0.5em 0 0.5em; border-color: #111 transparent transparent transparent; }
+.arrow-up { left: 50%; top: 84%; }
+.arrow-up i { border-width: 0 0.55em 0.75em 0.55em; border-color: transparent transparent #111 transparent; }
+
+/* -------------------------------------------------------------------- bubbles */
+.bubbles { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 5; pointer-events: none; }
+.thought { position: absolute; left: 0; top: 0; opacity: 0; transition: opacity 0.25s ease; }
+.thought.in { opacity: 1; }
+.thought.out { opacity: 0; }
+.bubble {
+  position: absolute; left: 0; top: 0;
+  width: 11em; height: 6.8em;
+  background: #0a0a0a;
+  border-radius: 1.6em 1.4em 1.7em 1.5em;
+  box-shadow: 0 0.12em 0.4em rgba(0, 0, 0, 0.35);
+}
+.bubble canvas { position: absolute; left: 0.6em; top: 0.5em; width: calc(100% - 1.2em); height: calc(100% - 1em); }
+.dot { position: absolute; left: 0; top: 0; border-radius: 50%; background: #0a0a0a; }
+
+.ripples { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 9; pointer-events: none; }
+.ripple {
+  position: absolute;
+  width: 2.4em; height: 2.4em;
+  margin: -1.2em 0 0 -1.2em;
+  border-radius: 50%;
+  border: 0.22em solid rgba(240, 240, 240, 0.7);
+  box-sizing: border-box;
+  animation: ripple 0.45s ease-out forwards;
+}
+@keyframes ripple {
+  from { transform: scale(0.3); opacity: 0.9; }
+  to { transform: scale(1); opacity: 0; }
+}
+
+/* ------------------------------------------------------------------ inventory */
+.strip {
+  position: absolute; left: 69.0625em; top: 0;
+  width: 10.9375em; height: 45em;
+  background: #000;
+  pointer-events: auto;
+}
+/* 物品栏只用数字键操作，槽位不接收鼠标 */
+.slot {
+  position: absolute;
+  left: 70.625em;
+  top: calc(6.125em + var(--i) * 6.0625em);
+  width: 5.1875em; height: 5.1875em;
+  border-radius: 0.8em;
+  background: #b0a381;
+  box-shadow: inset 0 0 0 0.32em #938c76, inset 0 0 0 0.5em #a49a7c;
+  pointer-events: none;
+  transition: background 0.15s ease, box-shadow 0.15s ease, opacity 0.6s ease;
+}
+/* 第二列（第 7–12 格）：物品超过 6 件时在第一列左边展开，黑底条跟着变宽、盖住画面右缘一点 */
+.slot.col2 { left: 64.75em; opacity: 0; z-index: 19; }
+#stage.inv-wide.inv-on .slot.col2 { opacity: 1; }
+#stage:not(.inv-wide) .slot.col2 { pointer-events: none !important; }
+.strip { transition: left 0.35s ease, width 0.35s ease; }
+/* 展开时盖在画面暗角（z 16）和方向箭头（z 18）上面 */
+#stage.inv-wide .strip { left: 63.25em; width: 16.75em; z-index: 19; }
+#stage.inv-wide .slot { z-index: 19; }
+.slot .key {
+  position: absolute; right: -0.15em; bottom: -0.2em;
+  z-index: 3;
+  min-width: 1.35em; height: 1.35em;
+  border-radius: 0.68em;
+  background: #141414;
+  border: 0.1em solid #cfc6ad;
+  color: #f1ebdc;
+  font: 0.82em/1.35em Georgia, "Times New Roman", serif;
+  text-align: center;
+  pointer-events: none;
+}
+.slot.sel .key { border-color: #fff; }
+.slot .frame-o {
+  position: absolute; top: 0.66em; right: 0.66em; bottom: 0.66em; left: 0.66em;
+  border: 0.16em solid #fffaf0;
+  box-shadow: 0 0 0.25em rgba(255, 255, 255, 0.55), inset 0 0 0.2em rgba(255, 255, 255, 0.35);
+}
+.slot .frame-i {
+  position: absolute; top: 1.26em; right: 1.26em; bottom: 1.26em; left: 1.26em;
+  border: 0.1em solid rgba(238, 229, 210, 0.85);
+}
+.slot .icon {
+  position: absolute; left: 50%; top: 50%;
+  width: 160%; height: 160%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  pointer-events: none;
+  visibility: hidden;
+}
+.slot.sel {
+  background: #fff;
+  box-shadow: 0 0 0.7em 0.45em rgba(255, 255, 255, 0.95), inset 0 0 0.8em rgba(255, 255, 255, 1);
+}
+.slot.sel .frame-o, .slot.sel .frame-i { opacity: 0; }
+.slot.shake { animation: shake 0.42s ease; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-0.35em) rotate(-3deg); }
+  40% { transform: translateX(0.35em) rotate(3deg); }
+  60% { transform: translateX(-0.25em) rotate(-2deg); }
+  80% { transform: translateX(0.2em); }
+}
+#stage:not(.inv-on) .strip, #stage:not(.inv-on) .slot, #stage:not(.inv-on) .gear, #stage:not(.inv-on) .sel-name {
+  opacity: 0; pointer-events: none;
+}
+.sel-name {
+  position: absolute;
+  right: calc(80em - 70.1em + var(--c, 0) * 5.875em);
+  top: calc(6.125em + var(--i) * 6.0625em + 2.6em);
+  transform: translateY(-50%);
+  z-index: 20;
+  color: #fff;
+  text-shadow: 0 0 0.3em #000, 0 0.05em 0.1em #000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.sel-name.show { opacity: 1; }
+.sel-name span { font-size: 1.1em; }
+.gear {
+  position: absolute; left: 72.55em; top: 1.3em;
+  width: 2.3em; height: 2.3em;
+  padding: 0; border: 0; background: none;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0.8;
+  transition: opacity 0.2s ease, transform 0.4s ease;
+}
+.gear:hover { opacity: 1; transform: rotate(40deg); }
+.gear svg { width: 100%; height: 100%; display: block; }
+.fly-layer { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 30; pointer-events: none; }
+.fly { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; }
+
+/* ------------------------------------------------------------- letter reader */
+.doc {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(46, 30, 28, 0.6);
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s;
+  pointer-events: none;
+}
+.doc.show { opacity: 1; visibility: visible; pointer-events: auto; }
+.doc-wrap { position: relative; width: 30em; height: 37em; margin-top: 0.4em; }
+.envelope {
+  position: absolute; left: 50%; bottom: 0.2em;
+  width: 29em; height: 18.5em;
+  transform: translateX(-50%) rotate(0.3deg);
+  background: #c9a45c;
+  border: 0.2em solid #111;
+  border-radius: 0.15em;
+  box-shadow: 0.2em 0.3em 0 rgba(0, 0, 0, 0.18);
+}
+.envelope::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1.2em;
+  border-bottom: 0.12em solid rgba(17, 17, 17, 0.55);
+}
+.paper {
+  position: absolute; left: 50%; top: 0;
+  width: 26.5em; height: 33em;
+  transform: translateX(-50%) rotate(-0.4deg);
+  background-color: #efdfae;
+  background-size: 16em 16em;
+  border: 0.22em solid #111;
+  border-radius: 0.2em;
+  box-sizing: border-box;
+  padding: 2em 2.2em 2.2em;
+  box-shadow: 0.15em 0.25em 0 rgba(0, 0, 0, 0.22);
+}
+.no-envelope .paper { top: 1.5em; }
+.fold { position: absolute; left: 0; right: 0; top: 50%; border-top: 0.09em solid rgba(110, 86, 48, 0.5); }
+.paper-body {
+  height: 100%;
+  display: flex; flex-direction: column; justify-content: space-around;
+  font-family: "Segoe Script", "Lucida Handwriting", "Bradley Hand", "Brush Script MT", "Ink Free", "Comic Sans MS", cursive;
+  font-size: 1.22em;
+  line-height: 1.5;
+  color: #1c150d;
+  text-align: center;
+}
+.paper-body .line:first-child { text-align: right; }
+.paper-body .tr { cursor: pointer; padding: 0.15em 0.4em; border-radius: 0.3em; transition: background 0.15s ease; }
+.paper-body .tr:hover { background: rgba(120, 80, 20, 0.12); }
+.paper-body .tr.active { background: rgba(120, 80, 20, 0.2); }
+.doc-nav { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; }
+.doc-nav .arrow { pointer-events: auto; }
+.doc-nav .arrow i { filter: drop-shadow(0 0 0.12em rgba(255, 255, 255, 0.8)); }
+
+/* ------------------------------------------------------- 全屏放大查看（墙上的画） */
+.lightbox {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 11;
+  background: rgba(8, 7, 6, 0);
+  visibility: hidden;
+  transition: background 0.35s ease, visibility 0.35s;
+  pointer-events: none;
+}
+.lightbox.show { background: rgba(8, 7, 6, 0.86); visibility: visible; pointer-events: auto; cursor: zoom-out; }
+.lb-frame {
+  position: absolute;
+  transform-origin: 50% 50%;
+  transition: transform 0.42s cubic-bezier(0.2, 0.8, 0.25, 1), opacity 0.3s ease;
+  box-shadow: 0 0.8em 2.6em rgba(0, 0, 0, 0.65);
+}
+.lb-img { width: 100%; height: 100%; display: block; }
+.lb-title {
+  position: absolute; left: 0; right: 0;
+  text-align: center;
+  color: #efe9da;
+  font-size: 1.55em; letter-spacing: 0.14em;
+  text-shadow: 0 0 0.3em #000;
+  opacity: 0;
+  transition: opacity 0.4s ease 0.2s;
+  pointer-events: none;
+}
+.lightbox.show .lb-title { opacity: 1; }
+
+/* ---------------------------------------------------------------- inspector */
+.inspector {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 11;
+  background: radial-gradient(ellipse at 50% 50%, rgba(40, 38, 34, 0.86), rgba(0, 0, 0, 0.94));
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s;
+  pointer-events: none;
+}
+.inspector.show { opacity: 1; visibility: visible; pointer-events: auto; }
+.insp-holder { position: absolute; left: 12%; top: 12%; width: 76%; height: 76%; cursor: grab; touch-action: none; }
+.insp-holder:active { cursor: grabbing; }
+.inspector-canvas { width: 100%; height: 100%; display: block; }
+.insp-fallback { width: 100%; height: 100%; object-fit: contain; }
+.insp-name {
+  position: absolute; left: 0; right: 0; top: 1.3em;
+  font-size: 1.6em; color: #fff; text-align: center;
+  text-shadow: 0 0 0.3em #000;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------- ending */
+.ending {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 12;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, var(--bg, 0));
+  opacity: 0; visibility: hidden;
+  pointer-events: none;
+}
+.ending.show { opacity: 1; visibility: visible; pointer-events: auto; }
+.ending-box { text-align: center; }
+.ending-zh { color: #efebe2; font-size: 3em; letter-spacing: 0.25em; opacity: 0; }
+.ending-en { color: #b9b4a8; font-family: Georgia, "Times New Roman", serif; font-style: italic; font-size: 1.3em; margin-top: 0.7em; opacity: 0; }
+.ending-btn { margin-top: 2.6em; opacity: 0; }
+
+/* ------------------------------------------------------------- buttons/panels */
+.btn {
+  font: inherit;
+  font-size: 1.1em;
+  color: #f2eee4;
+  background: rgba(255, 255, 255, 0.06);
+  border: 0.12em solid rgba(242, 238, 228, 0.8);
+  border-radius: 0.35em;
+  padding: 0.45em 1.25em;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.btn:hover { background: rgba(255, 255, 255, 0.16); transform: translateY(-0.06em); }
+.btn.danger { border-color: #dba357; color: #fbe8cc; }
+.btn-row { display: flex; gap: 0.9em; justify-content: center; margin-top: 1.3em; }
+.panel {
+  position: relative;
+  min-width: 22em; max-width: 40em;
+  background: #1a1b1b;
+  border: 0.14em solid #e8e2d0;
+  border-radius: 0.55em;
+  padding: 1.5em 2em 1.6em;
+  color: #ece8de;
+  box-shadow: 0 0.6em 2em rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+}
+.panel h2 { margin: 0 0 0.8em; font-weight: normal; font-size: 1.5em; letter-spacing: 0.12em; text-align: center; }
+.panel p { margin: 0.5em 0; text-align: center; opacity: 0.85; }
+.panel-x {
+  position: absolute; right: 0.45em; top: 0.2em;
+  font: inherit; font-size: 1.7em; line-height: 1;
+  color: #ddd; background: none; border: 0; cursor: pointer;
+}
+.vol-row { display: flex; align-items: center; gap: 0.8em; margin: 0.7em 0; cursor: pointer; }
+.vol-row input[type="range"] { width: 13em; accent-color: #b0a381; }
+.vol-row input[type="checkbox"] { width: 1.1em; height: 1.1em; accent-color: #b0a381; }
+.vol-val { min-width: 2em; text-align: right; opacity: 0.7; }
+.modal {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 40;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+}
+.modal.show { display: flex; }
+
+/* ------------------------------------------------------------------ title menu */
+.menu {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 13;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.7s ease, visibility 0.7s;
+  pointer-events: none;
+}
+.menu.show { opacity: 1; visibility: visible; pointer-events: auto; }
+.menu-tint {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  background: linear-gradient(180deg, rgba(70, 98, 108, 1) 0%, rgba(98, 124, 130, 1) 60%, rgba(84, 104, 110, 1) 100%);
+  mix-blend-mode: multiply;
+  opacity: 0.72;
+}
+.menu-title { position: absolute; left: 25%; top: 4.5%; width: 50%; height: 27%; pointer-events: none; }
+.menu-play {
+  position: absolute; left: 50%; top: 33.5%;
+  width: 5.6em; height: 5.6em;
+  transform: translateX(-50%);
+  padding: 0; border: 0; background: none;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.menu-play:hover { transform: translateX(-50%) scale(1.08); }
+.menu-play svg { width: 100%; height: 100%; display: block; }
+.menu-links { position: absolute; left: 0; right: 0; top: 48.5%; text-align: center; }
+.menu-link {
+  font: inherit; font-size: 1.15em;
+  color: #121212;
+  background: none; border: 0;
+  border-bottom: 0.1em solid transparent;
+  margin: 0 0.9em; padding: 0.1em 0.2em;
+  cursor: pointer;
+  text-shadow: 0 0 0.5em rgba(255, 255, 255, 0.35);
+}
+.menu-link:hover { border-bottom-color: #121212; }
+.menu-status { position: absolute; left: 0; right: 0; top: 54%; text-align: center; font-size: 0.95em; color: #161616; text-shadow: 0 0 0.5em rgba(255, 255, 255, 0.35); }
+.plagues {
+  position: absolute; left: 50%; bottom: 2.6em;
+  transform: translateX(-50%);
+  display: flex; gap: 0.55em;
+}
+.plague {
+  font: inherit;
+  width: 4.7em; height: 5.7em;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15em;
+  background: rgba(14, 18, 20, 0.62);
+  border: 0.12em solid rgba(236, 230, 214, 0.65);
+  border-radius: 0.35em;
+  color: #efe9da;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+.plague:hover { transform: translateY(-0.25em); background: rgba(14, 18, 20, 0.8); }
+.plague .num { font-family: Georgia, "Times New Roman", serif; font-size: 1.65em; line-height: 1.1; }
+.plague .zh { font-size: 0.8em; }
+.plague .lbl { font-size: 0.6em; opacity: 0.7; }
+.plague.open { border-color: #fff; background: rgba(177, 107, 16, 0.66); box-shadow: 0 0 0.6em rgba(226, 144, 38, 0.6); }
+.plague.open:hover { background: rgba(208, 126, 19, 0.82); }
+.plague.locked { opacity: 0.55; }
+.plague.locked .zh { font-size: 0.66em; opacity: 0.85; }
+.plague.shake { animation: shake 0.42s ease; }
+.menu-panel {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+.ach-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9em 1.4em; grid-gap: 0.9em 1.4em; max-height: 22em; overflow: auto; touch-action: pan-y; }
+.ach { display: flex; align-items: center; gap: 0.8em; opacity: 0.42; }
+.ach.got { opacity: 1; }
+.ach-icon { width: 3.6em; height: 3.6em; border-radius: 0.3em; flex: none; }
+.ach-zh { font-size: 1.05em; }
+.ach-en { font-size: 0.8em; opacity: 0.7; font-family: Georgia, serif; font-style: italic; }
+
+/* ------------------------------------------------------------------ 触屏界面
+   #stage.touch：最近一次操作用的是手指（touch.js 切换）。物品栏改成直接点，按钮和箭头放大，
+   漫游时显示左下角的虚拟摇杆。电脑上不加这个类，界面保持原样。 */
+.fullscreen {
+  display: none;
+  position: absolute; left: 75.9em; top: 1.05em;
+  width: 2.8em; height: 2.8em;
+  padding: 0; border: 0; background: none;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0.8;
+}
+.fullscreen svg { width: 100%; height: 100%; display: block; }
+#stage.touch.can-full.inv-on .fullscreen { display: block; }
+
+#stage.touch .slot { pointer-events: auto; }
+#stage.touch .slot .key { display: none; }
+#stage.touch .slot:active { transform: scale(0.94); }
+#stage.touch .sel-name span { font-size: 1.45em; }
+#stage.touch .gear { left: 71.9em; top: 1em; width: 3em; height: 3em; }
+#stage.touch .arrow { width: 5.4em; height: 5.4em; margin: -2.7em 0 0 -2.7em; }
+#stage.touch .arrow i { transform: translate(-50%, -50%) scale(2.1); }
+#stage.touch .arrow:hover i { transform: translate(-50%, -50%) scale(2.1); }
+#stage.touch .arrow-left { left: 3.2em; }
+#stage.touch .arrow-right { left: calc(100% - 3.6em); }
+#stage.touch .arrow-down { top: calc(100% - 3.3em); }
+#stage.touch .btn { font-size: 1.45em; padding: 0.55em 1.4em; }
+#stage.touch .menu-link { font-size: 1.5em; margin: 0 1em; padding: 0.3em 0.4em; }
+#stage.touch .panel-x { font-size: 2.6em; }
+#stage.touch .vol-row input[type="range"] { height: 2em; }
+
+/* 虚拟摇杆：平时淡淡地停在左下角提示位置，手指按下拖动时底座出现在按下的地方 */
+.stick {
+  display: none;
+  position: absolute; left: 9.4em; top: 34.6em;
+  width: 9.6em; height: 9.6em;
+  margin: -4.8em 0 0 -4.8em;
+  z-index: 17;
+  pointer-events: none;
+  opacity: 0.42;
+  transition: opacity 0.25s ease;
+}
+#stage.touch.roam-on .stick { display: block; }
+#stage.touch.roam-on.locked .stick { opacity: 0.12; }
+.stick.on { opacity: 0.95; transition: none; }
+.stick .ring {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  border-radius: 50%;
+  border: 0.22em solid rgba(17, 17, 17, 0.75);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 0.14em rgba(255, 255, 255, 0.5), inset 0 0 1.2em rgba(0, 0, 0, 0.3);
+}
+.stick .knob {
+  position: absolute; left: 50%; top: 50%;
+  width: 4.2em; height: 4.2em;
+  margin: -2.1em 0 0 -2.1em;
+  border-radius: 50%;
+  background: #ece5d3;
+  border: 0.22em solid #141414;
+  box-shadow: 0 0.15em 0.6em rgba(0, 0, 0, 0.45);
+}
+
+/* 手机竖着拿：提示横过来（平板竖屏仍可玩，上下留黑边） */
+.rotate-hint {
+  display: none;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 100;
+  flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: #000;
+  color: #e9e3d4;
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+.rotate-hint svg { width: 96px; height: 96px; animation: rotate-hint 2.4s ease-in-out infinite; }
+@keyframes rotate-hint {
+  0%, 20% { transform: rotate(0deg); }
+  50%, 80% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 699px) {
+  .rotate-hint { display: flex; }
+}
+
+/* ------------------------------------------------------------------ boot / debug */
+#boot {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: #000; color: #aaa;
+  font-size: 1.3em; letter-spacing: 0.2em;
+}
+#boot.error { color: #fac886; letter-spacing: 0; padding: 2em; text-align: center; }
+.debug-hud {
+  position: absolute; left: 0.5em; top: 0.3em;
+  z-index: 60;
+  font: 11px/1.3 monospace;
+  color: #9f9;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 2px 6px;
+  pointer-events: none;
+}
+
+
+/* ------------------------------------------------------------------ 小红书小工具壳
+   游戏整个放在 #rot 里；rotate.js 在手机竖屏时把 #rot 转 90° 并把 --rw / --rh 写成转过来之后的宽高（px）。
+   舞台（16:9）按 #rot 的大小缩放，不再按窗口的 vw / vh（竖屏时窗口的宽高是反的）。 */
+#rot {
+  --rw: 100vw;
+  --rh: 100vh;
+  /* 舞台大小由 rotate.js 算好写进来（Chrome 61 不认 CSS 的 min()）；这里的默认值是 JS 没跑到时的兜底（按宽度铺满） */
+  --sw: 100vw;
+  --sh: 56.25vw;
+  --fs: 1.25vw;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #000;
+  transform-origin: 0 0;
+}
+#rot #stage {
+  width: var(--sw);
+  height: var(--sh);
+  font-size: var(--fs);
+}
+/* 竖屏时容器里没有“请把手机横过来”的余地，游戏自己转，不再弹提示 */
+.rotate-hint { display: none !important; }
+
+/* 载入页：上面转圈（只用 transform 的动画由合成线程跑，主线程忙着建世界时也照转，看得出页面没死），下面是 rotate.js 写的阶段文字 */
+#boot { flex-direction: column; gap: 1.1em; text-align: center; padding: 0 2em; }
+#boot::before {
+  content: '';
+  width: 2.2em; height: 2.2em;
+  border: 0.22em solid #2a2a2a; border-top-color: #9a9a9a; border-radius: 50%;
+  animation: rlp-spin 0.9s linear infinite;
+}
+#boot.error::before { display: none; }
+/* Chrome 84 以前 flex 的 gap 不生效（compat.js 判定后给 <html> 加 no-flexgap）：转圈和文字之间的间距改用 margin（::before 不是元素，build.py 生成的 "> * + *" 兜底管不到它） */
+html.no-flexgap #boot::before { margin-bottom: 1.1em; }
+@keyframes rlp-spin { to { transform: rotate(360deg); } }
+
+/* 报错横幅 / 排查面板（rotate.js 建在 #rot 里，跟着游戏一起转） */
+.rlp-err {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 99;
+  display: none; padding: 6px 12px;
+  background: rgba(200, 120, 15, 0.94); color: #fff; font-size: 13px; line-height: 1.4;
+}
+.rlp-err.show { display: block; }
+.rlp-diag {
+  position: absolute; left: 0; top: 0; z-index: 100; margin: 0; display: none;
+  max-width: 75%; padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.82); color: #9f9; font: 11px/1.45 monospace; white-space: pre-wrap; word-break: break-all;
+}
+.rlp-diag.show { display: block; }
+
+/* [小红书小工具] Chrome 84 以前 flex 容器不支持 gap：compat.js 检测到时给 <html> 加 no-flexgap，用 margin 补上 */
+html.no-flexgap .btn-row > * + * { margin-left: 0.9em; }
+html.no-flexgap .vol-row > * + * { margin-left: 0.8em; }
+html.no-flexgap .plagues > * + * { margin-left: 0.55em; }
+html.no-flexgap .plague > * + * { margin-top: 0.15em; }
+html.no-flexgap .ach > * + * { margin-left: 0.8em; }
+html.no-flexgap .rotate-hint > * + * { margin-top: 18px; }
+html.no-flexgap #boot > * + * { margin-top: 1.1em; }

@@ -1,0 +1,19 @@
+
+=== 1/2 删掉 Chrome 61 没有的接口后启动，垫片对比原生 ===
+PASS 页面脚本运行前这些接口已被删掉（flat / flatMap / finally / roundRect / ResizeObserver / OffscreenCanvas 全是 undefined）  ["undefined", "undefined", "undefined", "undefined", "undefined", "undefined"]
+PASS 删掉接口后游戏能启动（建世界会调用 roundRect / flat / flatMap），没有 bootError
+PASS compat.js 把 flat / flatMap / finally / roundRect 补上了
+PASS flat（depth 缺省 / 0 / 1 / 2 / Infinity，含空位）与原生结果一致  []
+PASS flatMap 与原生结果一致，thisArg 生效  [true, true]
+PASS Promise.finally：值透传、拒绝透传、finally 里抛错会覆盖、会等回调返回的 promise、不传回调也行  {"a": 1, "b": "x", "c": "y", "waited": true, "d": 3, "log": ["a", "b"]}
+  roundRect 各写法的像素差： [{"args": "[10,10,200,100,12]", "maxAlphaDiff": 0, "pixelsOver64": 0}, {"args": "[10,10,200,100,[30,5]]", "maxAlphaDiff": 0, "pixelsOver64": 0}, {"args": "[10,10,200,100,[5,10,40]]", "maxAlphaDiff": 0, "pixelsOver64": 0}, {"args": "[10,10,200,100,[1,20,3,40]]", "maxAlphaDiff": 0, "pixelsOver64": 0}, {"args": "[10,10,200,100,0]", "maxAlphaDiff": 0, "pixelsOver64": 0}, {"args": "[10,10,200,40,60]", "maxAlphaDiff": 0, "pixelsOver64": 0}, {"args": "[210,110,-200,-100,[10,30,50,70]]", "maxAlphaDiff": 0, "pixelsOver64": 0}, {"args": "[10,10,200,100,{\"x\":14,\"y\":14}]", "maxAlphaDiff": 0, "pixelsOver64": 0}, {"args": "[10,10,200,100]", "maxAlphaDiff": 0, "pixelsOver64": 0}]
+PASS roundRect 垫片与原生画出的形状一致（9 种参数写法：数字 / 2·3·4 个半径 / 半径过大 / 宽高为负 / {x,y} / 省略）；允许抗锯齿边缘的细小差异：差 > 64 的像素 ≤ 20 个  [0, 0]
+PASS 删掉接口后的启动：没有 CSP 违规 / 页面错误 / 请求失败  [[], [], []]
+
+=== 3 flex gap：原生 gap vs margin 兜底（?flexgap=0）===
+PASS 默认：支持 flex gap，<html> 上没有 no-flexgap；?flexgap=0：有 no-flexgap  ["", " no-flexgap"]
+PASS 标题的关卡按钮 .plagues：兜底（margin）与原生 gap 的位置一致（每个值差 ≤ 1px）  [[[196.9, 318.1, 40.7, 49.4], [242.4, 318.1, 40.7, 49.4], [287.9, 318.1, 40.7, 49.4]], [[196.9, 318.1, 40.7, 49.4], [242.4, 318.1, 40.7, 49.4], [287.9, 318.1, 40.7, 49.4]]]
+PASS 设置面板 .vol-row：兜底（margin）与原生 gap 的位置一致（每个值差 ≤ 1px）  [[[309.1, 167.9, 17.3, 11], [335.3, 160, 173.3, 26.7], [517.6, 167.9, 17.3, 11]], [[308.2, 167.9, 17.3, 11], [336.2, 160, 173.3, 26.7], [518.4, 167.9, 17.3, 11]]]
+PASS 设置面板 .btn-row：兜底（margin）与原生 gap 的位置一致（每个值差 ≤ 1px）  [[[378.3, 226.7, 87.4, 31.8]], [[378.3, 226.7, 87.4, 31.8]]]
+{"passed": 12, "total": 12}
+FINISHED

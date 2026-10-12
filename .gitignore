@@ -1,0 +1,14 @@
+# 参考视频（B 站录屏，2.5 GB）、宣传片、截图：体积大，只放本地
+dev/ref/
+dev/promo/
+dev/shots/
+
+# 含私有主机信息（Tailscale 地址、SSH 用户名、密钥路径）的部署脚本和部署记录，只放本地。
+# 仓库里提供去掉私有信息的 dev/deploy_mac.example.sh。
+dev/deploy_mac.sh
+docs/ai/context/20261008-115228-public-deploy-aaccx.md
+
+# Python / 系统
+__pycache__/
+*.pyc
+Thumbs.db

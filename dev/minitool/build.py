@@ -1,0 +1,279 @@
+r"""把锈湖：天堂岛 3D 打成小红书小工具 zip。只读项目里的 src/ 和 styles.css，输出到 dev/minitool/ 下的新目录和新 zip（不覆盖旧产物）。
+
+小工具容器的限制（见 gintama-pixel-game 的《小红书小工具上架复盘》、官方 minitool-zip-builder 规范、官方文档 §2.2 / §3）：
+  - 脚本只能是包内的普通外链脚本：不能内联、不能 import map、不能 eval / new Function、不能 WebAssembly、没有 Worker
+  - 只允许 html css js png jpg jpeg gif webp svg woff woff2 json；zip ≤ 10 MB（目标 ≤ 9 MB）、文件数 ≤ 200
+  - 容器永远竖屏、不能全屏、不能锁方向；兼容基线 Android 8.1 出厂 Chrome / WebView 61（编译到 ES2017），iOS 最低 18.4
+  - CSP：media-src 'self'（<audio> 不许 data: / blob: 地址），connect-src 'none'
+这个游戏没有任何外部素材（贴图全是 canvas 画的，声音是 WebAudio 程序合成的），所以不用转图片、也不用把音频写成 base64，只要：
+  1. esbuild 把 ES 模块 + three.js 打成一个压缩过的普通脚本 game.js（IIFE）
+  2. 对副本里的源码打补丁（顶层 await；全屏；分段启动 + 异步编译着色器；音频输出线路）——项目里的原文件不动
+  3. compat.js（老内核垫片）+ rotate.js（竖屏旋转 + 坐标换算）+ audio_out.js（iPhone 出声）+ style.css（原样式 + 容器壳）+ 一个只有外链脚本的 index.html
+
+用法：
+  python dev/minitool/build.py                  声音版（带屏幕上的声音调试状态条）→ dist-audio/ + rusty-lake-minitool-audio.zip
+  python dev/minitool/build.py --release        声音版，去掉调试状态条         → dist-audio-release/ + rusty-lake-minitool-audio-release.zip
+  python dev/minitool/build.py --legacy         旧版（没有声音线路补丁、编译到 ES2019、不转写 CSS）→ dist/ + rusty-lake-minitool.zip（会覆盖旧产物）
+  --out 目录 / --zip 文件                       改输出位置
+声音版有两道闸门，不过就不出 zip：es2017_check.js（[语法]问题 = 0，Chrome 61 解析不了的写法）和 css_compat.py 的 [布局] 扫描。
+环境变量 ESBUILD 可指定 esbuild 可执行文件；node 要在 PATH 里（es2017_check.js 用全局安装的 typescript）。
+"""
+import argparse, glob, os, re, shutil, subprocess, sys, zipfile
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import css_compat
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(HERE))
+WORK = os.path.join(HERE, '_work')
+
+ESBUILD_CANDIDATES = [os.environ.get('ESBUILD', '')] + sorted(glob.glob(r'D:\CodeWorkSpace\*\node_modules\@esbuild\win32-x64\esbuild.exe'))
+
+INDEX_LEGACY = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>锈湖：天堂岛 3D</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div id="rot">
+<div id="stage">
+  <canvas id="game"></canvas>
+  <div id="ui"></div>
+  <div id="boot">载入中……</div>
+</div>
+</div>
+<script src="./rotate.js"></script>
+<script src="./game.js"></script>
+</body>
+</html>
+"""
+
+# 声音版：compat.js 最先（补接口），rotate.js 建 #rot 相关逻辑，audio_cfg.js（只有调试版有）设调试开关，audio_out.js 定义输出线路，最后 game.js
+INDEX_AUDIO = INDEX_LEGACY.replace(
+    '<script src="./rotate.js"></script>\n',
+    '<script src="./compat.js"></script>\n<script src="./rotate.js"></script>\n{cfg}<script src="./audio_out.js"></script>\n')
+
+# 打包后不应再出现的写法（容器禁用的能力）。three.js 里有些加载器会提到 fetch / Worker，但游戏没有调用，只报告不拦截。
+BANNED = ['eval(', 'new Function', 'WebAssembly', 'requestFullscreen', 'webkitRequestFullscreen', 'navigator.geolocation', 'navigator.clipboard',
+          'DeviceOrientation', 'DeviceMotion', 'serviceWorker', 'window.open', 'XMLHttpRequest', 'new WebSocket', 'new Worker', 'fetch(', 'import(', 'import.meta']
+# 声音版额外检查：任何 data: / blob: 媒体地址、<audio> 地址相关的写法（容器 CSP media-src 'self' 会拦）
+MEDIA_URL = ['data:audio', 'data:video', 'data:application/ogg', 'new Audio(', 'createObjectURL', 'blob:']
+
+# #stage 原来用 CSS min() 算大小（Chrome 79 才支持）；小工具里 #rot #stage（minitool.css + rotate.js）已经覆盖了这三行，打包时删掉
+STAGE_MIN = [
+    "  width: min(100vw, var(--vh) * 177.7778);\n",
+    "  height: min(56.25vw, var(--vh) * 100);\n",
+    "  font-size: calc(min(100vw, var(--vh) * 177.7778) / 80);\n",
+]
+
+
+def rd(p):
+    return open(p, encoding='utf-8').read()
+
+
+def wr(p, s):
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    open(p, 'w', encoding='utf-8', newline='\n').write(s)
+
+
+def patch(rel, subs):
+    p = os.path.join(WORK, rel)
+    s = rd(p)
+    for old, new in subs:
+        assert s.count(old) == 1, f'{rel}: 找不到 / 次数不对：{old[:70]!r}（命中 {s.count(old)} 次）'
+        s = s.replace(old, new)
+    wr(p, s)
+
+
+def run_es2017_gate(dist):
+    node = shutil.which('node')
+    assert node, '找不到 node（es2017_check.js 需要）'
+    r = subprocess.run([node, os.path.join(HERE, 'es2017_check.js'), dist], capture_output=True, text=True, encoding='utf-8')
+    out = (r.stdout + r.stderr).strip()
+    print('--- es2017_check（Chrome 61 兼容闸门）---\n' + out)
+    assert r.returncode == 0, 'es2017_check 有 [语法] 问题（或工具跑不起来），停止出包：Chrome 61 解析不了这些写法，整个脚本会 Unexpected token'
+
+
+def main():
+    ap = argparse.ArgumentParser(description='锈湖小红书小工具打包')
+    ap.add_argument('--legacy', action='store_true', help='旧版（无声音线路补丁，ES2019，不转写 CSS），输出 dist/ + rusty-lake-minitool.zip')
+    ap.add_argument('--release', action='store_true', help='声音版去掉屏幕上的声音调试状态条')
+    ap.add_argument('--out', help='输出目录（默认见上）')
+    ap.add_argument('--zip', help='zip 路径（默认见上）')
+    a = ap.parse_args()
+    assert not (a.legacy and a.release), '--legacy 没有调试状态条，不需要 --release'
+    audio = not a.legacy
+    if a.legacy:
+        name_dist, name_zip = 'dist', 'rusty-lake-minitool.zip'
+    elif a.release:
+        name_dist, name_zip = 'dist-audio-release', 'rusty-lake-minitool-audio-release.zip'
+    else:
+        name_dist, name_zip = 'dist-audio', 'rusty-lake-minitool-audio.zip'
+    DIST = os.path.abspath(a.out) if a.out else os.path.join(HERE, name_dist)
+    ZIP = os.path.abspath(a.zip) if a.zip else os.path.join(HERE, name_zip)
+
+    esbuild = next((c for c in ESBUILD_CANDIDATES if c and os.path.exists(c)), None)
+    assert esbuild, '找不到 esbuild.exe（装一个，或设置环境变量 ESBUILD）'
+
+    for d in (WORK, DIST):
+        if os.path.exists(d):
+            shutil.rmtree(d)
+    shutil.copytree(os.path.join(ROOT, 'src'), os.path.join(WORK, 'src'))
+
+    # ---- 补丁 1：characters.js 顶层 await（普通脚本不支持）。props.js 不反向引用 characters.js，静态引用没有环
+    patch('src/art/characters.js', [(
+        "let makeProp = null;\ntry { ({ makeProp } = await import('./props.js')); } catch (e) { makeProp = null; }",
+        "import { makeProp as __makeProp } from './props.js';\nlet makeProp = __makeProp;",
+    )])
+
+    # ---- 补丁 2：全屏。容器统一管理全屏，requestFullscreen 被禁用；全屏按钮在 fullscreenSupported() 为 false 时自动隐藏
+    p = os.path.join(WORK, 'src/core/ui.js')
+    s = rd(p)
+    i0 = s.index('function fullscreenSupported() {')
+    i1 = s.index('// 槽位对应的按键')
+    s = s[:i0] + ("function fullscreenSupported() {\n  return false;   // [小红书小工具] 全屏由容器统一管理，页面自己不能全屏\n}\n\n"
+                  "function enterFullscreen() {}\n\nfunction toggleFullscreen() {}\n\n") + s[i1:]
+    wr(p, s)
+
+    # ---- 补丁 3：分段启动。原来的启动（建世界 + 第一次渲染编译着色器）是一条几十秒不让出主线程的长任务：慢手机上页面
+    #      整段没响应、load 事件迟迟不触发，容器 / 审核看到的就是“点不了”。改成每一步之间让出一帧（rotate.js 的 __RLP_STAGE
+    #      同时更新“载入中”页的文字），第一屏的着色器改用 compileAsync（支持并行编译的 WebView 里不卡主线程；不支持就和原来一样）。
+    patch('src/main.js', [
+        ("async function boot() {\n  const canvas = document.getElementById('game');\n",
+         "const __stage = (t) => (window.__RLP_STAGE ? window.__RLP_STAGE(t) : Promise.resolve());\n"
+         "async function boot() {\n  await __stage('初始化画面…');\n  const canvas = document.getElementById('game');\n"),
+        ("    mark('worldImport');\n    world = buildWorld(engine);\n",
+         "    mark('worldImport');\n    await __stage('搭建小岛…');\n    world = await buildWorld(engine);\n"),
+        ("  await ensureChapter(DEMO ? 1 : Number(q.get('chapter') || (SWITCH && SWITCH.number) || 1));\n"
+         "  mark('chapterSetup');\n  if (engine.renderEnabled) engine.render(); // compile shaders up front\n",
+         "  await __stage('布置场景…');\n"
+         "  await ensureChapter(DEMO ? 1 : Number(q.get('chapter') || (SWITCH && SWITCH.number) || 1));\n"
+         "  mark('chapterSetup');\n"
+         "  await __stage('准备画面（第一次会慢一点）…');\n"
+         "  if (engine.renderEnabled) {\n"
+         "    try {\n"
+         "      await Promise.race([\n"
+         "        engine.renderer.compileAsync((world.zones && world.zones.exterior) || engine.scene, engine.camera, engine.scene),\n"
+         "        new Promise((r) => setTimeout(r, 20000)),\n"
+         "      ]);\n"
+         "    } catch { /* 退回同步编译 */ }\n"
+         "    engine.render(); // compile shaders up front\n"
+         "  }\n"),
+        ("boot().catch(showBootError);\n",
+         "{\n"
+         "  // 等页面 load 之后、先画一帧“载入中”再开始：load 事件不被启动拖住；容器万一迟迟不触发 load，1.5 秒后也照样开始\n"
+         "  let started = false;\n"
+         "  const go = () => { if (started) return; started = true; __stage('载入中……').then(() => boot()).catch(showBootError); };\n"
+         "  if (document.readyState === 'complete') go(); else { window.addEventListener('load', go); setTimeout(go, 1500); }\n"
+         "}\n"),
+    ])
+    patch('src/art/world.js', [
+        ("export function buildWorld(engine) {\n",
+         "export async function buildWorld(engine) {\n"
+         "  const __stage = (t) => (window.__RLP_STAGE ? window.__RLP_STAGE(t) : Promise.resolve());\n"),
+        ("  const sky = buildSky(engine.scene);\n", "  await __stage('搭建天空和湖面…');\n  const sky = buildSky(engine.scene);\n"),
+        ("  const island = buildIsland();\n", "  await __stage('种树铺地…');\n  const island = buildIsland();\n"),
+        ("  const buildings = buildBuildings();\n", "  await __stage('盖房子…');\n  const buildings = buildBuildings();\n"),
+    ])
+
+    # ---- 补丁 4（声音版）：音频输出线路。audio.js 是程序合成（振荡器 / 噪声 / 卷积混响），总线最后一级 comp 原来直连 ac.destination；
+    #      换成交给 audio_out.js：iPhone 上走 audioSession + MediaStream → <audio srcObject>（绕开静音拨片），其它平台直连（和原来一样）。
+    if audio:
+        patch('src/core/audio.js', [(
+            "master.connect(comp); comp.connect(ac.destination);",
+            "master.connect(comp);\n"
+            "    // [小红书小工具] 输出线路交给 audio_out.js（iPhone：audioSession + MediaStream → <audio>，绕开静音拨片）；没有它就直连\n"
+            "    if (window.__RLP_AUDIO_OUT) window.__RLP_AUDIO_OUT(ac, comp); else comp.connect(ac.destination);",
+        )])
+
+    # ---- 打包。声音版编译到 ES2017（Chrome 61 / Android 8.1 WebView 的基线）：esbuild 会把 ?. ?? catch {} 类字段对象展开等降级；
+    #      旧版是 ES2019，里面的 catch {}（Chrome 66+）在老安卓上会让整个 game.js 解析失败。
+    vendor = os.path.join(ROOT, 'vendor', 'three').replace('\\', '/')
+    target = 'es2019' if a.legacy else 'es2017'
+    cmd = [esbuild, 'src/main.js', '--bundle', '--format=iife', '--minify', f'--target={target}', '--legal-comments=none', '--log-level=warning',
+           f'--alias:three={vendor}/three.module.js', f'--alias:three/addons={vendor}/addons', f'--outfile={DIST}/game.js']
+    r = subprocess.run(cmd, cwd=WORK, capture_output=True, text=True, encoding='utf-8')
+    sys.stdout.write(r.stdout + r.stderr)
+    assert r.returncode == 0, 'esbuild 失败'
+
+    # ---- 声音版：再打一份不压缩的副本只用来扫运行时接口。压缩后的代码一行很长，es2017_check 会把行内 "//"（比如字符串里的 http://）后面的内容当注释丢掉，漏报
+    scan_dir = os.path.join(HERE, '_scan')
+    if audio:
+        if os.path.exists(scan_dir):
+            shutil.rmtree(scan_dir)
+        r = subprocess.run([c for c in cmd if c != '--minify' and not c.startswith('--outfile=')] + [f'--outfile={scan_dir}/game.js'],
+                           cwd=WORK, capture_output=True, text=True, encoding='utf-8')
+        assert r.returncode == 0, 'esbuild（不压缩副本）失败'
+
+    # ---- 其余文件
+    if a.legacy:
+        index = INDEX_LEGACY
+    else:
+        index = INDEX_AUDIO.replace('{cfg}', '' if a.release else '<script src="./audio_cfg.js"></script>\n')
+    wr(os.path.join(DIST, 'index.html'), index)
+    shutil.copy(os.path.join(HERE, 'rotate.js'), os.path.join(DIST, 'rotate.js'))
+    css = rd(os.path.join(ROOT, 'styles.css'))
+    if audio:
+        for line in STAGE_MIN:
+            assert css.count(line) == 1, f'styles.css 里找不到 #stage 的 min() 行：{line.strip()}（样式改过了？更新 build.py 的 STAGE_MIN）'
+            css = css.replace(line, '')
+        css = css.replace('#stage {\n  --vh: 1vh;', '#stage {\n  /* [小红书小工具] 舞台大小由 minitool.css 的 #rot #stage + rotate.js 提供（Chrome 61 不认 CSS 的 min()） */\n  --vh: 1vh;', 1)
+        css += '\n' + rd(os.path.join(HERE, 'minitool.css'))
+        css, notes = css_compat.transform(css)
+        print('--- CSS 兼容转写 ---\n' + '\n'.join(notes))
+        found = css_compat.scan(css)
+        for lvl, ln, why in found:
+            print(f'[{lvl}] style.css:{ln}  {why}')
+        assert not [f for f in found if f[0] == '布局'], 'style.css 里还有 Chrome 61 会塌掉布局的写法，停止出包'
+        shutil.copy(os.path.join(HERE, 'compat.js'), os.path.join(DIST, 'compat.js'))
+        shutil.copy(os.path.join(HERE, 'audio_out.js'), os.path.join(DIST, 'audio_out.js'))
+        if not a.release:
+            wr(os.path.join(DIST, 'audio_cfg.js'), '// 调试版：左下角显示声音状态条（audio_out.js 读它）。build.py --release 不带这个文件。\nwindow.RLP_AUDIO_DEBUG = true;\n')
+    else:
+        css += rd(os.path.join(HERE, 'minitool.css'))
+    wr(os.path.join(DIST, 'style.css'), css)
+    shutil.rmtree(WORK)
+
+    # ---- 自检
+    game = rd(os.path.join(DIST, 'game.js'))
+    print('game.js 里的禁用写法（只报告）：', {k: game.count(k) for k in BANNED if game.count(k)} or '无')
+    own = rd(os.path.join(DIST, 'rotate.js')) + index
+    assert not re.search(r'<script(?![^>]*\bsrc=)[^>]*>', index), 'index.html 里有内联脚本'
+    assert not re.search(r'\bon[a-z]+\s*=\s*["\']', index), 'index.html 里有行内事件'
+    assert 'eval(' not in own and 'new Function' not in own
+    css = rd(os.path.join(DIST, 'style.css'))
+    assert not re.search(r'https?://', css), 'style.css 里有外部地址'
+    assert not re.search(r'@import', css)
+    if audio:
+        out_js = rd(os.path.join(DIST, 'audio_out.js'))
+        assert '__RLP_AUDIO_OUT' in game, 'game.js 里没有音频输出线路的补丁'
+        assert game.count('data:audio') == 0 and game.count('data:video') == 0, 'game.js 里有 data: 音视频地址（容器 CSP 的 media-src 会拦）'
+        assert not any(k in out_js for k in ('blob:', 'createObjectURL', 'data:')), 'audio_out.js 里有 data: / blob: 地址'
+        assert out_js.count('new Audio(') == 1 and game.count('new Audio(') == 0, '<audio> 元素只应该在 audio_out.js 里创建一次'
+        print('game.js 里的媒体地址相关写法（three.js 的加载器可能提到，游戏没调用，只报告）：', {k: game.count(k) for k in MEDIA_URL if game.count(k)} or '无')
+        run_es2017_gate(DIST)
+        # 不压缩副本上的接口提示（只报告：每一条人工判断有没有保护 / 垫片）
+        node = shutil.which('node')
+        r = subprocess.run([node, os.path.join(HERE, 'es2017_check.js'), scan_dir], capture_output=True, text=True, encoding='utf-8')
+        print('--- es2017_check（不压缩副本，运行时接口提示更完整；compat.js 已补 flat / flatMap / Promise.finally）---\n' + (r.stdout + r.stderr).strip())
+        shutil.rmtree(scan_dir)
+
+    # ---- zip：index.html 在根目录，只放 dist 里的文件，路径用正斜杠
+    names = sorted(os.listdir(DIST), key=lambda n: (n != 'index.html', n))
+    if os.path.dirname(ZIP):
+        os.makedirs(os.path.dirname(ZIP), exist_ok=True)
+    with zipfile.ZipFile(ZIP, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+        for n in names:
+            z.write(os.path.join(DIST, n), n)
+    size = os.path.getsize(ZIP)
+    print(f'{ZIP}\n  {len(names)} 个文件，{size / 1024 / 1024:.2f} MB（{size} 字节，十进制 {size / 1e6:.2f} MB）：' +
+          '，'.join(f'{n} {os.path.getsize(os.path.join(DIST, n)) // 1024} KB' for n in names))
+    assert size < 10 * 1000 * 1000 and len(names) <= 200, 'zip 超过 10 MB（十进制）或文件数超过 200'
+
+
+if __name__ == '__main__':
+    main()

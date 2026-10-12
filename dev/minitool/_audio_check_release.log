@@ -1,0 +1,122 @@
+
+=== A 默认线路（直连） ===
+PASS A 默认线路（直连）：音频脚本已加载，线路选择符合预期（wantMedia=False）  {"rot": true, "audio": true, "wantMedia": false, "debug": false}
+PASS A 默认线路（直连）：点之前 AudioContext 还没创建、没有声音  {"ctx": null, "route": "未接", "direct": false, "playState": "-", "taps": 0, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": false, "amb": "lake", "music": "intro", "bar": null}
+  touchStart 之后、touchEnd 之前： {"ctx": "running", "route": "直连", "direct": true, "playState": "-", "taps": 0, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+  touchEnd 之后： {"ctx": "running", "route": "直连", "direct": true, "playState": "-", "taps": 3, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS A 默认线路（直连）：点屏幕后 AudioContext 为 running  {"ctx": "running", "route": "直连", "direct": true, "playState": "-", "taps": 3, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS A 默认线路（直连）：游戏侧 audio.ready，环境音 + 标题音乐已请求  ["lake", "intro"]
+PASS A 默认线路（直连）：手势结束事件到达过（taps ≥ 1）  3
+PASS A 默认线路（直连）：线路 = 直连（和原来一样）  "直连"
+PASS A 默认线路（直连）：标题的环境音 + 音乐在总线上有信号（RMS > 0.002）  {"bus": 0.04562272687651239, "stream": null}
+PASS A 默认线路（直连）：DOM 里没有 audio / video / source 元素
+  静音底噪 RMS 0.00000；音效峰值 RMS {'bell': 0.0622, 'door': 0.0927, 'splash': 0.0283}
+PASS A 默认线路（直连）：触发游戏里的音效（bell / door / splash）后总线信号起来（比底噪高 0.003 以上）  [{"bus": 0, "stream": null}, {"bell": 0.06216215313945937, "door": 0.09268428427827283, "splash": 0.02831623672777628}]
+PASS A 默认线路（直连）：RLP.audioTest()：全部 56 个音效 / 环境音 / 音乐都不抛错  {"ready": true, "state": "running", "errors": []}
+PASS A 默认线路（直连）：切到后台：AudioContext 暂停、<audio> 暂停  {"ctx": "suspended", "route": "直连", "direct": true, "playState": "-", "taps": 3, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": true, "amb": "none", "music": "none", "bar": null}
+PASS A 默认线路（直连）：回前台：AudioContext 恢复 running，<audio> 恢复播放  {"ctx": "running", "route": "直连", "direct": true, "playState": "-", "taps": 3, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": true, "amb": "none", "music": "none", "bar": null}
+PASS A 默认线路（直连）：release 版：没有声音状态条
+PASS A 默认线路（直连）：排查面板里有“声音”一行（状态 / 线路 / 电平）  ["声音 running | 直连 | 无<audio> | 会话 无 | 电平 0.000 | 手势结束 18 | none/none"]
+PASS A 默认线路（直连）：没有 CSP 违规  []
+PASS A 默认线路（直连）：没有页面错误（console error / pageerror）  []
+PASS A 默认线路（直连）：没有请求失败，也没有 4xx / 5xx  []
+
+=== B iPhone 线路（媒体流） ===
+PASS B iPhone 线路（媒体流）：音频脚本已加载，线路选择符合预期（wantMedia=True）  {"rot": true, "audio": true, "wantMedia": true, "debug": false}
+PASS B iPhone 线路（媒体流）：点之前 AudioContext 还没创建、没有声音  {"ctx": null, "route": "未接", "direct": false, "playState": "-", "taps": 0, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": false, "amb": "lake", "music": "intro", "bar": null}
+  touchStart 之后、touchEnd 之前： {"ctx": "running", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 0, "session": "无", "mediaPaused": false, "mediaTime": 0.25, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+  touchEnd 之后： {"ctx": "running", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 3, "session": "无", "mediaPaused": false, "mediaTime": 0.56, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS B iPhone 线路（媒体流）：点屏幕后 AudioContext 为 running  {"ctx": "running", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 3, "session": "无", "mediaPaused": false, "mediaTime": 0.56, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS B iPhone 线路（媒体流）：游戏侧 audio.ready，环境音 + 标题音乐已请求  ["lake", "intro"]
+PASS B iPhone 线路（媒体流）：手势结束事件到达过（taps ≥ 1）  3
+  （参考）touchStart 时 <audio> 暂停 = False | play 状态 = 播放中 ——iOS 上 pointerdown / touchstart 不算手势，这时 play() 会被拒，手势结束事件里再试
+PASS B iPhone 线路（媒体流）：touchEnd 后 <audio> 在播、没有走回直连  {"ctx": "running", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 3, "session": "无", "mediaPaused": false, "mediaTime": 0.56, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS B iPhone 线路（媒体流）：audioSession 在支持的系统上设为 playback（Chromium 没有该接口时显示“无”）  "无"
+PASS B iPhone 线路（媒体流）：标题的环境音 + 音乐在总线上有信号（RMS > 0.002）  {"bus": 0.04671706880965432, "stream": 0.05064661672426222}
+PASS B iPhone 线路（媒体流）：同一时刻 MediaStream 里也有信号（RMS > 0.002）  {"bus": 0.04671706880965432, "stream": 0.05064661672426222}
+PASS B iPhone 线路（媒体流）：<audio>.currentTime 在走（真的在播放这条流）  [4.59, 5.59]
+PASS B iPhone 线路（媒体流）：<audio> 没有任何 URL（src / currentSrc 为空，srcObject 是流，不在 DOM 里）  {"src": null, "currentSrc": "", "hasStream": true, "inDom": false}
+PASS B iPhone 线路（媒体流）：DOM 里没有 audio / video / source 元素
+  静音底噪 RMS 0.00000；音效峰值 RMS {'bell': 0.0622, 'door': 0.0977, 'splash': 0.0252}
+PASS B iPhone 线路（媒体流）：触发游戏里的音效（bell / door / splash）后总线信号起来（比底噪高 0.003 以上）  [{"bus": 0, "stream": 0}, {"bell": 0.06217104416584074, "door": 0.09772119119178502, "splash": 0.02515069775103172}]
+PASS B iPhone 线路（媒体流）：RLP.audioTest()：全部 56 个音效 / 环境音 / 音乐都不抛错  {"ready": true, "state": "running", "errors": []}
+PASS B iPhone 线路（媒体流）：切到后台：AudioContext 暂停、<audio> 暂停  {"ctx": "suspended", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 3, "session": "无", "mediaPaused": true, "mediaTime": 22.71, "audioReady": true, "amb": "none", "music": "none", "bar": null}
+PASS B iPhone 线路（媒体流）：回前台：AudioContext 恢复 running，<audio> 恢复播放  {"ctx": "running", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 3, "session": "无", "mediaPaused": false, "mediaTime": 23.92, "audioReady": true, "amb": "none", "music": "none", "bar": null}
+PASS B iPhone 线路（媒体流）：release 版：没有声音状态条
+PASS B iPhone 线路（媒体流）：排查面板里有“声音”一行（状态 / 线路 / 电平）  ["声音 running | 媒体流 | <audio>播放中 | 会话 无 | 电平 0.000 | 手势结束 18 | none/none"]
+PASS B iPhone 线路（媒体流）：没有 CSP 违规  []
+PASS B iPhone 线路（媒体流）：没有页面错误（console error / pageerror）  []
+PASS B iPhone 线路（媒体流）：没有请求失败，也没有 4xx / 5xx  []
+
+=== B2 强制媒体流 ?audioroute=media（桌面 UA） ===
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：音频脚本已加载，线路选择符合预期（wantMedia=True）  {"rot": true, "audio": true, "wantMedia": true, "debug": false}
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：点之前 AudioContext 还没创建、没有声音  {"ctx": null, "route": "未接", "direct": false, "playState": "-", "taps": 0, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": false, "amb": "lake", "music": "intro", "bar": null}
+  touchStart 之后、touchEnd 之前： {"ctx": "running", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 0, "session": "无", "mediaPaused": false, "mediaTime": 0.22, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+  touchEnd 之后： {"ctx": "running", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 3, "session": "无", "mediaPaused": false, "mediaTime": 3.55, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：点屏幕后 AudioContext 为 running  {"ctx": "running", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 3, "session": "无", "mediaPaused": false, "mediaTime": 3.55, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：游戏侧 audio.ready，环境音 + 标题音乐已请求  ["lake", "intro"]
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：手势结束事件到达过（taps ≥ 1）  3
+  （参考）touchStart 时 <audio> 暂停 = False | play 状态 = 播放中 ——iOS 上 pointerdown / touchstart 不算手势，这时 play() 会被拒，手势结束事件里再试
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：touchEnd 后 <audio> 在播、没有走回直连  {"ctx": "running", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 3, "session": "无", "mediaPaused": false, "mediaTime": 3.55, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：audioSession 在支持的系统上设为 playback（Chromium 没有该接口时显示“无”）  "无"
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：标题的环境音 + 音乐在总线上有信号（RMS > 0.002）  {"bus": 0.03766555006044431, "stream": 0.0407537950513783}
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：同一时刻 MediaStream 里也有信号（RMS > 0.002）  {"bus": 0.03766555006044431, "stream": 0.0407537950513783}
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：<audio>.currentTime 在走（真的在播放这条流）  [7.56, 8.57]
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：<audio> 没有任何 URL（src / currentSrc 为空，srcObject 是流，不在 DOM 里）  {"src": null, "currentSrc": "", "hasStream": true, "inDom": false}
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：DOM 里没有 audio / video / source 元素
+  静音底噪 RMS 0.00000；音效峰值 RMS {'bell': 0.0644, 'door': 0.0834, 'splash': 0.0269}
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：触发游戏里的音效（bell / door / splash）后总线信号起来（比底噪高 0.003 以上）  [{"bus": 0, "stream": 0}, {"bell": 0.06439488294861566, "door": 0.08338743426196989, "splash": 0.026855457083947806}]
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：RLP.audioTest()：全部 56 个音效 / 环境音 / 音乐都不抛错  {"ready": true, "state": "running", "errors": []}
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：切到后台：AudioContext 暂停、<audio> 暂停  {"ctx": "suspended", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 3, "session": "无", "mediaPaused": true, "mediaTime": 25.8, "audioReady": true, "amb": "none", "music": "none", "bar": null}
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：回前台：AudioContext 恢复 running，<audio> 恢复播放  {"ctx": "running", "route": "媒体流", "direct": false, "playState": "播放中", "taps": 3, "session": "无", "mediaPaused": false, "mediaTime": 27, "audioReady": true, "amb": "none", "music": "none", "bar": null}
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：release 版：没有声音状态条
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：排查面板里有“声音”一行（状态 / 线路 / 电平）  ["声音 running | 媒体流 | <audio>播放中 | 会话 无 | 电平 0.000 | 手势结束 18 | none/none"]
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：没有 CSP 违规  []
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：没有页面错误（console error / pageerror）  []
+PASS B2 强制媒体流 ?audioroute=media（桌面 UA）：没有请求失败，也没有 4xx / 5xx  []
+
+=== C 媒体流 play() 失败 → 回退直连 ===
+PASS C 媒体流 play() 失败 → 回退直连：音频脚本已加载，线路选择符合预期（wantMedia=True）  {"rot": true, "audio": true, "wantMedia": true, "debug": false}
+PASS C 媒体流 play() 失败 → 回退直连：点之前 AudioContext 还没创建、没有声音  {"ctx": null, "route": "未接", "direct": false, "playState": "-", "taps": 0, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": false, "amb": "lake", "music": "intro", "bar": null}
+  touchStart 之后、touchEnd 之前： {"ctx": "running", "route": "直连(媒体流失败 NotSupportedError)", "direct": true, "playState": "失败 NotSupportedError", "taps": 0, "session": "无", "mediaPaused": true, "mediaTime": 0, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+  touchEnd 之后： {"ctx": "running", "route": "直连(媒体流失败 NotSupportedError)", "direct": true, "playState": "失败 NotSupportedError", "taps": 3, "session": "无", "mediaPaused": true, "mediaTime": 0, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS C 媒体流 play() 失败 → 回退直连：点屏幕后 AudioContext 为 running  {"ctx": "running", "route": "直连(媒体流失败 NotSupportedError)", "direct": true, "playState": "失败 NotSupportedError", "taps": 3, "session": "无", "mediaPaused": true, "mediaTime": 0, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS C 媒体流 play() 失败 → 回退直连：游戏侧 audio.ready，环境音 + 标题音乐已请求  ["lake", "intro"]
+PASS C 媒体流 play() 失败 → 回退直连：手势结束事件到达过（taps ≥ 1）  3
+PASS C 媒体流 play() 失败 → 回退直连：play() 失败后回退直连  {"ctx": "running", "route": "直连(媒体流失败 NotSupportedError)", "direct": true, "playState": "失败 NotSupportedError", "taps": 3, "session": "无", "mediaPaused": true, "mediaTime": 0, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS C 媒体流 play() 失败 → 回退直连：标题的环境音 + 音乐在总线上有信号（RMS > 0.002）  {"bus": 0.03508999132399899, "stream": 0.03732825248336574}
+PASS C 媒体流 play() 失败 → 回退直连：DOM 里没有 audio / video / source 元素
+  静音底噪 RMS 0.00000；音效峰值 RMS {'bell': 0.0643, 'door': 0.0969, 'splash': 0.0285}
+PASS C 媒体流 play() 失败 → 回退直连：触发游戏里的音效（bell / door / splash）后总线信号起来（比底噪高 0.003 以上）  [{"bus": 0, "stream": 0}, {"bell": 0.06427796170848002, "door": 0.09686664395233403, "splash": 0.02845734543044727}]
+PASS C 媒体流 play() 失败 → 回退直连：RLP.audioTest()：全部 56 个音效 / 环境音 / 音乐都不抛错  {"ready": true, "state": "running", "errors": []}
+PASS C 媒体流 play() 失败 → 回退直连：切到后台：AudioContext 暂停、<audio> 暂停  {"ctx": "suspended", "route": "直连(媒体流失败 NotSupportedError)", "direct": true, "playState": "失败 NotSupportedError", "taps": 3, "session": "无", "mediaPaused": true, "mediaTime": 0, "audioReady": true, "amb": "none", "music": "none", "bar": null}
+PASS C 媒体流 play() 失败 → 回退直连：回前台：AudioContext 恢复 running，<audio> 恢复播放  {"ctx": "running", "route": "直连(媒体流失败 NotSupportedError)", "direct": true, "playState": "失败 NotSupportedError", "taps": 3, "session": "无", "mediaPaused": true, "mediaTime": 0, "audioReady": true, "amb": "none", "music": "none", "bar": null}
+PASS C 媒体流 play() 失败 → 回退直连：release 版：没有声音状态条
+PASS C 媒体流 play() 失败 → 回退直连：排查面板里有“声音”一行（状态 / 线路 / 电平）  ["声音 running | 直连(媒体流失败 NotSupportedError) | <audio>暂停 | 会话 无 | 电平 0.000 | 手势结束 18 | none/none | play 失败 NotSupportedError"]
+PASS C 媒体流 play() 失败 → 回退直连：没有 CSP 违规  []
+PASS C 媒体流 play() 失败 → 回退直连：没有页面错误（console error / pageerror）  []
+PASS C 媒体流 play() 失败 → 回退直连：没有请求失败，也没有 4xx / 5xx  []
+
+=== D 横屏 844×390（不转） ===
+PASS D 横屏 844×390（不转）：音频脚本已加载，线路选择符合预期（wantMedia=False）  {"rot": false, "audio": true, "wantMedia": false, "debug": false}
+PASS D 横屏 844×390（不转）：点之前 AudioContext 还没创建、没有声音  {"ctx": null, "route": "未接", "direct": false, "playState": "-", "taps": 0, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": false, "amb": "lake", "music": "intro", "bar": null}
+  touchStart 之后、touchEnd 之前： {"ctx": "running", "route": "直连", "direct": true, "playState": "-", "taps": 0, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+  touchEnd 之后： {"ctx": "running", "route": "直连", "direct": true, "playState": "-", "taps": 3, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS D 横屏 844×390（不转）：点屏幕后 AudioContext 为 running  {"ctx": "running", "route": "直连", "direct": true, "playState": "-", "taps": 3, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": true, "amb": "lake", "music": "intro", "bar": null}
+PASS D 横屏 844×390（不转）：游戏侧 audio.ready，环境音 + 标题音乐已请求  ["lake", "intro"]
+PASS D 横屏 844×390（不转）：手势结束事件到达过（taps ≥ 1）  3
+PASS D 横屏 844×390（不转）：线路 = 直连（和原来一样）  "直连"
+PASS D 横屏 844×390（不转）：标题的环境音 + 音乐在总线上有信号（RMS > 0.002）  {"bus": 0.048026881137150826, "stream": null}
+PASS D 横屏 844×390（不转）：DOM 里没有 audio / video / source 元素
+  静音底噪 RMS 0.00000；音效峰值 RMS {'bell': 0.0633, 'door': 0.0931, 'splash': 0.0295}
+PASS D 横屏 844×390（不转）：触发游戏里的音效（bell / door / splash）后总线信号起来（比底噪高 0.003 以上）  [{"bus": 0, "stream": null}, {"bell": 0.06331677640833215, "door": 0.09313523960596408, "splash": 0.02953620940444617}]
+PASS D 横屏 844×390（不转）：RLP.audioTest()：全部 56 个音效 / 环境音 / 音乐都不抛错  {"ready": true, "state": "running", "errors": []}
+PASS D 横屏 844×390（不转）：切到后台：AudioContext 暂停、<audio> 暂停  {"ctx": "suspended", "route": "直连", "direct": true, "playState": "-", "taps": 3, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": true, "amb": "none", "music": "none", "bar": null}
+PASS D 横屏 844×390（不转）：回前台：AudioContext 恢复 running，<audio> 恢复播放  {"ctx": "running", "route": "直连", "direct": true, "playState": "-", "taps": 3, "session": "无", "mediaPaused": null, "mediaTime": null, "audioReady": true, "amb": "none", "music": "none", "bar": null}
+PASS D 横屏 844×390（不转）：release 版：没有声音状态条
+PASS D 横屏 844×390（不转）：排查面板里有“声音”一行（状态 / 线路 / 电平）  ["声音 running | 直连 | 无<audio> | 会话 无 | 电平 0.000 | 手势结束 18 | none/none"]
+PASS D 横屏 844×390（不转）：没有 CSP 违规  []
+PASS D 横屏 844×390（不转）：没有页面错误（console error / pageerror）  []
+PASS D 横屏 844×390（不转）：没有请求失败，也没有 4xx / 5xx  []
+{"passed": 93, "total": 93}
+exit=0

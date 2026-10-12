@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#000000">
+<!-- 添加到主屏幕后以全屏应用方式打开 -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="锈湖天堂岛">
+<meta name="format-detection" content="telephone=no">
+<title>锈湖：天堂岛 3D · Rusty Lake Paradise 3D</title>
+<link rel="stylesheet" href="styles.css">
+<script>
+  // Capture every error from the very first byte (module load failures included) → RLP.errors.
+  window.__RLP_ERRORS = [];
+  window.__RLP_CAPTURE = true;
+  window.addEventListener('error', function (e) {
+    window.__RLP_ERRORS.push({ type: 'error', message: String(e.message || (e.error && e.error.message) || e), stack: e.error && e.error.stack, source: e.filename, line: e.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e.reason;
+    window.__RLP_ERRORS.push({ type: 'unhandledrejection', message: String((r && r.message) || r), stack: r && r.stack });
+  });
+</script>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<div id="stage">
+  <canvas id="game"></canvas>
+  <div id="ui"></div>
+  <div id="boot">载入中……</div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
