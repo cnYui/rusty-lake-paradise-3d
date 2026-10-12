@@ -1,7 +1,8 @@
 // The ten plagues. Only Plague I is playable so far; the rest show as locked in the menu.
+// wip: true = 开发中：菜单里仍显示“敬请期待”，只有 URL 带 ?wip=1（或 localStorage rlp3d.wip=1）才能选；?chapter=N 的开发跳转不受影响。完工后删掉 wip。
 export const CHAPTERS = [
-  { number: 1, id: 'plague1', label: { zh: '第一灾', en: 'Plague I' }, title: { zh: '血灾', en: 'Blood' }, load: () => import('./plague1/index.js') },
-  { number: 2, id: 'plague2', label: { zh: '第二灾', en: 'Plague II' }, title: { zh: '蛙灾', en: 'Frogs' }, load: null },
+  { number: 1, id: 'plague1', label: { zh: '第一灾', en: 'Plague I' }, title: { zh: 'x灾', en: 'x' }, load: () => import('./plague1/index.js') },
+  { number: 2, id: 'plague2', label: { zh: '第二灾', en: 'Plague II' }, title: { zh: '蛙灾', en: 'Frogs' }, load: () => import('./plague2/index.js'), wip: true },
   { number: 3, id: 'plague3', label: { zh: '第三灾', en: 'Plague III' }, title: { zh: '虱灾', en: 'Lice' }, load: null },
   { number: 4, id: 'plague4', label: { zh: '第四灾', en: 'Plague IV' }, title: { zh: '蝇灾', en: 'Flies' }, load: null },
   { number: 5, id: 'plague5', label: { zh: '第五灾', en: 'Plague V' }, title: { zh: '疫灾', en: 'Pestilence' }, load: null },

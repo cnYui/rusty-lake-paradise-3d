@@ -9,7 +9,7 @@ const PARTS = [beach, forest, lake];
 export default {
   id: 'plague1',
   number: 1,
-  title: { zh: '血灾', en: 'Blood' },
+  title: { zh: 'x灾', en: 'x' },
   label: { zh: '第一灾', en: 'Plague I' },
   completeFlag: 'plague1_complete',
 
