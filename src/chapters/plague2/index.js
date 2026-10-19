@@ -122,5 +122,21 @@ export default {
     for (const part of PARTS) part.sync(ctx);
   },
 
-  walkthrough: PARTS.flatMap((p) => p.walkthrough || []),
+  walkthrough: [
+    ...world.walkthrough, ...house.walkthrough, ...temple.walkthrough, ...forest.walkthrough,
+    { go: 'pump_clearing' }, { click: 'ida' }, { click: 'ida' }, { use: 'frog_flute', on: 'ida' },
+    { repeat: 5, step: { click: 'ida_flute' } }, { click: 'ida_frog' },
+    ...beach.walkthrough,
+    { go: 'beach_left' }, { click: 'david' }, { click: 'david' }, { use: 'belt', on: 'david' }, { click: 'david_frog' },
+    { go: 'house_clearing' }, { click: 'house_entry' }, { click: 'cauldron' },
+    { repeat: 3, step: { use: 'frog', on: 'cauldron' } }, { use: 'frog_orange', on: 'cauldron' },
+    { use: 'wood', on: 'cauldron_fire' }, { use: 'candle', on: 'cauldron_fire' }, { use: 'bowl', on: 'cauldron' },
+    { expectItem: 'frog_soup' }, { back: true }, { back: true },
+    { go: 'forest_clearing' }, { click: 'gerard' }, { click: 'gerard' },
+    { use: 'frog_soup', on: 'gerard' }, { use: 'bowl', on: 'gerard' }, { click: 'gerard_bowl' }, { click: 'gerard_key' },
+    { go: 'house_clearing' }, { click: 'house_entry' }, { use: 'key', on: 'chest' }, { click: 'chest_cube' },
+    { expectFlag: 'memory_seen' }, { click: 'chest_cube' }, { expectItem: 'black_cube' }, { back: true },
+    { go: 'temple_door' }, { click: 'temple_entry' }, { click: 'holder' }, { click: 'holder' },
+    { use: 'black_cube', on: 'holder' }, { expectFlag: 'plague2_complete' },
+  ],
 };

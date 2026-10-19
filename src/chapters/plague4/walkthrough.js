@@ -1,0 +1,38 @@
+// 自动流程只点玩家能操作的热点，不直接填谜题答案或写进度旗标。
+const route = (round, positions) => [
+  ...positions.flatMap(([x, y], i) => [{ click: `crab_shell_${round}_${i}` }, { click: `crab_cell_${round}_${x}_${y}` }]),
+  { click: `crab_start_${round}` }, { expectFlag: ['p4_crab_round', round + 1] },
+];
+
+export const walkthrough = [
+  { go: 'overview' }, { click: 'overview_island' }, { expectView: 'beach_mid' },
+  { go: 'forest_clearing' }, { click: 'cocoon_zoom' }, { click: 'cocoon_hatch' }, { expectFlag: 'p4_fly_awake' }, { back: true },
+  { go: 'house_clearing' }, { click: 'house_entry' }, { click: 'grandmother' }, { click: 'candle' }, { click: 'chest' }, { click: 'carrot' },
+  { expectItem: ['candle', 'carrot'] }, { back: true },
+  { go: 'pit_clearing' }, { click: 'pit_zoom' }, { click: 'branch_0' }, { click: 'branch_1' }, { click: 'branch_2' }, { click: 'uncle' },
+  { expectItem: 'worm' }, { use: 'candle', on: 'uncle' }, { expectFlag: 'p4_card_seen' }, { back: true },
+  { go: 'lake_shore' }, { click: 'crab_zoom' },
+  ...route(0, [[2, 2], [2, 0], [6, 0]]),
+  ...route(1, [[2, 3], [2, 1], [6, 1], [6, 5], [8, 5]]),
+  ...route(2, [[1, 4], [1, 1], [4, 1], [4, 7], [8, 7], [8, 2], [10, 2]]),
+  { expectView: 'crab_feast' }, { click: 'crab_meal' }, { click: 'crab_heart' }, { expectItem: 'crab_heart' }, { back: true },
+  { go: 'pump_clearing' }, { click: 'rabbit_zoom' }, { use: 'carrot', on: 'rabbit_bait' }, { click: 'rabbit_meal' }, { click: 'rabbit_heart' },
+  { expectNoItem: 'carrot' }, { expectItem: 'rabbit_heart' }, { back: true },
+  { go: 'bird_clearing' }, { click: 'trap_zoom' }, { use: 'branch', on: 'bird_trap' }, { use: 'worm', on: 'bird_trap' },
+  { click: 'bird_meal' }, { click: 'bird_heart' }, { expectItem: 'bird_heart' }, { expectNoItem: 'worm' }, { back: true },
+  { go: 'owl_clearing' }, { click: 'owl_zoom' },
+  { use: 'crab_heart', on: 'owl_mouth' }, { click: 'owl_wing_l' },
+  { use: 'rabbit_heart', on: 'owl_mouth' }, { click: 'owl_wing_r' },
+  { use: 'bird_heart', on: 'owl_mouth' }, { click: 'owl_wing_l' },
+  { expectFlag: ['p4_owl_count', 3] }, { click: 'owl_gem' }, { expectItem: 'gem' }, { back: true },
+  { go: 'temple_door' }, { use: 'gem', on: 'stone_door' }, { expectNoItem: 'gem' }, { click: 'temple_entry' },
+  { click: 'father' }, { click: 'book' }, { click: 'window_zoom' },
+  { repeat: 2, step: { click: 'window_dial_1' } },
+  { repeat: 7, step: { click: 'window_dial_2' } },
+  { repeat: 9, step: { click: 'window_dial_3' } },
+  { click: 'window_confirm' }, { expectFlag: 'p4_father_taken' }, { expectView: 'memory' },
+  { click: 'memory_scene' }, { click: 'black_cube' }, { expectItem: 'black_cube' },
+  { click: 'altar_zoom' }, { click: 'holder' }, { use: 'black_cube', on: 'holder' }, { expectNoItem: 'black_cube' },
+  { click: 'font' }, { click: 'holder' }, { expectFlag: 'p4_holder_lowered' },
+  { click: 'next_plague' }, { expectFlag: 'plague4_complete' },
+];

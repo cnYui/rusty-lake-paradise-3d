@@ -6,8 +6,9 @@ import { FACTORIES as FROGS } from './props_frogs.js';
 import { FACTORIES as P2_LAKE } from './props_p2_lake.js';
 import { FACTORIES as P2_HOUSE } from './props_p2_house.js';
 import { FACTORIES as P2_TEMPLE } from './props_p2_temple.js';
+import { FACTORIES as P5 } from './props_p5.js';
 
-const MODULES = { BEACH, INNER, LAKE, FROGS, P2_LAKE, P2_HOUSE, P2_TEMPLE };
+const MODULES = { BEACH, INNER, LAKE, FROGS, P2_LAKE, P2_HOUSE, P2_TEMPLE, P5 };
 const FACTORIES = {};
 for (const [name, m] of Object.entries(MODULES)) {
   for (const id of Object.keys(m)) {

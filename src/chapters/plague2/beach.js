@@ -1,26 +1,46 @@
-// 第二灾 · 海滩（空壳，后续成员填充）。
-//
-// 要实现的内容（docs/plague2_design.md）：
-//   §3.1 David（第 4 只青蛙）：makeCharacter('david_p2') 站在 W.davidTop（石头顶面，SPOTS.david.rotY 朝向）上；
-//        热点 'david'（海滩开放视图上，点他 → goto 特写 'david'）、特写里点他播 eatFrog()（可无限重复）；
-//        选中“腰带”点他（特写或漫游都行）→ take('belt')、setBelt(true)，石头上留下一只青蛙（makeProp('frog') 放在 W.davidTop 上）；
-//        点那只青蛙 → give('frog')。旗标 david_belt、david_frog_taken。特写视图 'david'（closeup，zone exterior）在这里定义。
-//   §3.2 睡莲叶跳青蛙（第 3 只青蛙）：makeProp('lily_board') 放在 SPOTS.lilyBoard.pos（原点 = (0,0) 格中心）；
-//        俯视特写 'lily_pads'（closeup，look: 0，pos 与 target 之间留一点水平偏移，见 plague1/forest.js 的盘子特写）；
-//        海滩开放视图上的热点（点浅水里的青蛙 → goto 'lily_pads'）；每格一个热点 lily_<列>_<行>（when：该格是当前可跳目标）；
-//        规则全部用 ./puzzles.js：LILY_LEVELS / lilyTargets / lilyJump / lilyIsStuck；
-//        旗标 lily_level（1..5 当前关）、lily_done；关内进度不存档（重进特写从本关起点重来）。第 5 关后 give('frog')。
-//
-// 约定（见 world.js 顶部和 docs/ai/context 的 chapter-scaffold 记录）：
-//   - import { W, SPOTS, placeProp, addCircle, hint } from './world.js'；布景（湖、门、雾、石头）已由 world.js 摆好。
-//   - 视图 beach_mid / beach_left / beach_right（开放）已由 world.js 定义，热点挂在这些视图上即可在漫游时点到。
-//   - 状态只用 flags + inventory；sync() 用 { instant: true } 把模型恢复到旗标对应的样子（必须幂等）。
-//   - walkthrough 只走公开路径（go / click / use / combine），world.js 的导航冒烟测试结束在 beach_mid。
-
-export async function setup(ctx) { // eslint-disable-line no-unused-vars
+// 海滩的 David 与五关睡莲；脚边青蛙使用独立特写，关内跳跃进度随存档恢复。
+import { makeProp } from '../../art/props.js';
+import { W, SPOTS } from './world.js';
+import { character, prop, closeup, instant, numberFlag } from './shared.js';
+import { LILY_LEVELS, lilyLevel, lilyTargets, lilyReach, lilyJump, sameCell } from './puzzles.js';
+let S;
+function readLily(ctx) {
+  const level=Math.min(5,Math.max(1,numberFlag(ctx,'lily_level',1))),def=lilyLevel(level);
+  const saved=ctx.flag('lily_progress');
+  if(saved&&saved.level===level&&Array.isArray(saved.from)&&Array.isArray(saved.left))return {level,def,from:saved.from,left:saved.left};
+  return {level,def,from:[...def.start],left:def.pads.map(p=>[...p])};
 }
-
-export function sync(ctx) { // eslint-disable-line no-unused-vars
+function restoreLily(ctx) {
+  const p=readLily(ctx);S.lily.restore(p.def,p.from,p.left,!!ctx.flag('lily_done'));S.lily.setHighlight(lilyTargets(p.def,p.left,p.from));
 }
-
-export const walkthrough = [];
+export async function setup(ctx) {
+  const david=character(ctx,'david_p2',SPOTS.david);
+  const stone=W.davidTop.getWorldPosition(new ctx.THREE.Vector3());david.root.position.copy(stone);
+  const looseFrog=makeProp('frog');looseFrog.scale.setScalar(1.8);looseFrog.rotation.y=david.root.rotation.y;david.root.updateWorldMatrix(true,false);looseFrog.position.copy(david.root.localToWorld(new ctx.THREE.Vector3(.23,.015,.2)));W.zones.exterior.add(looseFrog);ctx.register('prop','p2_david_frog',looseFrog);
+  const lily=prop(ctx,'lily_board',SPOTS.lilyBoard);S={david,looseFrog,lily};Object.assign(W,S);
+  closeup(ctx,'david',david.root,'beach_left',{target:[0,1.24,0],eye:[0,1.3,2.25],fov:37});
+  closeup(ctx,'david_rock',david.root,'david',{target:[.17,.17,.15],eye:[.17,.88,1.72],fov:43});
+  closeup(ctx,'lily_pads',lily,'beach_right',{target:[1.375,0,1.1],eye:[1.375,3.8,1.13],fov:52});
+  ctx.hotspots.define({id:'david',views:['beach_left','david'],object:david.root,cursor:'talk',onClick:async()=>{
+    if(ctx.state.view!=='david')return ctx.go('david');if(!ctx.flag('david_belt')){ctx.sfx('frog_croak');await david.eatFrog();}else if(!ctx.flag('david_frog_taken'))return ctx.go('david_rock');
+  },onItem:{belt:()=>ctx.cutscene(async()=>{if(ctx.flag('david_belt'))return;ctx.take('belt');ctx.setFlag('david_belt');await david.setBelt(true);looseFrog.visible=true;await ctx.go('david_rock');})}});
+  ctx.hotspots.define({id:'david_frog',views:['beach_left','david_rock'],object:looseFrog,cursor:'grab',when:()=>ctx.flag('david_belt')&&!ctx.flag('david_frog_taken'),onClick:async()=>{ctx.setFlag('david_frog_taken');looseFrog.visible=false;await ctx.give('frog',{from:looseFrog});}});
+  ctx.hotspots.define({id:'lily_board',views:['beach_right'],object:lily,cursor:'zoom',when:()=>!ctx.flag('lily_done'),goto:'lily_pads'});
+  for(let c=0;c<6;c++)for(let r=0;r<5;r++){
+    const hit=ctx.hotspots.makeProxy(.47,.12,.47,[c*.55,.055,r*.55],lily);
+    ctx.hotspots.define({id:`lily_${c}_${r}`,views:['lily_pads'],object:hit,cursor:'pointer',when:()=>{
+      if(ctx.flag('lily_done'))return false;const p=readLily(ctx);return lilyReach(p.from).some(x=>sameCell(x,[c,r]))&&(p.left.some(x=>sameCell(x,[c,r]))||sameCell(p.def.goal,[c,r]));
+    },onClick:()=>ctx.cutscene(async()=>{
+      const p=readLily(ctx),to=[c,r],next=lilyJump(p.def,p.left,p.from,to);if(next.kind==='illegal')return;
+      ctx.sfx('frog_hop');await lily.jumpTo(to);
+      if(next.kind==='fail'||next.stuck){ctx.sfx('lily_splash');await lily.fail();ctx.setFlag('lily_progress',null);restoreLily(ctx);return;}
+      if(next.kind==='win'){
+        if(p.level===5){ctx.setFlag('lily_done');await lily.win();await ctx.give('frog',{from:lily.frog});return;}
+        ctx.setFlag('lily_level',p.level+1);ctx.setFlag('lily_progress',null);await lily.setLevel(LILY_LEVELS[p.level]);
+      }else ctx.setFlag('lily_progress',{level:p.level,from:to,left:next.padsLeft});
+      const n=readLily(ctx);lily.setHighlight(lilyTargets(n.def,n.left,n.from));
+    })});
+  }
+}
+export function sync(ctx) {if(!S)return;S.david.setBelt(!!ctx.flag('david_belt'),instant);S.looseFrog.visible=!!ctx.flag('david_belt')&&!ctx.flag('david_frog_taken');restoreLily(ctx);}
+export const walkthrough=[{go:'beach_right'},{click:'lily_board'},...LILY_LEVELS.flatMap(d=>d.solution.map(([c,r])=>({click:`lily_${c}_${r}`}))),{expectFlag:'lily_done'}];
