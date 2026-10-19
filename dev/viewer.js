@@ -80,7 +80,7 @@ function frameObject(obj) {
 }
 
 async function loadProp(id) {
-  const mods = q.get('mod') ? [q.get('mod')] : ['props_beach', 'props_inner', 'props_lake', 'props_frogs', 'props_p2_lake', 'props_p2_house', 'props_p2_temple'];
+  const mods = q.get('mod') ? [q.get('mod')] : ['props_beach', 'props_inner', 'props_lake', 'props_frogs', 'props_p2_lake', 'props_p2_house', 'props_p2_temple', 'props_p5', 'props_p3_items', 'props_p3_beach', 'props_p3_forest', 'props_p3_house', 'props_p3_grove'];
   for (const m of mods) {
     try {
       const mod = await import(`../src/art/${m}.js`);

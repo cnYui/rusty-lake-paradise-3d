@@ -44,3 +44,10 @@
 - 人物按真实身高建模，各章节一律 `scale = 1`，不要再用缩放凑镜头；镜头、座位和摆放去适配人物。身高（头骨顶）：Nicholas 1.88、Gerard 1.84、David 1.78、Jakob 1.76、Caroline 1.66、Ida 1.58、Margaret 1.56（驼背约 1.47）、Elizabeth 与少年 Jakob 1.30–1.32、灵魂约 1.97。
 - 衣服、袖子、裤腿、裙子是连续蒙皮网格（`torsoSkin` / `limbSkin` / `skirtSkin`），弯肘、坐下时一起变形；头、手、鞋、帽子、头发是挂在关节上的刚体。坐姿用 `seatedPose(rig, seatY)`（含 `body.p` 位移），长裙人物一直坐着时直接按坐姿建裙子（见 `margaretBody({ seat })`）。
 - 外观和动作以 `dev/ref/P0x_*.mp4` 为准；改人物后用 `dev/cast.html?preset=family`（身高对照，`preset=masks` / `seated` / `current`）检查比例，并在各章节实际镜头里截图核对。人物重做的参考帧、比例与验收见 `docs/ai/context/20261014-232000-cast-remodel.md`。
+
+## 第三灾
+
+- 原作标题“第三灾 / 蚊灾和虱灾”（Gnats & Lice），参考 `dev/ref/P03_第三灾-蚊子灾_BV1bo4y1y7fm.mp4`。设计契约 `docs/plague3_design.md`，美术接口 `docs/plague3_api.md`，交接说明 `docs/plague3_handoff.md`。
+- 美术与逻辑分开做：道具在 `src/art/props_p3_*.js`（id 一律 `p3_` 前缀，物品模型在 `props_p3_items.js`），人物变体在 `src/art/cast_p3*.js`（复用 cast.js 的身体）；章节逻辑在 `src/chapters/plague3/`。逻辑只按接口调用，不改美术文件。
+- 第三灾美术已全部做完（正式模型）；`props_p3_placeholders.js` 和 `cast_p3.js` 的回退只作兜底（`userData.placeholder` / `rig.placeholder`），新增 id 没做好时才会用到。实现偏差见 `docs/plague3_handoff.md` §2.1。
+- 有状态的道具 / 人物都提供 `setState`，`sync()` 只调用它做双向恢复。白桦林是独立 zone `p3_grove`（原点 [600,0,0]），从 G 空地红叉树倒下后的缺口进入。公共画作第三灾用 `{ insects: true }` + `banishWoman / frameFly / setState`。

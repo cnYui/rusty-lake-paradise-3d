@@ -1746,3 +1746,9 @@ export {
   paintDavid, paintGerard, paintNicholas, paintMargaret, paintCaroline, paintIda, paintJakob, paintPlain,
   SKIN_DAVID, SKIN_GERARD, SKIN_NICK, SKIN_OLD, SKIN_CAROLINE, SKIN_IDA, SKIN_JAKOB,
 };
+// 第三灾人物变体（cast_p3*.js）复用的内部工具：只追加导出，不改实现。
+export {
+  P as mergePose, STOOP, bags, stubble, brow, roundCollar, sashBow, stripedCap, hairCapEdge, gerardBeard, gerardPockets, holdUpright,
+  jakobBody, DAVID_DIMS, DAVID_HEAD, DAVID_COLORS, DAVID_HAT, GINGER,
+  buildDavid, buildIda, buildCaroline, buildNicholas, buildMargaret, buildGerardHuman, buildElizabeth, buildJakobChild,
+};

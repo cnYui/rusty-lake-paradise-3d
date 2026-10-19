@@ -7,6 +7,7 @@
 import { INK, OUT, TAU, clamp, lerp, smooth, step01, V, FS, FX, FY, matSet, cachedTex, clothTex, ringTex, hairTex, place, prep, sphere, lathe, limbGeo, taperTube, PartSet, headDeform, skullGeo, decalGeo, headSurface, pen, path, line, blob, eye, faceSet, ikTwoBone, createRig, skeleton, addHead, handGeo, addHands, addArms, addLegs, torsoGeo, addButtons, hairCapGeo, buildHuman, humanIdle, fitAlongY, fitSize, tryProp, leechGeo, makeLeech, fallbackStick, fallbackHook, fallbackWorm, fallbackShrimp, fallbackGlass, blackCube, crs, sePow, densify, ringsGeo, spineLoft, ringLoft, ribbonGeo, leafGeo, orient, furTex, softSpot, maskEye, paintPlain, skinMesh, boneIndexer, chainWeights, THREE, mergeGeometries, mergeVertices, RoundedBoxGeometry, MeshSurfaceSampler, PALETTE, toon, unlit, canvasTexture, rng, shade, noOutline, animate, wait, Ease, setPropFactory, setMaskFactory } from './charkit.js';
 import * as HUMAN from './human.js';
 import * as CASTMOD from './cast.js';
+import { CAST_P3 } from './cast_p3.js';   // 第三灾人物变体
 const { CAST } = CASTMOD;
 
 // 道具在别的模块里；存在就用，否则人物用自己的简易模型。
@@ -593,7 +594,7 @@ function buildIntroBoat() {
 // Public API
 // ===========================================================================
 
-const BUILDERS = { ...CAST };
+const BUILDERS = { ...CAST, ...CAST_P3 };
 
 /** Build a character rig by id (see list above). */
 export function makeCharacter(id) {

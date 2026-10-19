@@ -1425,12 +1425,53 @@ const STREAM = [[454, 541], [470, 546], [495, 555], [535, 569], [587, 575], [644
 const CUBE_C = [489, 781];
 const FROG_BOX = [814, 752, 962, 886];
 const WOMAN_BOX = [276, 632, 388, 776];   // 红斗篷女人（第二灾结尾框住她，预示第三灾）
+// 第三灾：天上的蚱蜢和苍蝇（原作画里一直有，这里用 insects 选项画出来），结尾白框框住苍蝇；
+// 光线抹掉女人时，WOMAN_AREA 这一块换成“没有女人和虫柱”的底图。
+const FLY_C = [566, 118], HOPPER_C = [392, 152];
+const FLY_BOX = [526, 76, 610, 160];
+const WOMAN_AREA = [258, 512, 448, 788];
+
+/** 第三灾起画在天上的蚱蜢和苍蝇（原作画里一直都有）：固定坐标的笔触，不消耗随机数。 */
+function paintSkyInsects(g) {
+  const E = (x, y, rx, ry, rot, fill, a = 1, stroke = null, lw = 2) => {
+    g.globalAlpha = a; g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
+    if (fill) { g.fillStyle = fill; g.fill(); }
+    if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw; g.stroke(); }
+  };
+  const L = (pts, col, lw, a = 1) => { g.globalAlpha = a; g.strokeStyle = col; g.lineWidth = lw; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); };
+  // 苍蝇：透明翅膀向右上张开，黑身体，六条腿垂着
+  const [fx, fy] = FLY_C;
+  E(fx + 18, fy - 16, 24, 9, -0.95, '#cfd8dc', 0.62, '#59646d', 1.6);
+  E(fx + 23, fy - 5, 21, 8, -0.45, '#c4cfd4', 0.55, '#59646d', 1.6);
+  for (const [dx, ex, ey] of [[-5, -16, 30], [-1, -6, 33], [3, 6, 33], [6, 16, 29], [-3, -20, 22], [5, 20, 21]]) L([[fx + dx, fy + 6], [fx + dx * 1.6, fy + 15], [fx + ex, fy + ey]], '#151515', 1.8, 0.9);
+  E(fx - 9, fy + 13, 9, 13, 0.55, '#202024');
+  for (const k of [0, 1, 2]) L([[fx - 16 + k * 4, fy + 6 + k * 7], [fx - 4 + k * 4, fy + 2 + k * 7]], '#5d5f63', 1.4, 0.7);
+  E(fx, fy, 10, 9, 0, '#1a1a1c');
+  E(fx + 8, fy - 9, 7.5, 6.5, 0, '#141414');
+  E(fx + 11, fy - 11, 3.4, 3.8, 0, '#6e2b1f');
+  // 蚱蜢：绿色细长身体斜着（头朝右上），长后腿向左下伸，半透明翅膀，触角
+  const [hx, hy] = HOPPER_C;
+  E(hx - 2, hy - 4, 30, 8, -0.72, '#9a8f5a', 0.45, '#4e4a2c', 1.4);
+  L([[hx - 6, hy + 4], [hx - 30, hy + 30], [hx - 16, hy + 40]], '#3f5a22', 4.2);
+  L([[hx - 6, hy + 4], [hx - 30, hy + 30], [hx - 16, hy + 40]], '#6f8f3a', 2.4);
+  L([[hx - 2, hy + 2], [hx - 12, hy + 28], [hx + 2, hy + 36]], '#3f5a22', 3.6);
+  L([[hx - 2, hy + 2], [hx - 12, hy + 28], [hx + 2, hy + 36]], '#7c9a42', 2);
+  E(hx, hy, 28, 7.5, -0.72, '#3f5a22');
+  E(hx, hy, 26, 6, -0.72, '#6f8f3a');
+  E(hx - 3, hy + 3, 18, 3, -0.72, '#a9bd66', 0.8);
+  for (const [dx, dy] of [[8, -2], [14, -8]]) L([[hx + dx, hy + dy], [hx + dx + 2, hy + dy + 14], [hx + dx + 8, hy + dy + 18]], '#3f5a22', 1.6);
+  E(hx + 20, hy - 18, 6.5, 5.5, -0.7, '#4f6e2c');
+  E(hx + 22, hy - 19, 2, 2, 0, '#1a1a12');
+  L([[hx + 24, hy - 22], [hx + 36, hy - 40], [hx + 50, hy - 46]], '#2f3a1c', 1.3);
+  L([[hx + 25, hy - 20], [hx + 42, hy - 32], [hx + 56, hy - 34]], '#2f3a1c', 1.3);
+  g.globalAlpha = 1;
+}
 
 /** The static oil painting (everything except the cube, the stream and the overlays). */
-function paintPlagueBase(W, H, { frogs = true } = {}) {
+function paintPlagueBase(W, H, { frogs = true, woman = true, insects = false } = {}) {
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
-  const g = c.getContext('2d');
+  let g = c.getContext('2d');   // 画女人时可能临时换成丢弃画布（见下）
   const r = rng(1796);
   const rr = (a, b) => a + (b - a) * r();
   const pick = (arr) => arr[(r() * arr.length) | 0];
@@ -1643,6 +1684,9 @@ function paintPlagueBase(W, H, { frogs = true } = {}) {
   strk(688, 724, 16, 2.4, 4, '#3e7d45');
   dab(674, 757, 5, 3.5, 0, '#e3c7aa');
   // --- woman in a red cloak running to the left, black smoke column of insects behind her
+  // （第三灾结尾要抹掉她：woman=false 时笔触画在一张丢弃的画布上，随机数消耗不变，后面的笔触不受影响）
+  const realG = g;
+  if (!woman) { const scratch = document.createElement('canvas'); scratch.width = W; scratch.height = H; g = scratch.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round'; }
   const smoke = sampleCurve([[372, 712], [378, 680], [370, 644], [383, 606], [378, 566], [386, 540]], 60);
   smoke.forEach(([x, y], i) => {
     const f = i / smoke.length;
@@ -1662,6 +1706,7 @@ function paintPlagueBase(W, H, { frogs = true } = {}) {
   dab(307, 660, 8.5, 9, 0, '#e8cdb0');
   dab(311, 656, 8.5, 8, 0.4, '#efe9df');
   dab(302, 662, 1.4, 1.4, 0, '#3a2a22');
+  g = realG;
   // --- two green frogs (lower right)
   const frog = (x, y, s, flip) => { // sitting frog in profile, facing left (or right if flipped)
     const sx = flip ? -1 : 1;
@@ -1685,6 +1730,8 @@ function paintPlagueBase(W, H, { frogs = true } = {}) {
     frog(848, 832, 1.25, false);
     frog(918, 822, 1.1, false);
   }
+  // 第三灾起：天上的蚱蜢（左）和苍蝇（中间偏右），固定笔触、不消耗随机数
+  if (insects) paintSkyInsects(g);
 
   // --- varnish: warm multiply, speckle, darker edges
   g.globalAlpha = 0.18; g.globalCompositeOperation = 'multiply';
@@ -1697,7 +1744,8 @@ function paintPlagueBase(W, H, { frogs = true } = {}) {
   return c;
 }
 
-function makePlaguePainting() {
+function makePlaguePainting(opts = {}) {
+  const insects = !!(opts && opts.insects);   // 第三灾起：天上画出蚱蜢和苍蝇
   const { OW, OH, ORY, IW, IH, IRY, IY0, DEPTH, CW, CH } = PAINT;
   const root = new THREE.Group();
   root.name = 'plague_painting';
@@ -1716,7 +1764,7 @@ function makePlaguePainting() {
   const canvas = document.createElement('canvas');
   canvas.width = CW; canvas.height = CH;
   const g = canvas.getContext('2d');
-  const base = paintPlagueBase(CW, CH);
+  const base = paintPlagueBase(CW, CH, { insects });
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
@@ -1746,8 +1794,9 @@ function makePlaguePainting() {
   root.add(glow);
 
   const st = { glow: 0, stream: 0, beam: 0, puff: 0, flash: 0, frame: 0, t: 0, lit: false, purified: false, framed: false,
-    frogsGone: 0, frogBeam: 0, banished: false, frameW: 0, womanFramed: false };
-  let baseNoFrogs = null;
+    frogsGone: 0, frogBeam: 0, banished: false, frameW: 0, womanFramed: false,
+    womanGone: 0, womanBeam: 0, womanBanished: false, frameF: 0, flyFramed: false };
+  let baseNoFrogs = null, baseNoWoman = null;
   const streamPts = sampleCurve(STREAM, 240);
 
   const drawStream = () => {
@@ -1819,11 +1868,21 @@ function makePlaguePainting() {
     g.globalCompositeOperation = 'source-over';
     g.drawImage(base, 0, 0);
     if (st.frogsGone > 0) {
-      if (!baseNoFrogs) baseNoFrogs = paintPlagueBase(CW, CH, { frogs: false });
+      if (!baseNoFrogs) baseNoFrogs = paintPlagueBase(CW, CH, { frogs: false, insects });
       const [x0, y0, x1, y1] = FROG_BOX;
       g.globalAlpha = Math.min(1, st.frogsGone);
       g.drawImage(baseNoFrogs, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
       g.globalAlpha = 1;
+    }
+    if (st.womanGone > 0) {
+      // 第三灾结尾：女人和她身后的虫柱从画里消失（换成没有她的底图，椭圆羽化区域）
+      if (!baseNoWoman) baseNoWoman = paintPlagueBase(CW, CH, { woman: false, insects });
+      const [x0, y0, x1, y1] = WOMAN_AREA;
+      g.save();
+      g.globalAlpha = Math.min(1, st.womanGone);
+      g.beginPath(); g.ellipse((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, 0, 0, Math.PI * 2); g.clip();
+      g.drawImage(baseNoWoman, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+      g.restore();
     }
     drawStream();
     drawCube();
@@ -1852,6 +1911,16 @@ function makePlaguePainting() {
       g.globalAlpha = a * 0.5; g.strokeStyle = '#fff6dc'; g.lineWidth = 16; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
       g.globalAlpha = a; g.strokeStyle = '#ffffff'; g.lineWidth = 5; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
     }
+    if (st.womanBeam > 0) {
+      // 发光方块射向红斗篷女人的光线
+      const [x0, y0] = [CUBE_C[0] - 30, CUBE_C[1] - 26];
+      const tx = (WOMAN_BOX[0] + WOMAN_BOX[2]) / 2, ty = (WOMAN_BOX[1] + WOMAN_BOX[3]) / 2;
+      const reach = Math.min(1, st.womanBeam * 1.8);
+      const a = Math.min(1, st.womanBeam * 3) * (st.womanBeam > 0.8 ? (1 - st.womanBeam) / 0.2 : 1);
+      const x1 = lerp(x0, tx, reach), y1 = lerp(y0, ty, reach);
+      g.globalAlpha = a * 0.5; g.strokeStyle = '#fff6dc'; g.lineWidth = 16; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+      g.globalAlpha = a; g.strokeStyle = '#ffffff'; g.lineWidth = 5; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    }
     if (st.flash > 0) { g.globalAlpha = st.flash; g.fillStyle = '#fff1d0'; g.fillRect(0, 0, CW, CH); }
     if (st.frame > 0) {
       const [x0, y0, x1, y1] = FROG_BOX;
@@ -1871,6 +1940,7 @@ function makePlaguePainting() {
       g.lineCap = 'round';
     }
     if (st.frameW > 0) drawFrameBox(WOMAN_BOX, st.frameW);
+    if (st.frameF > 0) drawFrameBox(FLY_BOX, st.frameF);
     g.globalAlpha = 1;
     texture.needsUpdate = true;
   };
@@ -1932,6 +2002,46 @@ function makePlaguePainting() {
     if (isInstant(o)) { st.frameW = 1; compose(); return done(); }
     return animate(1000, (k) => { st.frameW = k; compose(); }, Ease.inOutSine);
   };
+
+  // 第三灾结尾：发光方块射出光线，红斗篷女人和她身后的黑色虫柱从画里消失（14:14–14:18）
+  root.banishWoman = (o) => {
+    if (st.womanBanished) return done();
+    st.womanBanished = true;
+    if (!st.lit) { st.lit = true; st.glow = 1; glow.visible = true; }
+    if (isInstant(o)) { st.womanGone = 1; st.womanBeam = 0; st.flash = 0; compose(); return done(); }
+    return timeline(3200, (t) => {
+      st.flash = t < 300 ? Math.sin((t / 300) * Math.PI) * 0.35 : 0;
+      st.womanBeam = clamp01((t - 200) / 2800);
+      st.womanGone = smooth(0.35, 0.8, t / 3200);
+      compose();
+    }).then(() => { st.flash = 0; st.womanBeam = 0; st.womanGone = 1; compose(); });
+  };
+  // 第三灾结尾：白框框住天上的苍蝇（下一灾的预告，14:20）。需要 insects: true 才看得到苍蝇
+  root.frameFly = (o) => {
+    if (st.flyFramed) return done();
+    st.flyFramed = true;
+    if (isInstant(o)) { st.frameF = 1; compose(); return done(); }
+    return animate(1000, (k) => { st.frameF = k; compose(); }, Ease.inOutSine);
+  };
+  /**
+   * 瞬时恢复到某个状态（可以往回设，供章节 sync() 双向恢复）：
+   * { lit, purified, frogsFramed, frogsGone, womanFramed, womanGone, flyFramed }，没给的字段保持不变。
+   * 第三灾开局 = { lit: false, purified: true, frogsGone: true, womanFramed: false, womanGone: false, flyFramed: false }。
+   */
+  root.setState = (s = {}) => {
+    const b = (k) => s[k] !== undefined;
+    if (b('lit')) { st.lit = !!s.lit; st.glow = s.lit ? 1 : 0; glow.visible = !!s.lit; }
+    if (b('purified')) { st.purified = !!s.purified; st.stream = s.purified ? 1 : 0; }
+    if (b('frogsFramed')) { st.framed = !!s.frogsFramed; st.frame = s.frogsFramed ? 1 : 0; }
+    if (b('frogsGone')) { st.banished = !!s.frogsGone; st.frogsGone = s.frogsGone ? 1 : 0; }
+    if (b('womanFramed')) { st.womanFramed = !!s.womanFramed; st.frameW = s.womanFramed ? 1 : 0; }
+    if (b('womanGone')) { st.womanBanished = !!s.womanGone; st.womanGone = s.womanGone ? 1 : 0; }
+    if (b('flyFramed')) { st.flyFramed = !!s.flyFramed; st.frameF = s.flyFramed ? 1 : 0; }
+    st.beam = 0; st.puff = 0; st.flash = 0; st.frogBeam = 0; st.womanBeam = 0;
+    compose();
+    return root.getState();
+  };
+  root.getState = () => ({ lit: st.lit, purified: st.purified, frogsFramed: st.framed, frogsGone: st.banished, womanFramed: st.womanFramed, womanGone: st.womanBanished, flyFramed: st.flyFramed });
 
   attachUpdate(root, picture, (dt) => {
     st.t += dt;
