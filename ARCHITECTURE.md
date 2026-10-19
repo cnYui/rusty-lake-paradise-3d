@@ -61,7 +61,10 @@ src/art/lake.js            lake water shader with blood (island ring, pool, full
 src/art/island.js          terrain, beach, palisade, shed fence (plank wall shore to shore), dock steps, rocks, forest, trees, bamboo clump leaves, thorns, tower
 src/art/buildings.js       house exterior, shed wall, temple exterior; interior stage sets (house_int, temple_int, memory)
 src/art/world.js           buildWorld(engine) → World
-src/art/characters.js      makeCharacter(id), makeAnimal(kind), makeIntroBoat()
+src/art/characters.js      makeCharacter(id), makeAnimal(kind), makeIntroBoat()；动物面具、山羊、开场小船，CHAR_KIT
+src/art/cast.js            全部人物（第二版，真实身高、蒙皮衣物）：David / Jakob / Gerard / Nicholas / Margaret / Caroline / Ida / Elizabeth / 灵魂及章节变体
+src/art/human.js           人物身体工具：bodyDims、makeHuman、torsoSkin / limbSkin / skirtSkin、head、hands、shoes、feltHat、lifeIdle、playKeys
+src/art/charkit.js         公共底层：材质缓存、手绘贴图、几何体、脸部绘制、骨架（Bone）与 IK、蒙皮权重、放样曲面
 src/art/props.js           ✔ written: makeProp(id) dispatcher over the three files below
 src/art/props_beach.js     FACTORIES for beach props + beach items
 src/art/props_inner.js     FACTORIES for forest / house props + their items
