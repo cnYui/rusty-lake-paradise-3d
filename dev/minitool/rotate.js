@@ -18,6 +18,23 @@
   window.__RLP_CAPTURE = true;
   var box = document.getElementById('rot');
 
+  // ------------------------------------------------------------------ 反复重载保护（轻量模式）
+  // 有的手机上启动会被容器 / 系统判定“无响应”或进程被杀，页面被一遍遍重载，表现是白屏和载入页快速交替闪。
+  // 每次启动先记一笔“开始了、还没走完”，启动完成（main.js 副本调 __RLP_BOOT_DONE）再改成“走完了”。
+  // 30 秒内连续 2 次发现上一次没走完，这一次就进轻量模式：关阴影、像素比降到 1、关水面倒影（window.__RLP_LITE，
+  // build.py 给引擎 / 世界副本加了对应的开关）。启动记录只用同步的 localStorage，读不了就当没有；正常设备永远走不到这里。
+  var BOOT_KEY = 'rlp3d.boot';
+  window.__RLP_LITE = false;
+  try {
+    var bootNow = Date.now(), bootRaw = localStorage.getItem(BOOT_KEY), bootSt = bootRaw ? JSON.parse(bootRaw) : null;
+    var bootN = bootSt && !bootSt.done && bootNow - bootSt.t < 30000 ? bootSt.n : 0;
+    window.__RLP_LITE = bootN >= 2;
+    localStorage.setItem(BOOT_KEY, JSON.stringify({ t: bootNow, n: bootN + 1, done: false }));
+  } catch (e) { /* 存储不可用：不做保护，照常启动 */ }
+  window.__RLP_BOOT_DONE = function () {
+    try { localStorage.setItem(BOOT_KEY, JSON.stringify({ t: Date.now(), n: 0, done: true })); } catch (e) { /* 忽略 */ }
+  };
+
   // ------------------------------------------------------------------ 报错横幅
   var banner = null, bannerTimer = 0;
   function showError(msg) {
@@ -59,6 +76,44 @@
     var b = document.getElementById('boot');
     if (b && text && !b.classList.contains('error')) b.textContent = text;
     return tick();
+  };
+
+  // ------------------------------------------------------------------ 分片预热着色器
+  // 第一次渲染要把场景里用到的几十个着色器程序同步编译、链接完，是启动里最长的一次卡顿：桌面上 1.6 秒，手机 GPU 上要好几秒，
+  // 期间主线程和 GPU 都被占满，页面合成不出来，表现成“白屏和载入页快速交替闪”，严重时还会被容器 / 系统判定无响应而重载。
+  // 这里按材质把场景分成若干片，每次只让一片的物体可见、渲一帧（编译这一片用到的程序），累计超过 40 ms 就让出一帧；
+  // 最后把可见性恢复原样。engine / world 由 build.py 给 main.js 副本加的调用传进来。
+  window.__RLP_WARM = function (engine, world) {
+    var ext = world && world.zones && world.zones.exterior;
+    if (!ext || !engine || typeof engine.render !== 'function') return Promise.resolve();
+    var entries = [];
+    ext.traverse(function (o) {
+      if (o.isMesh || o.isLine || o.isPoints || o.isSprite) entries.push({ m: o, v: o.visible, keep: o.name === 'lake' });
+    });
+    var byMat = {}, groups = [];
+    entries.forEach(function (e) {
+      var mats = Array.isArray(e.m.material) ? e.m.material : [e.m.material];
+      var key = mats.map(function (x) { return x ? x.uuid : '-'; }).join(',');
+      if (!byMat[key]) { byMat[key] = []; groups.push(byMat[key]); }
+      byMat[key].push(e);
+    });
+    var per = Math.max(6, Math.ceil(groups.length / 30));          // 最多约 30 片
+    var slices = [];
+    for (var g = 0; g < groups.length; g += per) slices.push(groups.slice(g, g + per));
+    // 水面每一片都保持可见：它的倒影是另一遍带裁剪面的渲染，每种材质都多一个着色器变体，不跟着分片的话会全堆到最后一次整体渲染里
+    function hideAll() { entries.forEach(function (e) { if (!e.keep) e.m.visible = false; }); }
+    function restore() { entries.forEach(function (e) { e.m.visible = e.v; }); }
+    var i = 0, lastYield = performance.now();
+    function step() {
+      if (i >= slices.length) return Promise.resolve();
+      hideAll();
+      slices[i].forEach(function (grp) { grp.forEach(function (e) { e.m.visible = e.v; }); });
+      engine.render();
+      i++;
+      if (performance.now() - lastYield < 40) return step();
+      return window.__RLP_STAGE('准备画面 ' + i + '/' + slices.length + '…').then(function () { lastYield = performance.now(); return step(); });
+    }
+    return step().then(restore, function (err) { restore(); throw err; });
   };
 
   // ------------------------------------------------------------------ 竖屏旋转
@@ -145,6 +200,7 @@
       'GL ' + gpuInfo(),
       '启动(ms) ' + JSON.stringify((window.RLP && window.RLP.bootTimes) || '还没启动完'),
       '帧率 ' + fps + ' | 像素比 ' + (e ? e.pixelRatio : '?') + ' | 绘制 ' + (e ? e.lastDrawCalls : '?') + ' 次 ' + (e ? Math.round(e.lastTriangles / 1000) : '?') + 'k 三角形',
+      '模式 ' + (window.__RLP_LITE ? '轻量（上几次启动没走完，已关阴影 / 倒影，像素比 1）' : '正常'),
       '声音 ' + (window.__RLP_AUDIO ? window.__RLP_AUDIO.summary() : '音频脚本没加载'),
       '最近一次按下 ' + lastDown,
       '报错 ' + errs.length + ' 条' + (errs.length ? '：' + errs[errs.length - 1].message : ''),

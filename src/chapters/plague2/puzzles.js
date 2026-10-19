@@ -180,25 +180,28 @@ export const IDA_PHRASE_COOLDOWN_MS = 1200;              // 乐句之间的冷�
 export const POT_FROGS_NEEDED = 4;
 
 // ============================================================================================
-// 3.3 蛙卵盆（占位）
+// 3.3 蛙卵盆：连续匹配同外形的两堆，错配会清空已配对的进度。
 // ============================================================================================
-// TODO(蛙卵规则)：参考视频 1:45–3:38 的逐帧分析回来后按真实规则改写 press()；章节只依赖下面这几个接口。
-// 状态用 12 位掩码表示（bit i-1 = 第 i 堆还浮在水面上），可以直接存进旗标。
-// 已知线索（video_000-152.md 1:47–1:52）：点第 12 堆 → 第 12 堆连同芦苇沉下去，随后又冒出来，
-// 同时别的堆被压扁回弹；video_331-524.md 3:30–3:31：最后剩两团时点其中一团，两团同时消失 → 成功。
+// 来源为 video_145-338.md 的密帧分析；掩码和等待匹配的首选共同构成可序列化状态。
+export const SPAWN_PAIRS = [[7, 9], [1, 12], [4, 10], [3, 11], [2, 8], [5, 6]];
 export const SPAWN = {
   count: 12,
   // 旁边长着芦苇的堆：'lr' 左右两丛、'r' 右边一丛（和 spawn_basin 道具 API 的表一致）
   reeds: { 1: 'lr', 3: 'r', 7: 'r', 9: 'r', 11: 'r', 12: 'lr' },
   full: 0xfff,
+  pairs: SPAWN_PAIRS,
   /** 开局：12 堆都在。 */
   initial() { return 0xfff; },
   /** 第 i 堆（1..12）是否还在。 */
   isOn(mask, i) { return ((mask >> (i - 1)) & 1) === 1; },
-  /** 占位规则：点哪一堆就只把那一堆沉下去（已经沉了的点了没反应）。返回新的掩码。 */
-  press(mask, i) {
-    if (i < 1 || i > 12) return mask;
-    return mask & ~(1 << (i - 1));
+  /** 首选沉下，匹配保留，错配复位；无效点击不改变等待匹配状态。 */
+  press({ mask = 0xfff, pending = 0 } = {}, i) {
+    if (!Number.isInteger(i) || i < 1 || i > 12 || !SPAWN.isOn(mask, i)) return { mask, pending, kind: 'ignored' };
+    if (!pending) return { mask: mask & ~(1 << (i - 1)), pending: i, kind: 'first' };
+    const pair = SPAWN_PAIRS.some(([a, b]) => (a === pending && b === i) || (b === pending && a === i));
+    if (!pair) return { mask: 0xfff, pending: 0, kind: 'fail' };
+    const next = mask & ~(1 << (i - 1));
+    return { mask: next, pending: 0, kind: next === 0 ? 'win' : 'pair' };
   },
   /** 清空了吗（全部沉下去 = 成功）。 */
   isCleared(mask) { return (mask & 0xfff) === 0; },
@@ -242,9 +245,11 @@ export function selfTest() {
   check('dial: 外圈点 4 次解开', clicksOut === 4 && dialClicksLeft('out', DIAL.out.start) === 4);
   check('dial: 初始未解开、归零后解开', !dialSolved(DIAL.mid.start, DIAL.out.start) && dialSolved(mid, out));
   check('ida: 第 5 次变色是橙色', IDA_FINAL_PHRASE === 5 && IDA_COLORS[IDA_FINAL_PHRASE] === 'orange' && IDA_COLORS[0] === 'lime');
-  // 蛙卵占位规则：12 堆都点一遍就清空
-  let m = SPAWN.initial();
-  for (let i = 1; i <= 12; i++) m = SPAWN.press(m, i);
-  check('spawn(占位): 12 堆点完即清空', SPAWN.isCleared(m) && SPAWN.list(SPAWN.initial()).length === 12);
+  let spawn = { mask: SPAWN.initial(), pending: 0 };
+  for (const i of SPAWN_PAIRS.flat()) spawn = SPAWN.press(spawn, i);
+  check('spawn: 连续六对通关', SPAWN.isCleared(spawn.mask) && spawn.pending === 0);
+  const first = SPAWN.press({ mask: SPAWN.initial(), pending: 0 }, 7);
+  const wrong = SPAWN.press(first, 1);
+  check('spawn: 首选沉下且错配清零', !SPAWN.isOn(first.mask, 7) && wrong.mask === SPAWN.full && wrong.pending === 0);
   return { ok: results.every((r) => r.ok), failed: results.filter((r) => !r.ok), passed: results.filter((r) => r.ok).length, total: results.length, results };
 }

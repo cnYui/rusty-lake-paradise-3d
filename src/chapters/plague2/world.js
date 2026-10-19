@@ -24,7 +24,7 @@ const KITCHEN = SETS.house_int.origin;   // [300, 0, 0]
 const TEMPLE = SETS.temple_int.origin;   // [400, 0, 0]
 export const SPOTS = {
   // 海滩左：David 站在石头上（石头由本文件摆好，顶面挂点 W.davidTop，y = 0.95）
-  david: { pos: [...P.david.pos], rotY: P.david.rotY },
+  david: { pos: [...P.david.pos], rotY: Math.PI - .12 },
   davidRock: { pos: [...P.davidRock.pos] },
   // 海滩右的浅水：睡莲叶棋盘 lily_board 的原点 = (0,0) 格中心（左上格，靠岸）；列 +x、行 +z，格距 0.55
   lilyBoard: { pos: [5.3, 0.03, 49.5] },
@@ -175,7 +175,8 @@ export async function setup(ctx) {
   view(ctx, 'shed_clearing', cam([15, 2.2, -7], [17, 1.5, -13]), { left: 'house_clearing', up: 'soul_path', upAt: [20, 1, -18] });
   view(ctx, 'soul_path', cam([21, 2.2, -16.8], [21, 1.5, -23]), { back: 'shed_clearing', right: 'lake_shore' });
   view(ctx, 'lake_shore', cam([25, 2.4, -31], [30, 1.5, -36]), { left: 'soul_path', right: 'temple_door' });
-  view(ctx, 'temple_door', cam([29, 2.3, -33], [31, 2, -36]), { left: 'lake_shore', up: 'temple_int', upAt: [31, 1.4, -36] });
+  // 第一灾这个机位（[29,2.3,-33]）落在神殿圆柱里面，看到的是一片黑；这里站在门前西南 8 m 的岸边，整座石塔和门洞都在画面里（原作 11:11）
+  view(ctx, 'temple_door', cam([24.6, 2.5, -28.0], [30.2, 3.4, -35.4], 52), { left: 'lake_shore', up: 'temple_int', upAt: [31, 1.4, -36] });
 
   // ---- 厨房：可走动的室内（进门总站在门口机位）。墙内侧边界在这里定义，家具碰撞由 house.js 用 addKitchenObstacles() 加。
   const o = wpos('house_int.center');

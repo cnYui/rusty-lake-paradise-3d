@@ -102,6 +102,7 @@ def main():
     ap = argparse.ArgumentParser(description='锈湖小红书小工具打包')
     ap.add_argument('--legacy', action='store_true', help='旧版（无声音线路补丁，ES2019，不转写 CSS），输出 dist/ + rusty-lake-minitool.zip')
     ap.add_argument('--release', action='store_true', help='声音版去掉屏幕上的声音调试状态条')
+    ap.add_argument('--no-minify', action='store_true', help='不压缩、保留函数名（只用来做 CPU 采样 / 排查，不要上传）')
     ap.add_argument('--out', help='输出目录（默认见上）')
     ap.add_argument('--zip', help='zip 路径（默认见上）')
     a = ap.parse_args()
@@ -133,10 +134,12 @@ def main():
     # ---- 补丁 2：全屏。容器统一管理全屏，requestFullscreen 被禁用；全屏按钮在 fullscreenSupported() 为 false 时自动隐藏
     p = os.path.join(WORK, 'src/core/ui.js')
     s = rd(p)
-    i0 = s.index('function fullscreenSupported() {')
-    i1 = s.index('// 槽位对应的按键')
-    s = s[:i0] + ("function fullscreenSupported() {\n  return false;   // [小红书小工具] 全屏由容器统一管理，页面自己不能全屏\n}\n\n"
-                  "function enterFullscreen() {}\n\nfunction toggleFullscreen() {}\n\n") + s[i1:]
+    # 全屏与章节菜单的辅助函数相邻，按大段注释截断会误删 chapterOpen，导致首页在按钮绑定前抛错。
+    for name, body in [('fullscreenSupported', '  return false;'), ('enterFullscreen', ''), ('toggleFullscreen', '')]:
+        pattern = rf'^function {name}\(\) \{{\n.*?^\}}'
+        replacement = f'function {name}() {{\n{body}\n}}'
+        s, count = re.subn(pattern, lambda _: replacement, s, flags=re.MULTILINE | re.DOTALL)
+        assert count == 1, f'src/core/ui.js: 全屏补丁必须只匹配一个 {name} 函数（命中 {count} 次）'
     wr(p, s)
 
     # ---- 补丁 3：分段启动。原来的启动（建世界 + 第一次渲染编译着色器）是一条几十秒不让出主线程的长任务：慢手机上页面
@@ -161,6 +164,9 @@ def main():
          "        new Promise((r) => setTimeout(r, 20000)),\n"
          "      ]);\n"
          "    } catch { /* 退回同步编译 */ }\n"
+         "    // 第一次渲染要把几十个着色器程序全部链接完，是启动里最长的一次卡顿（手机 GPU 上要好几秒，期间页面合成不出来，\n"
+         "    // 表现成白屏 ↔ 载入页闪烁）：先分片预热（每片只渲一部分物体，片间让出一帧），最后再整体渲一次\n"
+         "    try { if (window.__RLP_WARM) await window.__RLP_WARM(engine, world); } catch { /* 退回一次性编译 */ }\n"
          "    engine.render(); // compile shaders up front\n"
          "  }\n"),
         ("boot().catch(showBootError);\n",
@@ -175,9 +181,89 @@ def main():
         ("export function buildWorld(engine) {\n",
          "export async function buildWorld(engine) {\n"
          "  const __stage = (t) => (window.__RLP_STAGE ? window.__RLP_STAGE(t) : Promise.resolve());\n"),
-        ("  const sky = buildSky(engine.scene);\n", "  await __stage('搭建天空和湖面…');\n  const sky = buildSky(engine.scene);\n"),
-        ("  const island = buildIsland();\n", "  await __stage('种树铺地…');\n  const island = buildIsland();\n"),
-        ("  const buildings = buildBuildings();\n", "  await __stage('盖房子…');\n  const buildings = buildBuildings();\n"),
+        ("  const sky = buildSky(engine.scene);\n", "  await __stage('搭建天空和湖面…');\n  const sky = await buildSky(engine.scene);\n"),
+        ("  const lake = buildLake();\n", "  await __stage();\n  const lake = buildLake();\n"),
+        ("  const island = buildIsland();\n", "  await __stage('种树铺地…');\n  const island = await buildIsland();\n"),
+        ("  const buildings = buildBuildings();\n", "  await __stage('盖房子…');\n  const buildings = await buildBuildings();\n"),
+    ])
+    # 分段启动（细）：慢手机（按桌面的 4 倍慢算）上，buildIsland / buildBuildings / 章节 setup 每一块都是 1～3 秒不让出主线程的长任务，
+    # 容器 / 系统看到页面长时间无响应会判定卡死并重载（白屏 ↔ 载入页反复交替）。这里在它们内部的子步骤之间让出一帧；只改打包副本。
+    STAGE_DEF = "  const __stage = (t) => (window.__RLP_STAGE ? window.__RLP_STAGE(t) : Promise.resolve());\n"
+    patch('src/art/sky.js', [
+        ("export function cpuCanvas(w, h) {\n", STAGE_DEF.replace('  const', 'const', 1) + "export function cpuCanvas(w, h) {\n"),
+        ("export function buildSky(scene) {\n  const group = new THREE.Group();\n",
+         "export async function buildSky(scene) {\n" + STAGE_DEF + "  const group = new THREE.Group();\n"),
+        ("  group.add(makeDome(shared));\n  const ring = makeRing(shared);\n  group.add(ring);\n  group.add(makeHills());\n",
+         "  group.add(await makeDome(shared));\n  await __stage();\n  const ring = makeRing(shared);\n  group.add(ring);\n  await __stage();\n  group.add(makeHills());\n  await __stage();\n"),
+        # 云：136 次带渐变的画布绘制，浏览器攒到任务结束才光栅化；按批次让出一帧，把这一大块拆开
+        ("function makeDome(shared) {\n  const clouds = paintClouds();\n", "async function makeDome(shared) {\n  const clouds = await paintClouds();\n"),
+        ("function paintClouds() {\n", "async function paintClouds() {\n"),
+        ("  for (let i = 0; i < 70; i++) {\n    const y = H * (0.18 + r() * 0.8);\n", "  for (let i = 0; i < 70; i++) {\n    if (i % 18 === 17) await __stage();\n    const y = H * (0.18 + r() * 0.8);\n"),
+        ("  for (let i = 0; i < 40; i++) {\n    const y = H * (0.62 + r() * 0.34);\n", "  for (let i = 0; i < 40; i++) {\n    if (i % 14 === 13) await __stage();\n    const y = H * (0.62 + r() * 0.34);\n"),
+        ("  for (let i = 0; i < 26; i++) {\n    const y = H * (0.25 + r() * 0.45);\n", "  for (let i = 0; i < 26; i++) {\n    if (i % 13 === 12) await __stage();\n    const y = H * (0.25 + r() * 0.45);\n"),
+    ])
+    patch('src/art/island.js', [
+        # 地形：每隔若干行让出一帧（buildTerrain / paintGround 在副本里变成 async）
+        ("const TX0 = -44, TZ0 = -47, TW = 90, TD = 102;\n",
+         "const TX0 = -44, TZ0 = -47, TW = 90, TD = 102;\n" + STAGE_DEF.replace('  const', 'const', 1)),
+        ("  const terrain = buildTerrain();\n", "  const terrain = await buildTerrain();\n"),
+        ("function buildTerrain() {\n", "async function buildTerrain() {\n"),
+        ("  for (let j = 0; j < nz; j++) {\n    const z = TZ0 + j * step;\n",
+         "  for (let j = 0; j < nz; j++) {\n    if (j % 20 === 19) await __stage();\n    const z = TZ0 + j * step;\n"),
+        ("  geo.computeVertexNormals();\n  geo.computeBoundingSphere();\n  const map = paintGround();\n",
+         "  await __stage();\n  geo.computeVertexNormals();\n  geo.computeBoundingSphere();\n  await __stage();\n  const map = await paintGround();\n"),
+        ("function paintGround() {\n", "async function paintGround() {\n"),
+        ("  for (let j = 0; j <= G; j++) for (let i = 0; i <= G; i++) {\n    const x = TX0 + (i / G) * TW, z = TZ0 + (j / G) * TD;\n",
+         "  for (let j = 0; j <= G; j++) { if (j % 20 === 19) await __stage(); for (let i = 0; i <= G; i++) {\n    const x = TX0 + (i / G) * TW, z = TZ0 + (j / G) * TD;\n"),
+        ("    nnG[j * (G + 1) + i] = fbm2(n, x * 0.18, z * 0.18, 4);\n  }\n  const F = 2 * G;\n",
+         "    nnG[j * (G + 1) + i] = fbm2(n, x * 0.18, z * 0.18, 4);\n  } }\n  const F = 2 * G;\n"),
+        ("  for (let j = 0; j <= F; j++) for (let i = 0; i <= F; i++) nfG[j * (F + 1) + i] = fbm2(n, (TX0 + (i / F) * TW) * 0.9 + 40, (TZ0 + (j / F) * TD) * 0.9, 2);\n",
+         "  for (let j = 0; j <= F; j++) { if (j % 40 === 39) await __stage(); for (let i = 0; i <= F; i++) nfG[j * (F + 1) + i] = fbm2(n, (TX0 + (i / F) * TW) * 0.9 + 40, (TZ0 + (j / F) * TD) * 0.9, 2); }\n"),
+        ("  for (let j = 0; j < LO; j++) {\n    const v = (j + 0.5) / LO, z = TZ0 + v * TD;\n",
+         "  for (let j = 0; j < LO; j++) {\n    if (j % 64 === 63) await __stage();\n    const v = (j + 0.5) / LO, z = TZ0 + v * TD;\n"),
+        ("  lg.putImageData(img, 0, 0);\n\n  return cpuTexture(SIZE, SIZE, (g) => {\n",
+         "  lg.putImageData(img, 0, 0);\n  await __stage();\n\n  return cpuTexture(SIZE, SIZE, (g) => {\n"),
+        ("export function buildIsland() {\n  const group = new THREE.Group();\n",
+         "export async function buildIsland() {\n" + STAGE_DEF + "  const group = new THREE.Group();\n"),
+        ("  lap('terrain');\n", "  lap('terrain');\n  await __stage();\n"),
+        ("  lap('palisade+dock');\n", "  lap('palisade+dock');\n  await __stage();\n"),
+        ("  lap('forest');\n", "  lap('forest');\n  await __stage();\n"),
+        ("  lap('trees');\n", "  lap('trees');\n  await __stage();\n"),
+        ("  lap('shed fence');\n", "  lap('shed fence');\n  await __stage();\n"),
+        ("  lap('rocks+thorns');\n", "  lap('rocks+thorns');\n  await __stage();\n"),
+    ])
+    patch('src/art/buildings.js', [
+        ("export function buildBuildings() {\n  const anchors = new Map();\n",
+         "export async function buildBuildings() {\n" + STAGE_DEF + "  const anchors = new Map();\n"),
+        ("  exterior.add(buildHouse(anchors), buildShedWall(anchors), buildTemple(anchors), buildTower());\n",
+         "  exterior.add(buildHouse(anchors));\n  await __stage();\n  exterior.add(buildShedWall(anchors));\n  exterior.add(buildTemple(anchors));\n  await __stage();\n"
+         "  exterior.add(buildTower());\n  await __stage();\n"),
+        ("  const sets = {\n    house_int: buildHouseInt(anchors),\n    temple_int: buildTempleInt(anchors),\n    memory: buildMemory(anchors),\n  };\n",
+         "  const sets = {};\n  sets.house_int = buildHouseInt(anchors);\n  await __stage();\n  sets.temple_int = buildTempleInt(anchors);\n  await __stage();\n"
+         "  sets.memory = buildMemory(anchors);\n  await __stage();\n"),
+    ])
+    # 轻量模式（rotate.js 的 window.__RLP_LITE：启动被反复重载时自动打开）：关阴影、像素比降到 1、关水面倒影
+    patch('src/core/engine.js', [
+        ("    this.maxPixelRatio = Math.min(coarse ? 1.75 : 2, window.devicePixelRatio || 1);\n",
+         "    this.maxPixelRatio = Math.min(coarse ? 1.75 : 2, window.devicePixelRatio || 1);\n    if (window.__RLP_LITE) this.maxPixelRatio = Math.min(this.maxPixelRatio, 1);\n"),
+        ("    renderer.shadowMap.enabled = true;\n", "    renderer.shadowMap.enabled = !window.__RLP_LITE;\n"),
+    ])
+    patch('src/art/world.js', [
+        ("      lake.reflect = extVisible && !deep;\n", "      lake.reflect = extVisible && !deep && !window.__RLP_LITE;\n"),
+    ])
+    patch('src/main.js', [
+        ("  bootDone();\n  RLP.ready = true;\n", "  bootDone();\n  RLP.ready = true;\n  if (window.__RLP_BOOT_DONE) window.__RLP_BOOT_DONE();\n"),
+    ])
+    # 章节 setup：每个部分之间让出一帧（第一灾 / 第二灾都是 `for (const part of PARTS) await part.setup(ctx);`）
+    for chap in ('plague1', 'plague2'):
+        patch(f'src/chapters/{chap}/index.js', [(
+            "for (const part of PARTS) await part.setup(ctx);",
+            "for (const part of PARTS) { await part.setup(ctx); if (window.__RLP_STAGE) await window.__RLP_STAGE(); }",
+        )])
+    # 小工具只开放第一灾和第二灾：第四灾 / 第五灾在副本里不注册 load（菜单显示“敬请期待”，代码也不进包）
+    patch('src/chapters/index.js', [
+        ("load: () => import('./plague4/index.js') }", "load: null }"),
+        ("load: () => import('./plague5/index.js'), wip: true }", "load: null }"),
     ])
 
     # ---- 补丁 4（声音版）：音频输出线路。audio.js 是程序合成（振荡器 / 噪声 / 卷积混响），总线最后一级 comp 原来直连 ac.destination；
@@ -196,6 +282,8 @@ def main():
     target = 'es2019' if a.legacy else 'es2017'
     cmd = [esbuild, 'src/main.js', '--bundle', '--format=iife', '--minify', f'--target={target}', '--legal-comments=none', '--log-level=warning',
            f'--alias:three={vendor}/three.module.js', f'--alias:three/addons={vendor}/addons', f'--outfile={DIST}/game.js']
+    if a.no_minify:
+        cmd = [c for c in cmd if c != '--minify'] + ['--keep-names']
     r = subprocess.run(cmd, cwd=WORK, capture_output=True, text=True, encoding='utf-8')
     sys.stdout.write(r.stdout + r.stderr)
     assert r.returncode == 0, 'esbuild 失败'

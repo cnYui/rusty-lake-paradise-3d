@@ -7,6 +7,8 @@ import { BUILDING_DIMS } from '../../art/buildings.js';
 import { T } from './text.js';
 
 let S = null;
+// Margaret 鼻子里的水蛭：点第 n 下对应的阶段
+const NOSE_STAGES = [null, 'peek', 'peek', 'stay', 'pull1', 'pull2', 'out'];
 const worldPos = (ctx, id) => ctx.world.anchor(id).getWorldPosition(new ctx.THREE.Vector3());
 const add = (zone, id, pos, scale = 1) => {
   const o = makeProp(id);
@@ -75,8 +77,17 @@ export async function setup(ctx) {
   ctx.views.addRoamGate((x, z) => !ctx.flag('shed_open') && z < shedLineZ(x) - 0.2);
 
   ctx.hotspots.define({ id: 'margaret', views: ['forest_clearing'], object: margaret.root, cursor: 'talk', onClick: async () => {
-    if (S.noses < 6) { S.noses++; ctx.setFlag('nose', S.noses); await ctx.say(S.noses === 6 ? '她的鼻子里藏着一只水蛭。' : '玛格丽特眨了眨眼。'); }
-    if (S.noses === 6 && !ctx.flag('margaret_leech_taken')) { ctx.setFlag('margaret_leech_taken'); await ctx.give('leech', { from: margaret.root }); ctx.achieve('the_eilander_family', { anchor: margaret.root }); }
+    // 原作 04:24–04:40：每点一下水蛭从鼻孔探出一点，最后被她捏出来递给你
+    if (S.noses < 6) {
+      S.noses++; ctx.setFlag('nose', S.noses);
+      await Promise.all([margaret.setNose?.(NOSE_STAGES[S.noses]), ctx.say(S.noses === 6 ? '她的鼻子里藏着一只水蛭。' : '玛格丽特眨了眨眼。')]);
+    }
+    if (S.noses === 6 && !ctx.flag('margaret_leech_taken')) {
+      ctx.setFlag('margaret_leech_taken');
+      await ctx.give('leech', { from: margaret.root });
+      await margaret.holdLeech?.(false); margaret.setNose?.('none', { instant: true });
+      ctx.achieve('the_eilander_family', { anchor: margaret.root });
+    }
   } });
 
   // 水泵：放上空壶 → 压一下灌满血 → 壶从水泵上拿走（场景里不再留着壶）
@@ -196,6 +207,10 @@ export async function setup(ctx) {
 export function sync(ctx) {
   if (!S) return;
   S.noses = ctx.flag('nose') || 0;
+  // 鼻子里水蛭的位置随点击次数恢复；交出水蛭后手里不再拿着
+  const stage = ctx.flag('margaret_leech_taken') ? 'none' : (S.noses >= 3 ? NOSE_STAGES[Math.min(S.noses, 6)] : 'none');
+  S.margaret.holdLeech?.(stage === 'out', { instant: true });
+  S.margaret.setNose?.(stage, { instant: true });
   if (ctx.flag('cab_bolt_l')) S.cabinet.slideBolt('l', { instant: true });
   if (ctx.flag('cab_bolt_r')) S.cabinet.slideBolt('r', { instant: true });
   if (ctx.flag('cabinet_open')) S.cabinet.openDoors({ instant: true });

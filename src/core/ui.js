@@ -188,6 +188,27 @@ const CHALK_ICONS = {
   demo_done: [
     [[0.5, 0.12], [0.82, 0.42], [0.5, 0.9], [0.18, 0.42], [0.5, 0.12]], [[0.18, 0.42], [0.82, 0.42]], [[0.36, 0.42], [0.5, 0.9], [0.64, 0.42]],
   ],
+  // 第二灾：青蛙（正面，鼓眼睛、宽嘴、前爪）
+  the_first_frog: [
+    circlePts(0.3, 0.3, 0.1), circlePts(0.7, 0.3, 0.1), circlePts(0.3, 0.3, 0.035, 0, PI * 2, 8), circlePts(0.7, 0.3, 0.035, 0, PI * 2, 8),
+    [...arc(0.5, 0.6, 0.4, 0.27, 0, PI * 2, 30)],
+    [[0.27, 0.64], [0.4, 0.73], [0.6, 0.73], [0.73, 0.64]],
+    [[0.2, 0.78], [0.1, 0.92], [0.3, 0.92]], [[0.8, 0.78], [0.9, 0.92], [0.7, 0.92]],
+  ],
+  // 第二灾：鹿头（水中倒影）：脸、耳朵、两支分叉的鹿角和脚下的水纹
+  reflection_in_the_water: [
+    [[0.38, 0.48], [0.62, 0.48], [0.58, 0.74], [0.5, 0.84], [0.42, 0.74], [0.38, 0.48]],
+    [[0.38, 0.5], [0.24, 0.5], [0.37, 0.6]], [[0.62, 0.5], [0.76, 0.5], [0.63, 0.6]],
+    [[0.4, 0.48], [0.32, 0.34], [0.22, 0.2], [0.14, 0.06]], [[0.32, 0.34], [0.18, 0.32]], [[0.25, 0.25], [0.3, 0.1]],
+    [[0.6, 0.48], [0.68, 0.34], [0.78, 0.2], [0.86, 0.06]], [[0.68, 0.34], [0.82, 0.32]], [[0.75, 0.25], [0.7, 0.1]],
+    [[0.44, 0.56], [0.47, 0.56]], [[0.53, 0.56], [0.56, 0.56]],
+    [[0.18, 0.93], [0.3, 0.9], [0.42, 0.93], [0.54, 0.9], [0.66, 0.93], [0.78, 0.9], [0.86, 0.93]],
+  ],
+  // 第二灾：钥匙（圆环柄朝上、竖杆、两个齿）
+  a_rusty_key: [
+    circlePts(0.5, 0.25, 0.17, 0, PI * 2, 22), circlePts(0.5, 0.25, 0.06, 0, PI * 2, 10),
+    [[0.5, 0.42], [0.5, 0.94]], [[0.5, 0.7], [0.68, 0.7]], [[0.5, 0.84], [0.63, 0.84]],
+  ],
   _default: [
     [[0.5, 0.1], [0.62, 0.38], [0.92, 0.4], [0.68, 0.6], [0.76, 0.9], [0.5, 0.73], [0.24, 0.9], [0.32, 0.6], [0.08, 0.4], [0.38, 0.38], [0.5, 0.1]],
   ],
@@ -535,6 +556,12 @@ function toggleFullscreen() {
     try { Promise.resolve(exit && exit.call(d)).catch(() => {}); } catch { /* ignore */ }
   } else enterFullscreen();
 }
+
+// 章节在菜单里能不能选：要有 load；开发中（wip）的章节只有 URL 带 ?wip=1（或 localStorage rlp3d.wip=1）时才开放。
+function wipEnabled() {
+  try { return /[?&]wip(=1|=true)?(&|$)/.test(location.search) || localStorage.getItem('rlp3d.wip') === '1'; } catch { return false; }
+}
+const chapterOpen = (c) => !!c.load && (!c.wip || wipEnabled());
 
 // 槽位对应的按键：1–9、0 是前 10 格，- 和 = 是第 11、12 格（第二列）
 const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
@@ -1383,7 +1410,7 @@ export const ui = {
       play.setAttribute('aria-label', '开始');
       play.innerHTML = '<svg viewBox="0 0 100 100"><path d="M6 7 L93 5 L95 94 L5 95 Z" fill="none" stroke="#111" stroke-width="5" stroke-linejoin="round"/><path d="M37 29 L70 50 L37 72 Z" fill="#111"/></svg>';
       const links = h('div', 'menu-links', m);
-      const ch1 = chapters.find((c) => c.load) || chapters[0];
+      const ch1 = chapters.find(chapterOpen) || chapters[0];
       const hasSave = ch1 ? state.hasSave(ch1.id) : false;
       const status = h('div', 'menu-status', m, hasSave ? `继续：${ch1.label.zh} · ${ch1.title.zh}` : '');
       const newBtn = h('button', 'menu-link', links, '新游戏');
@@ -1391,14 +1418,15 @@ export const ui = {
       const setBtn = h('button', 'menu-link', links, '设置');
       const grid = h('div', 'plagues', m);
       chapters.forEach((c) => {
-        const card = h('button', 'plague' + (c.load ? ' open' : ' locked'), grid);
+        const open = chapterOpen(c);
+        const card = h('button', 'plague' + (open ? ' open' : ' locked'), grid);
         card.type = 'button';
         h('div', 'num', card, roman(c.number));
-        h('div', 'zh', card, c.load ? c.title.zh : '敬请期待');
+        h('div', 'zh', card, open ? c.title.zh : '敬请期待');
         h('div', 'lbl', card, c.label.zh);
         card.addEventListener('click', () => {
           audio.unlock();
-          if (!c.load) {
+          if (!open) {
             audio.sfx('wrong');
             card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
             status.textContent = `${c.label.zh} · ${c.title.zh} —— 敬请期待`;
