@@ -138,6 +138,9 @@ with sync_playwright() as p:
     ctx, page, log = new_page(browser, 390, 844, dsf=2)
     page.goto(f'{BASE}/index.html')
     assert poll(page, 'window.RLP && RLP.ready === true', 120)
+    # ready 在失败路径也会置为 true，普通首页必须验证菜单完成，不能靠绕过菜单的 autoplay 代替。
+    assert page.evaluate('RLP.bootError') is None, page.evaluate('RLP.bootError')
+    assert poll(page, "document.querySelector('.menu.show') && document.querySelectorAll('.menu-link').length === 3", 10), '首页菜单未完整显示'
     time.sleep(1.5)
     S = page.evaluate('window.__RLP_ROT')
     check('手机竖屏：画面转了 90°', S['rot'] is True, S)
@@ -150,6 +153,30 @@ with sync_playwright() as p:
     page.screenshot(path=os.path.join(OUT, 'p01_title.png'))
     f = Fingers(ctx.new_cdp_session(page))
 
+    check('普通首页：没有启动错误，开始和三项菜单入口完整显示',
+          page.evaluate("!RLP.bootError && !!document.querySelector('.menu.show .menu-play') && document.querySelectorAll('.menu-link').length === 3"))
+    check('章节菜单：第一、二灾开放，第四灾和开发中章节保持关闭',
+          page.evaluate("document.querySelectorAll('.plague').length === 10 && [...document.querySelectorAll('.plague.open .lbl')].map(e => e.textContent).join(',') === '第一灾,第二灾'"))
+    for n, title in [(2, '成就'), (3, '设置')]:
+        r = vrect(page, f'.menu-link:nth-child({n})')
+        tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+        check(f'真实触摸“{title}”：面板打开',
+              poll(page, f"document.querySelector('.menu-panel h2') && document.querySelector('.menu-panel h2').textContent === '{title}'", 10))
+        if title == '设置':
+            muted = page.evaluate('RLP.ctx.audio.muted')
+            r = vrect(page, '.menu-panel input[type="checkbox"]')
+            tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+            check('真实触摸静音：设置立即生效', poll(page, f'RLP.ctx.audio.muted === {json.dumps(not muted)}', 10))
+            r = vrect(page, '.menu-panel .btn.danger')
+            tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+            check('重置进度：先打开确认面板', poll(page, "document.querySelectorAll('.menu-panel').length === 2", 10))
+            r = vrect(page, '.menu-panel:last-child .btn-row .btn:last-child')
+            tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+            check('取消重置：返回设置面板', poll(page, "document.querySelectorAll('.menu-panel').length === 1", 10))
+        r = vrect(page, '.menu-panel .panel-x')
+        tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+        check(f'真实触摸关闭“{title}”：返回首页', poll(page, "!document.querySelector('.menu-panel')", 10))
+
     # 标题菜单：先点一下让音频解锁，再点“新游戏”
     link = vrect(page, '.menu-link')
     names = page.evaluate("[...document.querySelectorAll('.menu-link')].map(e => e.textContent)")
@@ -159,6 +186,34 @@ with sync_playwright() as p:
     check('竖屏里真实触摸点中“新游戏”，菜单关闭、游戏开始（转过来的画面里坐标对得上）', started)
     page.screenshot(path=os.path.join(OUT, 'p02_after_tap.png'))
     csp_and_errors(page, log, '竖屏标题')
+    ctx.close()
+
+    # ------------------------------------------------------------------ 1b. 从标题菜单选第二灾：真实触摸点“II”，页面会重载一次（一个页面只能装一章）
+    # 小工具容器里这条路径之前没验证过：重载后要回到第二灾的片头，不能回到标题菜单，也不能反复重载。
+    ctx, page, log = new_page(browser, 390, 844, dsf=2)
+    page.add_init_script("window.__loads = (+sessionStorage.getItem('__loads') || 0) + 1; sessionStorage.setItem('__loads', String(window.__loads));")
+    page.goto(f'{BASE}/index.html')
+    assert poll(page, "window.RLP && RLP.ready === true && document.querySelector('.menu.show')", 120)
+    time.sleep(1.5)
+    f = Fingers(ctx.new_cdp_session(page))
+    r = vrect(page, '.plague:nth-child(2)')
+    tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+
+    def chapter2_started():
+        try:
+            return page.evaluate("!!(window.RLP && RLP.ready === true && RLP.chapter && RLP.chapter.number === 2 && RLP.state.view)")
+        except Exception:      # 页面正在重载，执行上下文被销毁
+            return False
+    t_end = time.time() + 150
+    while time.time() < t_end and not chapter2_started():
+        time.sleep(0.5)
+    check('菜单里触摸“第二灾”：页面重载后进入第二灾', chapter2_started())
+    time.sleep(2.0)
+    check('只重载了一次（没有重载循环），没有启动错误',
+          page.evaluate("[+sessionStorage.getItem('__loads'), !RLP.bootError]") == [2, True], page.evaluate("[sessionStorage.getItem('__loads'), String(RLP.bootError)]"))
+    check('第二灾的片头：停在总览，菜单已关闭', page.evaluate("RLP.state.view === 'overview' && RLP.ctx.ui.menu.visible === false"))
+    page.screenshot(path=os.path.join(OUT, 'p02b_chapter2.png'))
+    csp_and_errors(page, log, '菜单进第二灾')
     ctx.close()
 
     # ------------------------------------------------------------------ 2. 竖屏漫游：点天堂门、摇杆、转视角
@@ -243,11 +298,26 @@ with sync_playwright() as p:
     csp_and_errors(page, log, '完整流程')
     ctx.close()
 
+    # 第二灾完整流程（同样在竖屏转过来的画面里、容器 CSP 下）
+    ctx, page, log = new_page(browser, 390, 844, dsf=1)
+    page.goto(f'{BASE}/index.html?autotest=1&chapter=2')
+    assert poll(page, 'window.RLP && RLP.ready === true', 120)
+    page.evaluate("RLP.start(2, { fresh: true, skipIntro: true })")
+    assert poll(page, 'RLP.state.view', 60)
+    t0 = time.time()
+    res = page.evaluate("(async () => { RLP.timeScale = 3; const r = await RLP.autoplay({ stepDelay: 0 }); return { ok: r.ok, steps: r.steps, total: r.total, error: r.error, failedStep: r.failedStep }; })()")
+    check(f'第二灾完整流程 autoplay（{time.time() - t0:.0f}s）', res['ok'] and res['steps'] == res['total'], res)
+    csp_and_errors(page, log, '第二灾完整流程')
+    ctx.close()
+
     # ------------------------------------------------------------------ 5. 慢手机上的启动 + 排查面板 + 报错横幅
     # 审核打回的原因是“功能缺陷 / 按钮点不了”：启动原来是一条不让出主线程的长任务，慢设备上页面整段没响应、load 事件迟迟不来
     ctx, page, log = new_page(browser, 390, 844, dsf=2)
     cdp = ctx.new_cdp_session(page)
     cdp.send('Emulation.setCPUThrottlingRate', {'rate': 3})
+    # 数一数启动期让出主线程（__RLP_STAGE）的次数：启动被拆成很多小段，评论里“白屏 / 载入页交替闪”就是启动里有几秒不让出主线程
+    page.add_init_script("""window.__STAGE_CALLS = 0; var __sf = null;
+      Object.defineProperty(window, '__RLP_STAGE', { configurable: true, get: function () { return __sf && function (t) { window.__STAGE_CALLS++; return __sf(t); }; }, set: function (v) { __sf = v; } });""")
     t0 = time.time()
     page.goto(f'{BASE}/index.html', timeout=90000)
     t_load = time.time() - t0
@@ -262,6 +332,9 @@ with sync_playwright() as p:
         time.sleep(0.1)
     check('载入页依次显示阶段文字（至少 4 个）', len(stages) >= 4, stages)
     check('慢设备上也能启动完成，没有启动错误', page.evaluate('!!(window.RLP && RLP.ready === true) && !RLP.bootError'), page.evaluate('window.RLP && RLP.bootError'))
+    check('启动被拆成很多小段（让出主线程 ≥ 50 次，桌面实测约 90 次）', page.evaluate('window.__STAGE_CALLS') >= 50, page.evaluate('window.__STAGE_CALLS'))
+    check('启动走完后记录为 done，正常模式（有阴影）',
+          page.evaluate("JSON.parse(localStorage.getItem('rlp3d.boot')).done === true && window.__RLP_LITE === false && RLP.ctx.engine.renderer.shadowMap.enabled === true"))
     cdp.send('Emulation.setCPUThrottlingRate', {'rate': 1})
     time.sleep(1.0)
     f = Fingers(cdp)
@@ -282,7 +355,39 @@ with sync_playwright() as p:
     check('没接住的报错会在画面顶上显示红色横幅',
           page.evaluate("(() => { const b = document.querySelector('.rlp-err'); return !!b && b.classList.contains('show') && /test boom/.test(b.textContent); })()"))
     ctx.close()
+
+    # ------------------------------------------------------------------ 6. 反复重载保护：启动没走完就被重载两次，第三次进轻量模式
+    # 线上评论：“一进去两三秒就一直闪（白色画面和加载画面快速交替）”——启动被容器 / 系统判为无响应而反复重载。
+    ctx, page, log = new_page(browser, 390, 844, dsf=1)
+    page.goto(f'{BASE}/index.html')
+    assert poll(page, 'window.RLP && RLP.ready === true', 180)
+    st = page.evaluate("({lite: window.__RLP_LITE, shadows: RLP.ctx.engine.renderer.shadowMap.enabled, boot: JSON.parse(localStorage.getItem('rlp3d.boot'))})")
+    check('第一次进入：正常模式，启动走完后记录 done', st['lite'] is False and st['shadows'] is True and st['boot']['done'] is True, st)
+    page.evaluate("localStorage.removeItem('rlp3d.boot')")
+    for _ in range(2):                      # 启动到一半就被重载（模拟容器 / 系统反复重载）
+        page.goto(f'{BASE}/index.html', wait_until='commit')
+        time.sleep(0.6)
+    page.goto(f'{BASE}/index.html', wait_until='commit')
+    assert poll(page, 'window.RLP && RLP.ready === true', 180)
+    st = page.evaluate("({lite: window.__RLP_LITE, shadows: RLP.ctx.engine.renderer.shadowMap.enabled, pr: RLP.ctx.engine.maxPixelRatio, boot: JSON.parse(localStorage.getItem('rlp3d.boot')), err: String(RLP.bootError)})")
+    check('连续两次启动没走完：第三次进入轻量模式（关阴影、像素比 1），启动成功',
+          st['lite'] is True and st['shadows'] is False and st['pr'] <= 1 and st['err'] == 'null' and st['boot']['done'] is True, st)
+    page.goto(f'{BASE}/index.html')
+    assert poll(page, 'window.RLP && RLP.ready === true', 180)
+    check('再下一次进入：恢复正常模式', page.evaluate("window.__RLP_LITE === false && RLP.ctx.engine.renderer.shadowMap.enabled === true"))
+    page.evaluate("localStorage.setItem('rlp3d.boot', JSON.stringify({t: Date.now() - 60000, n: 5, done: false}))")
+    page.goto(f'{BASE}/index.html')
+    assert poll(page, 'window.RLP && RLP.ready === true', 180)
+    check('上一次启动记录是 60 秒前：不算反复重载', page.evaluate("window.__RLP_LITE === false"))
+    ctx.close()
+    ctx, page, log = new_page(browser, 390, 844, dsf=1)
+    page.add_init_script("Object.defineProperty(window, 'localStorage', { get() { throw new Error('denied'); } });")
+    page.goto(f'{BASE}/index.html')
+    assert poll(page, 'window.RLP && RLP.ready === true', 180)
+    check('localStorage 不可用：照常启动', page.evaluate("window.__RLP_LITE === false && !RLP.bootError"))
+    ctx.close()
     browser.close()
 
 srv.shutdown()
 print(json.dumps({'passed': sum(results), 'total': len(results)}))
+sys.exit(0 if all(results) else 1)
