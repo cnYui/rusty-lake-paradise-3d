@@ -8,7 +8,7 @@ import {
   POT_START, POT_TARGETS, potPoke, potMatch, potRecipe, potKey, potParse,
   isTrapFood, TRAP_NEEDED,
   shrineUse, shrineComplete, selfTest,
-} from '../src/chapters/plague3/puzzles.js';
+} from '../../src/chapters/plague3/puzzles.js';
 
 const play = (clicks, board = sliderBoard()) => {
   for (const cell of clicks) {

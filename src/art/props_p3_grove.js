@@ -2,7 +2,7 @@
 // p3_birch / p3_birch_tap / p3_berry_bush / p3_shrine / p3_grove_table / p3_larva / p3_grove_portal。接口见 docs/plague3_api.md §6。
 // 约定同第一、二灾：1 单位 = 1 米；道具原点在地面，正面朝 +z；状态方法返回 Promise，最后一个参数支持 { instant: true }；
 // 每个有状态的道具都有 setState / getState；动画只用 core/tween.js 的 animate（经 play()）。
-// 外观对照参考视频（dev/ref/P03_*.mp4）：白桦林 05:06–05:16 / 06:14 / 09:26 / 12:50，神龛 05:14 / 09:28–09:34 / 12:52–13:18，
+// 外观对照参考视频（dev/common/ref/P03_*.mp4）：白桦林 05:06–05:16 / 06:14 / 09:26 / 12:50，神龛 05:14 / 09:28–09:34 / 12:52–13:18，
 // 圆桌 05:42–06:04，幼虫 06:14–06:50，割汁 05:34–05:38。
 import {
   THREE, TAU, Ease, animate, tmat, umat, group, mesh, lathe, rod, merge, hit, cached, lumpGeo, contactShadow, canvasTexture, rng, play, lerp, smooth, seg, clamp,

@@ -569,7 +569,7 @@ function buildGerardBarber() {
 // ===========================================================================
 
 /**
- * 没有 setPartner() 时用的 Gerard 挂点（gerard_barber 坐姿、root 在原点时的 root 坐标，dev/viewer 实测）。
+ * 没有 setPartner() 时用的 Gerard 挂点（gerard_barber 坐姿、root 在原点时的 root 坐标，dev/common/viewer 实测）。
  * 换算到 Ida 的 root 坐标时减去 IDA_BEHIND。
  */
 const GERARD_ANCHORS = {

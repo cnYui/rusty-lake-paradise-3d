@@ -2,8 +2,8 @@
 
 > 本文是第三灾**美术资产**（道具、物品、人物变体、白桦林布景）和**章节逻辑**之间的约定。
 > 章节逻辑（流程、旗标、视图、热点、谜题规则、测试）见 `docs/plague3_design.md`，交接说明见 `docs/plague3_handoff.md`。
-> 参考视频：`dev/ref/P03_第三灾-蚊子灾_BV1bo4y1y7fm.mp4`（1920×1080，863.9 秒），逐秒帧 `dev/ref/plague3/frames/f_NNNN.jpg`
-> （f_NNNN = 第 NNNN 秒，960×540），拼图 `dev/ref/plague3/sheets/s_00..s_26.jpg`（4×4，每格隔 2 秒，左上角黄字时间）。
+> 参考视频：`dev/common/ref/P03_第三灾-蚊子灾_BV1bo4y1y7fm.mp4`（1920×1080，863.9 秒），逐秒帧 `dev/common/ref/plague3/frames/f_NNNN.jpg`
+> （f_NNNN = 第 NNNN 秒，960×540），拼图 `dev/common/ref/plague3/sheets/s_00..s_26.jpg`（4×4，每格隔 2 秒，左上角黄字时间）。
 > 下文“参考 mm:ss”都指这个视频。原作游戏画面约占帧的 x 30–830，右侧是物品栏。
 
 ## 0. 通用约定（同第一、二灾）
@@ -38,8 +38,8 @@
 | `src/art/props_lake.js` | 公共画作 `plague_painting` 追加第三灾结尾（§8） |
 | `src/art/props_p3_placeholders.js` | 还没做好的道具 id 的占位（props.js 自动回退，正式工厂出现后不再使用） |
 
-`props.js` 已注册五个 `props_p3_*` 模块；`dev/viewer.js` 默认会搜索它们（`?prop=<id>`，或 `&mod=props_p3_grove` 指定）；
-人物用 `dev/viewer.html?char=<id>` 或 `dev/cast.html?ids=<id>`。
+`props.js` 已注册五个 `props_p3_*` 模块；`dev/common/viewer.js` 默认会搜索它们（`?prop=<id>`，或 `&mod=props_p3_grove` 指定）；
+人物用 `dev/common/viewer.html?char=<id>` 或 `dev/common/cast.html?ids=<id>`。
 
 **可复用的现有模型**（能改就改，不重造）：`david_rock`（石头）、`portrait_caroline`（金框画像 + 铭牌 + 吊绳，props_inner）、
 `side_table` / `temple_stool` / `memory_frame` / `chest`（第二灾）、`bowl`（props_frogs）、`jug`（props_inner）、

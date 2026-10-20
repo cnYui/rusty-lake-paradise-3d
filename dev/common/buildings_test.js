@@ -4,8 +4,8 @@
 //   &bg=%23cfe8f2 (exterior sky colour)  &ground=%236b6a65
 import * as THREE from 'three';
 import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
-import { buildBuildings } from '../src/art/buildings.js';
-import { SETS } from '../src/art/layout.js';
+import { buildBuildings } from '../../src/art/buildings.js';
+import { SETS } from '../../src/art/layout.js';
 
 const q = new URLSearchParams(location.search);
 const canvas = document.getElementById('c');
@@ -68,8 +68,8 @@ async function main() {
 
   if (q.get('props') === '1') {
     let makeProp = null, makeCharacter = null;
-    try { ({ makeProp } = await import('../src/art/props.js')); } catch (e) { console.warn('props not loadable', e.message); }
-    try { ({ makeCharacter } = await import('../src/art/characters.js')); } catch (e) { console.warn('chars not loadable', e.message); }
+    try { ({ makeProp } = await import('../../src/art/props.js')); } catch (e) { console.warn('props not loadable', e.message); }
+    try { ({ makeCharacter } = await import('../../src/art/characters.js')); } catch (e) { console.warn('chars not loadable', e.message); }
     const place = (anchorName, obj) => {
       const a = B.anchors.get(anchorName);
       if (!a || !obj) return;

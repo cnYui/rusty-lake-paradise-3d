@@ -1,7 +1,7 @@
 // 验证导向规则的失败边界与完整解法，避免动画或自动流程掩盖谜题不可解。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CRAB_LEVELS, initialShells, canPlaceShell, traceCrab, windowSolved } from '../src/chapters/plague4/puzzles.js';
+import { CRAB_LEVELS, initialShells, canPlaceShell, traceCrab, windowSolved } from '../../src/chapters/plague4/puzzles.js';
 
 const solutions = [
   [[2, 2], [2, 0], [6, 0]],

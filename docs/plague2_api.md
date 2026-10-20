@@ -68,7 +68,7 @@ makeProp('spawn_basin')
   - 子物体：`basin_water`（点水）、`basin_rim`、`clump_1..12`（每堆一个组，组里带透明点击盒）、`basin_frog`。
 
 ### A3. 厨房道具
-- `cauldron`：参考 `dev/ref/p2/analysis/chars-props_reuse.md` 第 7A 节的骨架，外观按视频：
+- `cauldron`：参考 `dev/common/ref/p2/analysis/chars-props_reuse.md` 第 7A 节的骨架，外观按视频：
   灰紫陶锅 #a18f8d（阴影 #6c605e），上段外翻锅口 + 肩，中间一道折线，下段鼓腹；锅口里暗色液面 #524948；
   4 根细铁腿 #7c7a74 立在椭圆形砖砌火圈 #a08770（一块块土黄砖）上；锅高约 0.75 m，锅口直径约 0.6 m。
   方法：`setWood(bool)`、`setLit(bool)`（火苗橙黄 #d08f1d，焰心偏红，摇曳）、`setFrogs(n 0..4)`、

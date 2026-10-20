@@ -1,6 +1,6 @@
 // 第三灾（蚊灾和虱灾）海滩 / 湖岸 / 神殿道具：天堂门前的符号石、贻贝、沙地上的 X、滑块盒、湖岸木桩、神殿窗台盘与鹦鹉。
 // 接口见 docs/plague3_api.md §3。约定：1 单位 = 1 米，原点在地面（或挂点），正面朝 +z；状态方法返回 Promise，最后一个参数支持 { instant: true }；
-// 每个有状态的道具都有 setState（瞬时、可往回设、没给的字段保持不变）和 getState。外观对照 dev/ref/P03_*.mp4 的时间点写在每个函数前。
+// 每个有状态的道具都有 setState（瞬时、可往回设、没给的字段保持不变）和 getState。外观对照 dev/common/ref/P03_*.mp4 的时间点写在每个函数前。
 import {
   THREE, mergeGeometries, TAU, clamp, seg, lerp, smooth, tmat, group, mesh, lathe, rod, merge, hit, cached, play, lumpGeo,
   contactShadow, symbolTexture, canvasTexture, toon, unlit, rng, INK,

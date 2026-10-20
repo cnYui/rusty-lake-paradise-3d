@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
-import { tick } from '../src/core/tween.js';
+import { tick } from '../../src/core/tween.js';
 
 const q = new URLSearchParams(location.search);
 const info = document.getElementById('info');
@@ -83,7 +83,7 @@ async function loadProp(id) {
   const mods = q.get('mod') ? [q.get('mod')] : ['props_beach', 'props_inner', 'props_lake', 'props_frogs', 'props_p2_lake', 'props_p2_house', 'props_p2_temple', 'props_p5', 'props_p3_items', 'props_p3_beach', 'props_p3_forest', 'props_p3_house', 'props_p3_grove'];
   for (const m of mods) {
     try {
-      const mod = await import(`../src/art/${m}.js`);
+      const mod = await import(`../../src/art/${m}.js`);
       if (mod.FACTORIES?.[id]) return mod.FACTORIES[id]({});
     } catch (e) {
       if (q.get('mod')) throw e;
@@ -100,8 +100,8 @@ async function main() {
     obj = await loadProp(q.get('prop'));
   } else if (q.get('char')) {
     defaultLights();
-    const mod = await import('../src/art/characters.js');
-    await import('../src/art/characters_p2.js').catch((e) => log('characters_p2: ' + e.message));   // 第二灾角色（注册到 makeCharacter）
+    const mod = await import('../../src/art/characters.js');
+    await import('../../src/art/characters_p2.js').catch((e) => log('characters_p2: ' + e.message));   // 第二灾角色（注册到 makeCharacter）
     const rig = mod.makeCharacter(q.get('char'));
     obj = rig.root; obj.rig = rig;
     VIEW.rig = rig;
@@ -111,13 +111,13 @@ async function main() {
     if (q.get('mask')) rig.setMask?.(q.get('mask'));
   } else if (q.get('animal')) {
     defaultLights();
-    const mod = await import('../src/art/characters.js');
+    const mod = await import('../../src/art/characters.js');
     const rig = mod.makeAnimal(q.get('animal'));
     obj = rig.root; VIEW.rig = rig;
     obj.update = (dt, t) => rig.update?.(dt, t);
     for (const k of Object.keys(rig)) if (typeof rig[k] === 'function' && !obj[k]) obj[k] = rig[k].bind(rig);
   } else if (q.get('world')) {
-    const mod = await import('../src/art/world.js');
+    const mod = await import('../../src/art/world.js');
     const world = mod.buildWorld(engineLike);
     VIEW.world = world;
     const zone = q.get('zone') || 'exterior';

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 示例：把游戏部署到一台自己的服务器。真正的 dev/deploy_mac.sh 里写了私有的主机地址 / 用户名 / 密钥路径，只放本地、不进公开仓库；
+# 示例：把游戏部署到一台自己的服务器。真正的 dev/common/deploy_mac.sh 里写了私有的主机地址 / 用户名 / 密钥路径，只放本地、不进公开仓库；
 # 这个文件把它们改成必须通过环境变量传入：DEPLOY_HOST、DEPLOY_USER、DEPLOY_KEY、DEPLOY_DIR（DEPLOY_URL 可选）。
 # 把游戏部署到 MacBook（经 Tailscale SSH），公网地址 https://aaccx.pw/rusty-lake/
 #
@@ -14,7 +14,7 @@
 # 也不需要手动清 Cloudflare 缓存。旧版本目录保留（每个约 4MB），需要时手动删除。
 # 注意：Cloudflare 的 WAF 会拦截路径里带 /vendor/ 的请求，所以 three.js 以 lib/ 的名字上线。
 #
-# 用法（在项目根目录，Git Bash / macOS / Linux 均可）：bash dev/deploy_mac.sh
+# 用法（在项目根目录，Git Bash / macOS / Linux 均可）：bash dev/common/deploy_mac.sh
 # 可用环境变量覆盖：DEPLOY_HOST、DEPLOY_USER、DEPLOY_KEY、DEPLOY_DIR、DEPLOY_URL
 set -euo pipefail
 
@@ -25,7 +25,7 @@ DEST="${DEPLOY_DIR:?请设置 DEPLOY_DIR（主机上的部署目录）}"
 URL="${DEPLOY_URL:-https://aaccx.pw/rusty-lake/}"
 VER="v$(date +%Y%m%d-%H%M%S)"
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 for f in index.html styles.css src vendor/three; do [ -e "$f" ] || { echo "缺少 $f" >&2; exit 1; }; done
 
 # 1. 在临时目录里组装这一版

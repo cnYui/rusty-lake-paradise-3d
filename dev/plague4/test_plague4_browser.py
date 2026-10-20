@@ -1,10 +1,12 @@
 """第四灾浏览器验收：自动流程、真实射线点击、触屏与存档恢复。"""
 import json
+import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-from shot import serve
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'common'))
+from shot import serve  # noqa: E402
 
-OUT = Path(__file__).resolve().parent / 'shots' / 'plague4'
+OUT = Path(__file__).resolve().parent / 'media'
 OUT.mkdir(parents=True, exist_ok=True)
 
 TARGET = """id => {

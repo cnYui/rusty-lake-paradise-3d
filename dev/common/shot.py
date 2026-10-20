@@ -1,8 +1,8 @@
 """Headless screenshot helper (Playwright + SwiftShader WebGL). Starts its own static server.
 
 Usage:
-  python dev/shot.py "dev/viewer.html?prop=owl_totem&hud=0" out.png [--size 1280x720] [--wait 0.5] [--js "VIEW.advance(2)"]
-  python dev/shot.py "index.html?autotest=1" out.png --js "await RLP.goto('beach_mid')" --wait 2
+  python dev/common/shot.py "dev/common/viewer.html?prop=owl_totem&hud=0" out.png [--size 1280x720] [--wait 0.5] [--js "VIEW.advance(2)"]
+  python dev/common/shot.py "index.html?autotest=1" out.png --js "await RLP.goto('beach_mid')" --wait 2
 
 Prints console errors / page errors; exits 1 if the page reported VIEW_ERROR or uncaught errors.
 Multiple shots in one browser:  --batch spec.json  where spec.json = [{"url":..., "out":..., "js":..., "wait":...}, ...]
@@ -12,7 +12,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from playwright.sync_api import sync_playwright
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # dev/common/ → 项目根
 
 
 class Quiet(SimpleHTTPRequestHandler):

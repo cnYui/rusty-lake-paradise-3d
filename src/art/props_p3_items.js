@@ -1,6 +1,6 @@
 // 第三灾物品模型：苍蝇拍、蚊子、蜗牛、斧子、铲子、剪刀、蜂蜜、耳朵、贻贝、浆果、桦树汁、球茎、黏土、三种花、三种花瓶。
 // 约定：物品原点在中心、长轴沿 +x、“图标面”朝 +z；花和花瓶是立着的（原点在底部中心、沿 +y），方便插进花瓶 / 摆上神龛。
-// 场景里摆的同一件东西也用这里的工厂（物品栏图标 = 场景外观）。外观对照参考视频 dev/ref/P03_*.mp4 的时间点写在每个函数前。
+// 场景里摆的同一件东西也用这里的工厂（物品栏图标 = 场景外观）。外观对照参考视频 dev/common/ref/P03_*.mp4 的时间点写在每个函数前。
 import {
   THREE, TAU, tmat, umat, group, mesh, lathe, rod, merge, cached, lumpGeo, canvasTexture, rng, mosquitoGeometry,
   POT, potProfile, potOpen, mergeGeometries, INK,

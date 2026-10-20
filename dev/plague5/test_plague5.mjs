@@ -1,7 +1,7 @@
 // 第五灾规则验收：合法解、失败重试与约束，避免把展示状态误当谜题真值。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FIELD_LEVELS, fieldCells, fieldCounts, fieldSolved, moveFieldPiece, THREAD_LEVELS, threadDegrees, threadSolved, toggleThread } from '../src/chapters/plague5/rules.js';
+import { FIELD_LEVELS, fieldCells, fieldCounts, fieldSolved, moveFieldPiece, THREAD_LEVELS, threadDegrees, threadSolved, toggleThread } from '../../src/chapters/plague5/rules.js';
 
 test('三轮菜地都有合法解，全部菜苗必须摆入田格', () => {
   for (const level of FIELD_LEVELS) {

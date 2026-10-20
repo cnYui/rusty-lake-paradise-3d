@@ -1,10 +1,12 @@
 """第五灾验收：真实输入、完整通关、读档复位与漫游；本地截图不参与部署。"""
 import json
+import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-from shot import serve
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'common'))
+from shot import serve  # noqa: E402
 
-OUT = Path(__file__).resolve().parent / 'shots' / 'plague5'
+OUT = Path(__file__).resolve().parent / 'media'
 OUT.mkdir(parents=True, exist_ok=True)
 
 TARGET = """id => {

@@ -2,9 +2,9 @@
 同时录屏录音，输出 mp4。玩的过程中任何一步卡住、断言失败或页面报错都会停下并存现场（截图 + RLP.info）。
 
 用法：
-  python dev/record_plague2_demo.py                    # 录制，默认 1280x720，输出 dev/shots/plague2/demo/
-  python dev/record_plague2_demo.py --size 1920x1080
-  python dev/record_plague2_demo.py --fast             # 只玩不录，停顿清零、过场加速（查 bug 用）
+  python dev/plague2/record_plague2_demo.py                    # 录制，默认 1280x720，输出 dev/plague2/media/demo/
+  python dev/plague2/record_plague2_demo.py --size 1920x1080
+  python dev/plague2/record_plague2_demo.py --fast             # 只玩不录，停顿清零、过场加速（查 bug 用）
 
 只用公开的玩家输入：鼠标移动 / 点击、键盘 WASD / Shift / 数字键。RLP 只用来读状态（位置、热点的屏幕坐标、是否空闲），
 从不直接触发热点或传送。
@@ -19,12 +19,12 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'common'))
 from shot import serve                      # noqa: E402
 from demo_recorder import Recorder          # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
-OUT_DIR = ROOT / 'dev' / 'shots' / 'plague2' / 'demo'
+ROOT = Path(__file__).resolve().parents[2]
+OUT_DIR = ROOT / 'dev' / 'plague2' / 'media' / 'demo'
 DIGIT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=']
 
 # 注入页面的只读辅助：热点的屏幕坐标、玩家位姿、A* 找路（只看碰撞，和玩家能不能走完全一致）

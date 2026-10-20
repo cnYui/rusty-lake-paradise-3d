@@ -1,15 +1,16 @@
 """第三灾验收：自动通关、美术常量核对、中途存档 / 读档双向恢复、白桦林入口门禁、漫游碰撞、从标题菜单进入。
-真实鼠标 / 数字键走完整个流程用 dev/record_plague3_demo.py --fast（同一套输入，另外还能录像）。
+真实鼠标 / 数字键走完整个流程用 dev/plague3/record_plague3_demo.py --fast（同一套输入，另外还能录像）。
 
-用法：python dev/test_plague3_browser.py
+用法：python dev/plague3/test_plague3_browser.py
 """
 import json
 import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-from shot import serve
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'common'))
+from shot import serve  # noqa: E402
 
-OUT = Path(__file__).resolve().parent / 'shots' / 'p3' / 'verification'
+OUT = Path(__file__).resolve().parent / 'media' / 'verification'
 OUT.mkdir(parents=True, exist_ok=True)
 FAILS = []
 

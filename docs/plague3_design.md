@@ -2,7 +2,7 @@
 
 > 本文是给**实现章节逻辑的 AI** 的设计契约：流程、谜题规则、旗标、视图、热点、物品、成就、文案、摆放坐标、自动通关步骤、测试要求。
 > 美术模块接口（道具 / 人物的 id、方法、子物体名）见 `docs/plague3_api.md`；交接说明和工作边界见 `docs/plague3_handoff.md`。
-> 依据：参考视频 `dev/ref/P03_第三灾-蚊子灾_BV1bo4y1y7fm.mp4`（863.9 秒，逐帧核对）、AppUnwrapper 第三灾攻略与成就攻略。
+> 依据：参考视频 `dev/common/ref/P03_第三灾-蚊子灾_BV1bo4y1y7fm.mp4`（863.9 秒，逐帧核对）、AppUnwrapper 第三灾攻略与成就攻略。
 > 时间点 mm:ss 都指参考视频。原作标题是“第三灾 / 蚊灾和虱灾”（菜单 `CHAPTERS` 现在写的“虱灾 / Lice”要改，见 §10）。
 
 ## 0. 总体
@@ -217,8 +217,8 @@
 
 - 纯规则放 `src/chapters/plague3/puzzles.js`（不依赖 Three.js）：滑块（相邻判断、滑动、解开判断、BFS 求解仅供开发 walkthrough）、
   蜂巢（`HIVE_ORDER`、点击结果：next / wrong / done）、陶轮（循环、匹配 `POT.targets`，从 `props_p3_shared.js` 读数据）、捕蝇草计数、神龛摆放合法性。
-- `node --test dev/test_plague3.mjs`：规则单测（含：滑块不相邻点击无效、参考解能解开、中途盘面可解、蜂巢点错复位、陶轮两种目标、重复器形不再触发）。
-- `python dev/test_plague3_browser.py`：完整 `RLP.autoplay()`、真实鼠标 + 数字键、触屏（844×390 横屏模拟）、中途存档 / 读档 / 新游戏双向恢复、
+- `node --test dev/plague3/test_plague3.mjs`：规则单测（含：滑块不相邻点击无效、参考解能解开、中途盘面可解、蜂巢点错复位、陶轮两种目标、重复器形不再触发）。
+- `python dev/plague3/test_plague3_browser.py`：完整 `RLP.autoplay()`、真实鼠标 + 数字键、触屏（844×390 横屏模拟）、中途存档 / 读档 / 新游戏双向恢复、
   白桦林入口门禁（树没倒不能进）、小屋与白桦林漫游碰撞、特写返回恢复原位。截图前等待章节启动、交互空闲和画布 CSS 动画结束。
 - 每次章节修改后至少跑一次 `RLP.autoplay()`（AGENTS.md）；回归第一灾 91/91、第二灾、第四灾（本轮改了 `props.js`、`characters.js`、`plague_painting`）。
 - 从无参数首页验证菜单能进第三灾、`RLP.bootError` 为空。

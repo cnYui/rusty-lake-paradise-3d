@@ -1,17 +1,18 @@
-"""第三灾视图巡检：开一次浏览器，按清单逐个切到视图（可先设旗标 / 给物品 / 跑一段 JS）并截图到 dev/shots/p3/ch/。
+"""第三灾视图巡检：开一次浏览器，按清单逐个切到视图（可先设旗标 / 给物品 / 跑一段 JS）并截图到 dev/plague3/media/views/。
 
 用法：
-    python dev/shots_plague3.py                      # 全部
-    python dev/shots_plague3.py beach_mid p3_slider  # 只拍指定名字
+    python dev/plague3/shots_plague3.py                      # 全部
+    python dev/plague3/shots_plague3.py beach_mid p3_slider  # 只拍指定名字
 清单里每一项 = 名字、视图、start 时的 flags / give、进视图后的 JS（可选）。截图前会等交互空闲、关掉淡入黑场。
 """
 import json
 import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-from shot import serve
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'common'))
+from shot import serve  # noqa: E402
 
-OUT = Path(__file__).resolve().parent / 'shots' / 'p3' / 'ch'
+OUT = Path(__file__).resolve().parent / 'media' / 'views'
 OUT.mkdir(parents=True, exist_ok=True)
 
 ALL_ITEMS = 'p3_swatter,p3_shovel,p3_axe,p3_scissors,p3_gnats,p3_snail,p3_honey,p3_ear,p3_mussel,p3_berries,p3_sap,p3_bulb,p3_clay,p3_flower_yellow,p3_vase_slim,p3_vase_urn'

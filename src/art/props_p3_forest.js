@@ -1,7 +1,7 @@
 // 第三灾（蚊灾和虱灾）森林道具：捕蝇草、红叉大树、土堆、蜂巢。接口见 docs/plague3_api.md §4。
 // 约定同 §0：1 单位 = 1 米，原点在地面（蜂巢是枝条顶端挂点），正面朝 +z；状态方法返回 Promise 并支持 { instant }，
 // 每个有状态的道具都有 setState / getState（瞬时、可往回设）；动画只用 core/tween.js；点击盒是透明代理盒（hit()）。
-// 外观对照参考视频 dev/ref/P03_*.mp4 的时间点写在每个工厂前面：粗黑描边 + 平涂 + 少量手绘纹理。
+// 外观对照参考视频 dev/common/ref/P03_*.mp4 的时间点写在每个工厂前面：粗黑描边 + 平涂 + 少量手绘纹理。
 import {
   THREE, TAU, clamp, seg, lerp, smooth, group, mesh, hit, tmat, umat, cached, canvasTexture, rng,
   lumpGeo, contactShadow, mergeGeometries, animate, Ease, toon, unlit, mosquitoGeometry,

@@ -1,7 +1,7 @@
 // 第二灾规则验收：依据参考视频核对配对和跳跃约束，并验证中途进度可序列化。
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SPAWN, SPAWN_PAIRS, LILY_LEVELS, lilyJump, lilyTargets, checkLilyPath, DIAL, dialNext, dialSolved, IDA_COLORS } from '../src/chapters/plague2/puzzles.js';
+import { SPAWN, SPAWN_PAIRS, LILY_LEVELS, lilyJump, lilyTargets, checkLilyPath, DIAL, dialNext, dialSolved, IDA_COLORS } from '../../src/chapters/plague2/puzzles.js';
 
 test('蛙卵六对与视频一致，先后顺序和配对次序均可改变', () => {
   assert.deepEqual(SPAWN_PAIRS, [[7, 9], [1, 12], [4, 10], [3, 11], [2, 8], [5, 6]]);

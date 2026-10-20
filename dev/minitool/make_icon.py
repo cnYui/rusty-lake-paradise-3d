@@ -2,7 +2,7 @@
 
 2026-10-12：审核疑似“有血”，副标题里的“血灾”改成“x灾”，场景截图换成紫色版。
 用法：
-  python dev/shot.py "index.html?autotest=1" dev/shots/purple/icon_scene.png \
+  python dev/common/shot.py "index.html?autotest=1" dev/minitool/media/purple/icon_scene.png \
       --js "document.getElementById('ui').style.display='none'; await RLP.goto('memory'); return 'ok'" --wait 2
   python dev/minitool/make_icon.py [场景截图] [输出图标]
 """
@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-scene_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'dev', 'shots', 'purple', 'icon_scene.png')  # 红色对照版：dev/shots/red-x/icon_scene.png
+scene_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'media', 'purple', 'icon_scene.png')  # 红色对照版：dev/minitool/media/red-x/icon_scene.png
 out_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, 'icon.png')
 
 FONT_BOLD = r'C:\Windows\Fonts\msyhbd.ttc'

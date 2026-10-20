@@ -1,12 +1,12 @@
 // 人物身高对照台：把多个角色并排放在带刻度的背板前，正交正视（或 3/4 透视）对比身高和比例。
-//   dev/cast.html?ids=david,margaret,nicholas        逐个列出（默认是全部人物）
+//   dev/common/cast.html?ids=david,margaret,nicholas        逐个列出（默认是全部人物）
 //   &ids=gerard@1.3,margaret_pigeon!nomask           @缩放（模拟章节里的 scale），!nomask 取下面具
 //   &preset=current                                  目前各章节实际使用的人物和缩放
 //   &view=front|34|side  &gap=0.75  &hud=0  &call=play:talk  &advance=1
 // window.VIEW = { scene, camera, rigs, advance(sec), render() }；加载完成后 window.VIEW_READY = true。
 import * as THREE from 'three';
 import { OutlineEffect } from 'three/addons/effects/OutlineEffect.js';
-import { tick } from '../src/core/tween.js';
+import { tick } from '../../src/core/tween.js';
 
 const q = new URLSearchParams(location.search);
 const info = document.getElementById('info');
@@ -108,8 +108,8 @@ function visibleBox(obj) {
 const VIEW = (window.VIEW = { THREE, scene, renderer, rigs: [], camera: null, render() {} });
 
 async function main() {
-  const mod = await import('../src/art/characters.js');
-  for (const extra of ['characters_p2', 'cast']) await import(`../src/art/${extra}.js`).catch((e) => log(`${extra}: ${e.message}`));
+  const mod = await import('../../src/art/characters.js');
+  for (const extra of ['characters_p2', 'cast']) await import(`../../src/art/${extra}.js`).catch((e) => log(`${extra}: ${e.message}`));
   const raw = q.get('preset') ? PRESETS[q.get('preset')] : (q.get('ids') ? q.get('ids').split(',') : mod.CHARACTER_IDS.filter((id) => id !== 'rower'));
   const gap = Number(q.get('gap') || 0.75);
   const specs = raw.map((s) => {

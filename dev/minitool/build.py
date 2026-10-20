@@ -11,6 +11,7 @@ r"""把锈湖：天堂岛 3D 打成小红书小工具 zip。只读项目里的 s
   3. compat.js（老内核垫片）+ rotate.js（竖屏旋转 + 坐标换算）+ audio_out.js（iPhone 出声）+ style.css（原样式 + 容器壳）+ 一个只有外链脚本的 index.html
 
 用法：
+  zip 默认写到 upload/xhs-minitool/，dist 目录仍在 dev/minitool/ 下。
   python dev/minitool/build.py                  声音版（带屏幕上的声音调试状态条）→ dist-audio/ + rusty-lake-minitool-audio.zip
   python dev/minitool/build.py --release        声音版，去掉调试状态条         → dist-audio-release/ + rusty-lake-minitool-audio-release.zip
   python dev/minitool/build.py --legacy         旧版（没有声音线路补丁、编译到 ES2019、不转写 CSS）→ dist/ + rusty-lake-minitool.zip（会覆盖旧产物）
@@ -115,7 +116,7 @@ def main():
     else:
         name_dist, name_zip = 'dist-audio', 'rusty-lake-minitool-audio.zip'
     DIST = os.path.abspath(a.out) if a.out else os.path.join(HERE, name_dist)
-    ZIP = os.path.abspath(a.zip) if a.zip else os.path.join(HERE, name_zip)
+    ZIP = os.path.abspath(a.zip) if a.zip else os.path.join(ROOT, 'upload', 'xhs-minitool', name_zip)   # 发布包统一放 upload/
 
     esbuild = next((c for c in ESBUILD_CANDIDATES if c and os.path.exists(c)), None)
     assert esbuild, '找不到 esbuild.exe（装一个，或设置环境变量 ESBUILD）'

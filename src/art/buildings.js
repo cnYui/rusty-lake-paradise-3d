@@ -13,7 +13,7 @@ import { P, SETS } from './layout.js';
 const TAU = Math.PI * 2;
 const INK = 0.006;          // outline thickness for building silhouettes
 const INK_FINE = 0.004;     // thatch bundles, small details
-// Interior lighting: modest, viewer-like intensities so toon props/characters read as in dev/viewer;
+// Interior lighting: modest, viewer-like intensities so toon props/characters read as in dev/common/viewer;
 // the large plaster/floor surfaces get a colour gain instead so they stay as pale as the frames.
 const ROOM_LIGHT = { sky: '#f3f2ee', ground: '#8e8d88', hemi: 1.7, sun: 1.9 };
 const WALL_GAIN = 1.3, FLOOR_GAIN = 1.7;

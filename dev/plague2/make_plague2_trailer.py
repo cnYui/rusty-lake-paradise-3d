@@ -4,14 +4,14 @@ BGM：JLRS日落fm 翻唱的 Family Tune（B 站 BV13t421j7xY），120 bpm、3/4
 段落：0–12 s 前奏（轻）、12–24 s 中段、24 s 起变响。镜头全部对齐小节线。
 
 用法：
-  python dev/make_plague2_trailer.py --bgm <bgm.wav> [--demo dev/shots/plague2/demo/plague2-demo.mp4] [--out ...]
+  python dev/plague2/make_plague2_trailer.py --bgm <bgm.wav> [--demo dev/plague2/media/demo/plague2-demo.mp4] [--out ...]
 素材时间点（SHOTS 里的 src）是演示录像里的秒数，重录演示后需要重新对一遍（用 contact sheet 看）。
 """
 import argparse
 import subprocess
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 BAR = 1.5                 # 一小节（秒）
 PHASE = 0.04              # 第一个小节线
 
@@ -48,8 +48,8 @@ END = ('结尾卡：第二灾 · 完', 588.5, 2.0)
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--bgm', required=True)
-    ap.add_argument('--demo', default=str(ROOT / 'dev/shots/plague2/demo/plague2-demo.mp4'))
-    ap.add_argument('--out', default=str(ROOT / 'dev/shots/plague2/trailer/plague2-trailer.mp4'))
+    ap.add_argument('--demo', default=str(ROOT / 'dev/plague2/media/demo/plague2-demo.mp4'))
+    ap.add_argument('--out', default=str(ROOT / 'dev/plague2/media/trailer/plague2-trailer.mp4'))
     a = ap.parse_args()
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)

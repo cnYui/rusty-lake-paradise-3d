@@ -1,10 +1,12 @@
 """第二灾验收：真实鼠标、数字键与触屏通关，谜题中途读档、回退和漫游碰撞。"""
 import json
+import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-from shot import serve
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'common'))
+from shot import serve  # noqa: E402
 
-OUT = Path(__file__).resolve().parent / 'shots' / 'p2' / 'verification'
+OUT = Path(__file__).resolve().parent / 'media' / 'verification'
 OUT.mkdir(parents=True, exist_ok=True)
 TARGET = """id => {
   const c=RLP.ctx, spec=c.hotspots.get(id);
