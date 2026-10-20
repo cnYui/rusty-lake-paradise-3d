@@ -76,6 +76,7 @@ bash dev/common/deploy_mac.sh                       # 公网部署（私有脚�
 - 大文件只放本地：`dev/common/ref/`、`dev/*/media/`、`dev/plague1/promo/` 都被 `.gitignore` 忽略。验收和录像脚本的输出默认写到各自章节的 `media/`。
 - 参考视频的抽帧和验收截图用完就删，需要时用 ffmpeg 从 `dev/common/ref/P0x_*.mp4` 重抽；`ref` 里只留分析笔记。
 - 发布包只放 `upload/`：`dev/minitool/build.py` 默认把 zip 写到 `upload/xhs-minitool/`；每个包对应哪个平台版本、什么状态，写在 `upload/README.md`。
+- 模型按真实世界的大小建，世界里 `scale` 一律为 1：人物身高、桌椅、道具的参考尺寸在 `src/art/scale.js` 和 `docs/art_scale.md`；要缩放就在工厂里 `bake`；用 `python dev/plague4/measure_scale.py` 量尺寸（新章节仿照它加 `REAL.pN`）。
 - 新增章节：逻辑放 `src/chapters/plagueN/`，专属美术放 `src/art/` 并用章节前缀，验收脚本放 `dev/plagueN/`，设计文档放 `docs/`，每次变更在 `docs/ai/context/` 加记录。
 - 并行会话：同一个仓库可能有别的会话在改文件，提交前用 `git status` 确认，只带自己的文件。
 - 旧路径对照（目录整理前的 `dev/ref`、`dev/shots`、`dev/test_*.py` 等）见 `docs/ai/context/20261020-113000-repo-restructure-and-cleanup.md`。
