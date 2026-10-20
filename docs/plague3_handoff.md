@@ -1,7 +1,8 @@
-# 第三灾 · 蚊灾和虱灾 —— 交接说明（给实现章节逻辑的 AI）
+# 第三灾 · 蚊灾和虱灾 —— 交接说明
 
-> 分工：**美术资产（模型、贴图、动画方法）由本会话负责并继续完善；章节逻辑（流程、热点、旗标、sync、walkthrough）和全部测试由你负责。**
-> 你可以现在就开始：所有道具 id 和人物 id 都已经是正式模型（占位机制保留作兜底），接口以 `docs/plague3_api.md` 为准，偏差见 §2.1。
+> 状态（2026-10-20）：**美术资产和章节逻辑都已完成并验收**（`src/chapters/plague3/`，注册表里仍带 `wip: true`，菜单要 `?wip=1` 才能点；见 §3）。
+> 本文最初是写给“实现章节逻辑的 AI”的；逻辑落地后保留它记录分工、实现偏差和摆放提示，接口以 `docs/plague3_api.md` 为准。
+> 设计契约 `docs/plague3_design.md`；实现和验收记录见 `docs/ai/context/20261020-plague3-chapter-logic-and-playthrough.md`。
 
 ## 1. 先读
 
@@ -44,16 +45,16 @@
 - 人物：`src/art/cast_p3.js` 给还没做好的变体回退到最接近的现有人物（方法是返回 Promise 的空操作），`rig.placeholder === true`。
 - 所以：**只按接口调用，不要依赖占位的外观、尺寸或内部结构**；镜头、碰撞、热点大小在正式模型落地后要再截图校一次。
 
-## 3. 你要做的（文件归属）
+## 3. 章节逻辑（已完成）
 
-- 新建 `src/chapters/plague3/`：`index.js`、`text.js`（纯数据：`T`、`ACHIEVEMENTS`）、`items.js`（用 `ITEM_SPECS` 定义物品，`model: () => makeProp(id)`）、
-  `world.js`（布景、视图、碰撞、新 zone `p3_grove`）、`puzzles.js`（纯规则）、按区域拆的交互文件、`walkthrough.js`。
-- 新建测试：`dev/test_plague3.mjs`、`dev/test_plague3_browser.py`。
-- 共享文件只做小范围追加：`src/chapters/index.js`（第三灾那一条的 `title` / `load` / `wip`）、`src/core/views.js`（`zoneAmbience` 追加 `p3_grove`，可选）、
-  `src/core/ui.js`（`CHALK_ICONS` 追加，可选）、`src/core/context.js`（成就面板，可选）。
-- **不要改**：`src/art/props_p3_*.js`、`src/art/cast_p3*.js`、`src/art/props_lake.js`、`src/art/props.js`、`src/art/characters.js`、`src/art/cast.js`（美术正在并行修改）。
-  需要美术改动（新方法、子物体、尺寸、颜色）时写进你的 `docs/ai/context/` 记录的“对美术的请求”一节，由美术方处理。
-- 每次修改、验证、设计决策在 `docs/ai/context/` 新增带时间戳的中文记录。
+- `src/chapters/plague3/`：`index.js`（章节对象 + 主线 walkthrough）、`text.js`（`T`、`ACHIEVEMENTS`，纯数据）、`items.js`、`world.js`（布景、视图、导航、白桦林 zone）、
+  `puzzles.js`（滑块 / 蜂巢 / 陶轮 / 捕蝇草 / 神龛的纯规则，node 可测）、按区域拆的 `beach.js` `forest.js` `house.js` `lake.js` `temple.js` `grove.js`、`title.js`（开场标题）。
+- 共享文件的小改：`src/chapters/index.js`（第三灾那一条的 `title` / `achievements` / `load`，**仍带 `wip: true`**）、`src/core/views.js`（`zoneAmbience` 给 `p3_grove` 加 `'forest'`）。
+  `CHALK_ICONS`（成就粉笔图标）没有追加，五个成就目前用默认星形。
+- 验收入口：`node --test dev/test_plague3.mjs`（规则）、`python dev/test_plague3_browser.py`（autoplay、存档双向恢复、门禁与碰撞、菜单进入）、
+  `python dev/record_plague3_demo.py [--fast]`（真人输入：WASD 走路、鼠标转身点击、数字键选物品，`--fast` 不录像只查流程）、`python dev/shots_plague3.py [名字…]`（逐视图截图）。
+- 去掉 `wip` 之前要想清楚两件事：① 小红书小工具的 `dev/minitool/build.py` 只把第四、五灾的 `load` 置空，第三灾放开后小工具里会多出第三灾，要给它加一条补丁；
+  ② 放开后第二灾通关结尾会出现“进入下一灾”并自动进入第三灾，第三灾结尾又会接第四灾。
 
 ## 4. 工作区注意
 
@@ -61,8 +62,7 @@
 - `src/art/props.js` 在仓库里是 CRLF，改它时保持 CRLF。
 - 截图放 `dev/shots/p3/<你的目录>/`（不进 git）。`python dev/shot.py` 的用法见 `dev/ref/plague3/code_core.md` §4。
 
-## 5. 验收（你负责，详见设计文档 §9）
+## 5. 验收
 
-- `node --test dev/test_plague3.mjs`；`python dev/test_plague3_browser.py`（autoplay 全通、真实鼠标 + 数字键、触屏、存档双向恢复、白桦林入口、漫游碰撞、首页进入）。
-- 至少一次 `RLP.autoplay()`；回归第一灾 91/91、第二灾、第四灾。
-- 正式模型全部落地后，再跑一遍全套并逐个视图截图核对构图。
+- `node --test dev/test_plague3.mjs`；`python dev/test_plague3_browser.py`；`python dev/record_plague3_demo.py --fast`（真实鼠标 + 键盘走完全程）。
+- 每次改章节至少跑一次 `RLP.autoplay()`；改 `props.js` / `characters.js` / 公共画作之后回归第一灾 91/91、第二灾、第四灾。
