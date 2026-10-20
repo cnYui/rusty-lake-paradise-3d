@@ -1,11 +1,14 @@
 """第四灾浏览器验收：自动流程、真实射线点击、触屏与存档恢复。"""
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'common'))
 from shot import serve  # noqa: E402
 
+ROOT = Path(__file__).resolve().parents[2]
 OUT = Path(__file__).resolve().parent / 'media'
 OUT.mkdir(parents=True, exist_ok=True)
 
@@ -118,6 +121,13 @@ def run():
             assert reset == {'inv': [], 'father': True, 'cube': False, 'omen': False, 'water': False, 'holder': False, 'round': 0}, reset
             results['new_game_reset'] = True
 
+            # 苍蝇人进食会跪下：在完整流程前包一层记录 setKneel 的最大值，流程结束后再核对归零与残骸。
+            page.evaluate("""() => {
+              const w = RLP.ctx.p4.world, base = w.fly.setKneel.bind(w.fly);
+              window.__kneelMax = 0;
+              w.fly.setKneel = k => { window.__kneelMax = Math.max(window.__kneelMax, k); return base(k); };
+            }""")
+
             steps = page.evaluate('RLP.chapter.walkthrough')
             real_steps = 0
             for original in steps:
@@ -157,6 +167,17 @@ def run():
             print(f'真实鼠标 / 数字键完整流程通过：{real_steps} 次交互', flush=True)
             shot(page, 'checked-ending')
 
+            kneel = page.evaluate("""() => {
+              const w = RLP.ctx.p4.world;
+              return {max: window.__kneelMax, now: w.fly.kneel(),
+                rabbit: w.rabbit.visible, bird: w.bird.visible, crabRemains: w.crabRemains.visible};
+            }""")
+            assert kneel['max'] > 0.9, kneel
+            assert kneel['now'] == 0, kneel
+            assert kneel['rabbit'] and kneel['bird'] and kneel['crabRemains'], kneel
+            results['fly_kneel_and_remains'] = kneel
+            print('苍蝇人进食跪下、起身归零与兔 / 鸟 / 蟹残骸保留通过', flush=True)
+
             page.evaluate('async () => await RLP.start(4,{skipIntro:true,fresh:true,view:"crab_board"})')
             real_click(page, 'crab_start_0')
             assert page.evaluate('RLP.state.flag("p4_crab_round")||0') == 0
@@ -174,6 +195,82 @@ def run():
             for view in ['house_int', 'pit', 'owl', 'crab_board', 'temple_int', 'window', 'memory']:
                 page.evaluate('async v=>await RLP.goto(v,{instant:true})', view)
                 shot(page, f'checked-{view}')
+
+            # 窗锁：新游戏直接进 window 视图，逐枚滑片真实点击；不依赖书或其它前置。
+            page.evaluate('async () => await RLP.start(4,{skipIntro:true,fresh:true})')
+            page.evaluate('async () => await RLP.goto("window",{instant:true})')
+            real_click(page, 'window_tab_2')
+            picked = page.evaluate("""() => ({selected: RLP.state.flag('p4_window_selected'),
+              raised: RLP.ctx.p4.world.window.tabs[2].position.y > RLP.ctx.p4.world.window.tabs[0].position.y,
+              window: RLP.state.flag('p4_window') || [1,1,1,1], open: !!RLP.state.flag('p4_window_open'), view: RLP.state.view})""")
+            assert picked['selected'] == 2, picked
+            assert picked['raised'], picked
+            real_click(page, 'window_tab_2')
+            assert page.evaluate("RLP.state.flag('p4_window_selected')") is None
+            real_click(page, 'window_tab_2')
+            real_click(page, 'window_slot_5')
+            moved = page.evaluate("""() => ({window: RLP.state.flag('p4_window'), selected: RLP.state.flag('p4_window_selected'),
+              open: !!RLP.state.flag('p4_window_open'), view: RLP.state.view})""")
+            assert moved['window'][2] == 5, moved
+            assert moved['selected'] is None, moved
+            assert not moved['open'] and moved['view'] == 'window', moved
+            for tab, slot in [(0, 2), (1, 4), (2, 9), (3, 11)]:
+                real_click(page, f'window_tab_{tab}')
+                real_click(page, f'window_slot_{slot}')
+            wrong = page.evaluate("""() => ({window: RLP.state.flag('p4_window'),
+              open: !!RLP.state.flag('p4_window_open'), view: RLP.state.view})""")
+            assert wrong['window'] == [2, 4, 9, 11], wrong
+            assert not wrong['open'] and wrong['view'] == 'window', wrong
+            # 选中一枚滑片后存档，再走和寄居蟹一段相同的“新游戏 → 写回 → load → sync 两次”读档。
+            real_click(page, 'window_tab_3')
+            page.evaluate('RLP.state.save()')
+            saved = page.evaluate('localStorage.getItem("rlp3d.save.plague4")')
+            page.evaluate('async () => await RLP.start(4,{skipIntro:true,fresh:true})')
+            page.evaluate("raw => { localStorage.setItem('rlp3d.save.plague4',raw); RLP.state.load('plague4'); RLP.chapter.sync(RLP.ctx); RLP.chapter.sync(RLP.ctx); }", saved)
+            restored = page.evaluate("""() => ({window: RLP.state.flag('p4_window'), selected: RLP.state.flag('p4_window_selected'),
+              raised: RLP.ctx.p4.world.window.tabs[3].position.y > RLP.ctx.p4.world.window.tabs[0].position.y})""")
+            assert restored['window'] == [2, 4, 9, 11], restored
+            assert restored['selected'] == 3, restored
+            assert restored['raised'], restored
+            # 摆成 [1,3,8,10]：最后一枚滑片落下后自动开窗，苍蝇人带走父亲并进 memory 视图。
+            page.evaluate('async () => await RLP.goto("window",{instant:true})')
+            for tab, slot in [(0, 1), (1, 3), (2, 8), (3, 10)]:
+                real_click(page, f'window_tab_{tab}')
+                real_click(page, f'window_slot_{slot}')
+            solved = page.evaluate("""() => ({window: RLP.state.flag('p4_window'), open: !!RLP.state.flag('p4_window_open'),
+              taken: !!RLP.state.flag('p4_father_taken'), view: RLP.state.view})""")
+            assert solved['window'] == [1, 3, 8, 10], solved
+            assert solved['open'] and solved['taken'], solved
+            assert solved['view'] == 'memory', solved
+            results['window_real_clicks_save_load'] = solved
+            print('窗锁真实点选、错位不开窗、读档恢复与解谜自动开窗通过', flush=True)
+
+            # 书：真实点击进 book 视图，连续翻页、边界禁用、返回合书、重进恢复页码。
+            page.evaluate('async () => await RLP.start(4,{skipIntro:true,fresh:true})')
+            page.evaluate('async () => await RLP.goto("temple_int",{instant:true})')
+            real_click(page, 'book')
+            assert page.evaluate('RLP.state.view') == 'book'
+            assert page.evaluate('RLP.ctx.p4.world.book.isOpen()')
+            for i in (1, 2, 3):
+                real_click(page, 'book_next')
+                page_state = page.evaluate("""() => ({spread: RLP.state.flag('p4_book_spread'),
+                  model: RLP.ctx.p4.world.book.spread(), enabled: RLP.ctx.hotspots.enabled('book_next')})""")
+                assert page_state['spread'] == i, page_state
+                assert page_state['model'] == i, page_state
+                assert page_state['enabled'] == (i < 3), page_state
+            real_click(page, 'book_prev')
+            assert page.evaluate("RLP.state.flag('p4_book_spread')") == 2
+            assert page.evaluate('RLP.ctx.p4.world.book.spread()') == 2
+            page.keyboard.press('ArrowDown')
+            settle(page)
+            assert page.evaluate('RLP.state.view') == 'temple_int'
+            assert not page.evaluate('RLP.ctx.p4.world.book.isOpen()')
+            page.evaluate('async () => await RLP.goto("book",{instant:true})')
+            reopened = page.evaluate("""() => ({spread: RLP.state.flag('p4_book_spread'),
+              model: RLP.ctx.p4.world.book.spread(), open: RLP.ctx.p4.world.book.isOpen(), view: RLP.state.view})""")
+            assert reopened == {'spread': 2, 'model': 2, 'open': True, 'view': 'book'}, reopened
+            results['book_real_clicks'] = True
+            print('书视图真实翻页、边界禁用、返回合书与重进恢复通过', flush=True)
 
             page.evaluate('async () => await RLP.start(4,{skipIntro:true,fresh:true,view:"house_clearing"})')
             page.evaluate('RLP.roamTo([5,1.8,-3.5],[3,1.5,-11.2])')
@@ -237,6 +334,18 @@ def run():
             results['touch_inventory'] = True
             mobile.close()
             browser.close()
+
+        # 尺寸验收：脚本自己起无头浏览器和静态服务，路径从本文件推算，避免写死盘符。
+        measure = subprocess.run(
+            [sys.executable, str(ROOT / 'dev' / 'plague4' / 'measure_scale.py')],
+            cwd=str(ROOT), capture_output=True, text=True, encoding='utf-8', errors='replace',
+            env={**os.environ, 'PYTHONIOENCODING': 'utf-8'}, timeout=600,
+        )
+        assert measure.returncode == 0, {'code': measure.returncode, 'stdout': measure.stdout, 'stderr': measure.stderr}
+        assert '布景模型超出容差：0 个' in measure.stdout, measure.stdout
+        results['scale_measure'] = {'overTolerance': 0}
+        print('尺寸验收：布景模型超出容差 0 个', flush=True)
+
         assert not errors, errors
         assert not failed_requests, failed_requests
         results['page_errors'] = errors
