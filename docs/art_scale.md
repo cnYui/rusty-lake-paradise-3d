@@ -3,6 +3,10 @@
 所有章节的模型都按真实世界的大小建，**世界里 `scale` 一律为 1**；镜头、座位和摆放去适配模型，不要再用缩放凑画面。
 这张表是可复用的：数字在 [`src/art/scale.js`](../src/art/scale.js)（`HUMAN`、`FURNITURE`、`ANIMALS`、`REAL.p4`），新章节直接 `import` 对照；量实际尺寸用 `python dev/plague4/measure_scale.py`（量的是第四灾，别的章节仿照它加 `REAL.pN`）。
 
+![真实比例对照图](art_scale_chart.png)
+
+（上图由 `python dev/common/make_scale_chart.py` 画，横纵同比例；先跑一次 `measure_scale.py` 生成实测数据。）
+
 ## 一、人物身高（头骨顶，站直，单位 m）
 
 | 人物 | 身高 | 坐姿头顶（椅面 0.45 时） | 备注 |
