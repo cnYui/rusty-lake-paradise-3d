@@ -34,7 +34,7 @@ CFG = {
     'pigeon_humanoid': dict(key='pigeon', H=1.56, top=0.935, chin=0.765, neck=0.725, waist=0.55, hip=(0.06, 0.46),
         shoulder=(0.10, 0.71), elbow=(0.22, 0.83), wrist=(0.33, 0.93), tip=(0.39, 0.98), knee=(0.06, 0.27), ankle=(0.26, 0.05), dress=True, foot=(0.11, 0.08)),
     'deer_humanoid': dict(key='deer', H=1.88, top=0.80, chin=0.545, neck=0.52, waist=0.40, hip=(0.06, 0.365),
-        shoulder=(0.09, 0.515), elbow=(0.24, 0.52), wrist=(0.34, 0.525), tip=(0.405, 0.53), knee=(0.175, 0.2125), ankle=(0.29, 0.06)),
+        shoulder=(0.09, 0.515), elbow=(0.24, 0.52), wrist=(0.34, 0.525), tip=(0.405, 0.53), knee=(0.175, 0.2125), ankle=(0.29, 0.06), footFollowsLeg=True),
 }
 _ov = os.path.join(OUT, 'cfg_override.json')
 if os.path.exists(_ov):
@@ -170,6 +170,30 @@ for name in NAMES:
             W[vi] = 0; I[vi] = 0
             for r, (v, bi) in enumerate(items): W[vi, r] = v / tot; I[vi, r] = bi
         log(name, 'skirt weights applied to', int(sel.sum()), 'verts')
+    # ---- 脚的绑定朝向：大字型的脚尖是朝外撇的（鹿的靴子还跟着腿倾斜），摆直时要把脚尖转回正前方
+    #      偏航 = 脚部网格（权重在脚骨上的顶点，取最低 35%）在水平面上的长轴方向；倾斜 = 靴子跟着腿的角度（footFollowsLeg）
+    for side, sg in (('L', 1), ('R', -1)):
+        jf = JOINTS.index('foot' + side)
+        wj = (W * (I == jf)).sum(1)
+        mk = wj > 0.5
+        yaw = 0.0
+        tilt = sg * th_kn if (c.get('footFollowsLeg') and not dress) else 0.0
+        if mk.sum() > 40:
+            gp = np.stack([co[mk, 0], co[mk, 2], -co[mk, 1]], 1).astype(np.float64)
+            q = gp - np.array([sg * an[0] * s, an[1] * s, 0.0])
+            cc, ss_ = math.cos(-tilt), math.sin(-tilt)
+            x2 = q[:, 0] * cc - q[:, 1] * ss_; y2 = q[:, 0] * ss_ + q[:, 1] * cc
+            low = y2 < y2.min() + 0.35 * (y2.max() - y2.min())
+            if low.sum() > 30:
+                P2 = np.stack([x2[low], q[low, 2]], 1); P2 -= P2.mean(0)
+                _, sv, vt = np.linalg.svd(P2, full_matrices=False)
+                axv = vt[0] * (1 if vt[0][1] >= 0 else -1)
+                yaw = math.atan2(axv[0], axv[1])
+                yaw = max(-1.2, min(1.2, yaw)) if sv[0] > 1.4 * sv[1] else 0.0     # 长宽比不明显（圆脚）就不转
+                if abs(yaw) < 0.44: yaw = 0.0        # 偏航不到 25° 的是估计误差（两只脚符号还不对称），只纠正明显外撇的
+        bind['foot' + side]['e'] = [0, round(yaw, 5), round(tilt, 5)]
+        bind['foot' + side]['order'] = 'ZYX'
+        log(name, 'foot' + side, 'yaw', round(math.degrees(yaw)), 'tilt', round(math.degrees(tilt)))
     # ---- 展开成游戏顶点（按 顶点 + UV 去重），转游戏坐标 (x, z, -y)
     me.calc_loop_triangles()
     nt = len(me.loop_triangles); tl = np.empty(nt * 3, np.int32); me.loop_triangles.foreach_get('loops', tl)

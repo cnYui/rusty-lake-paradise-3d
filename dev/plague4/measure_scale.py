@@ -20,6 +20,9 @@ MEASURE = """async () => {
     box.makeEmpty();
     root.traverseVisible((c) => {
       if (!c.isMesh || !c.geometry || c.userData.proxy) return;
+      if (c.isSkinnedMesh) {   // 蒙皮网格要按当前姿势算包围盒（geometry.boundingBox 是绑定姿势下的）
+        c.skeleton.update(); c.boundingBox = null; c.computeBoundingBox(); tmp.copy(c.boundingBox).applyMatrix4(c.matrixWorld); box.union(tmp); return;
+      }
       if (!c.geometry.boundingBox) c.geometry.computeBoundingBox();
       tmp.copy(c.geometry.boundingBox).applyMatrix4(c.matrixWorld); box.union(tmp);
     });

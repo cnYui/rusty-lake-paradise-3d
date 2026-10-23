@@ -112,8 +112,8 @@ const _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vect
 export function boneInverses(hdr) {
   return hdr.joints.map((name) => {
     const b = hdr.bind[name];
-    const e = b.e || [0, 0, b.r || 0];     // 人物：r = 绕前向轴；动物：e = 世界欧拉角（XYZ）
-    return new THREE.Matrix4().compose(_p.fromArray(b.p), _q.setFromEuler(_e.set(e[0], e[1], e[2])), _s).invert();
+    const e = b.e || [0, 0, b.r || 0];     // 人物：r = 绕前向轴；e = 世界欧拉角（默认 XYZ；脚用 ZYX：先偏航再随腿倾斜）
+    return new THREE.Matrix4().compose(_p.fromArray(b.p), _q.setFromEuler(_e.set(e[0], e[1], e[2], b.order || 'XYZ')), _s).invert();
   });
 }
 
