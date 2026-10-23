@@ -445,6 +445,13 @@ button { font-size: inherit; font-family: inherit; }
 .ending-zh { color: #efebe2; font-size: 3em; letter-spacing: 0.25em; opacity: 0; }
 .ending-en { color: #b9b4a8; font-family: Georgia, "Times New Roman", serif; font-style: italic; font-size: 1.3em; margin-top: 0.7em; opacity: 0; }
 .ending-btn { margin-top: 2.6em; opacity: 0; }
+/* 通关后有下一灾时：两个按钮并排（进入下一灾 / 返回主菜单），下面一行小字是自动进入的倒数 */
+.ending-row { display: flex; justify-content: center; margin-top: 2.6em; }
+.ending-row .ending-btn { margin-top: 0; }
+.ending-row .ending-btn + .ending-btn { margin-left: 1.1em; }
+.btn.ending-next { border-color: #e8d9a8; background: rgba(232, 217, 168, 0.16); }
+.btn.ending-next:hover { background: rgba(232, 217, 168, 0.28); }
+.ending-note { margin-top: 1.1em; min-height: 1.5em; font-size: 0.95em; color: #b9b4a8; letter-spacing: 0.08em; }
 
 /* ------------------------------------------------------------- buttons/panels */
 .btn {
@@ -557,13 +564,23 @@ button { font-size: inherit; font-family: inherit; }
 .plague.locked { opacity: 0.55; }
 .plague.locked .zh { font-size: 0.66em; opacity: 0.85; }
 .plague.shake { animation: shake 0.42s ease; }
+.plague { position: relative; }
+.plague.done::after { content: "\2713"; position: absolute; top: 0.12em; right: 0.3em; font-size: 0.85em; color: #a8e0a0; }
+.plague.gated { border-style: dashed; }
 .menu-panel {
   position: absolute; inset: 0;
   z-index: 5;
   display: flex; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.45);
 }
-.ach-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9em 1.4em; max-height: 22em; overflow: auto; touch-action: pan-y; }
+/* 成就面板：按章节分组（.ach-head 是章节标题和 已解锁 / 总数），整块可以上下滚动 */
+.ach-scroll { max-height: 22em; overflow-y: auto; touch-action: pan-y; padding-right: 0.4em; }
+.ach-head { display: flex; justify-content: space-between; margin: 1.1em 0 0.6em; padding-bottom: 0.25em; border-bottom: 0.08em solid rgba(232, 226, 208, 0.35); font-size: 0.95em; letter-spacing: 0.08em; }
+.ach-head:first-child { margin-top: 0; }
+.ach-count { opacity: 0.75; }
+.ach-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9em 1.4em; }
+.ach-date { font-size: 0.7em; opacity: 0.6; margin-top: 0.2em; }
+.set-note { font-size: 0.82em; max-width: 24em; margin-left: auto; margin-right: auto; line-height: 1.5; }
 .ach { display: flex; align-items: center; gap: 0.8em; opacity: 0.42; }
 .ach.got { opacity: 1; }
 .ach-icon { width: 3.6em; height: 3.6em; border-radius: 0.3em; flex: none; }

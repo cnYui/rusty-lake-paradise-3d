@@ -4,7 +4,9 @@
 //
 // URL flags: ?autotest=1 (no menu, RLP.ready after boot, nothing started) · ?debug=1 ·
 //            ?chapter=1&skipIntro=1&view=beach_mid[&keep=1] · &flags=a,b=3,c=hook · &give=x,y ·
-//            ?demo=1 (boot the core demo chapter instead of plague 1)
+//            ?demo=1 (boot the core demo chapter instead of plague 1) · ?fresh=1 (启动时清空本机存档 / 成就历史 / 通关记录) ·
+//            ?unlock=1 (菜单里不看“前置章节通关”的锁)
+// 存档、成就历史和通关记录跨启动保留在本机（src/core/state.js）；?autotest=1 / ?demo=1 每次启动都从空白开始。
 import { ctx, initContext } from './core/context.js';
 import { Engine } from './core/engine.js';
 import { state } from './core/state.js';
@@ -18,6 +20,7 @@ import { installDebug } from './core/debug.js';
 import { CHAPTERS } from './chapters/index.js';
 import { P } from './art/layout.js';
 import { preloadModels, CHAPTER_MODELS } from './art/rlpm.js';
+import { resumeChapter, nextChapter, liveSave, completeFlag } from './core/progress.js';
 
 const q = new URLSearchParams(location.search);
 const AUTOTEST = q.get('autotest') === '1';
@@ -35,6 +38,44 @@ function takeSwitch() {
   } catch { return null; }
 }
 const SWITCH = AUTOTEST || DEMO ? null : takeSwitch();
+
+// 换章：把选择记进 sessionStorage 再重载页面（存档和通关记录在 localStorage，不受重载影响）。
+// 标题菜单选了另一章、通关结尾“进入下一灾”都走这里。choice: { number, fresh }
+function switchChapter(choice) {
+  let stored = false;
+  try { sessionStorage.setItem(SWITCH_KEY, JSON.stringify(choice)); stored = true; } catch { /* 隐私模式等 */ }
+  state.save();
+  if (stored) location.reload();
+  else location.search = `?chapter=${choice.number}${choice.fresh === false ? '&keep=1' : ''}`;
+}
+
+// 启动时先装载哪一章：?chapter / 换章带来的选择优先；否则猜玩家多半会点 ▶ 的那一章（最近玩的没打完的章节，
+// 通关第一灾后就是第二灾），回来继续第二灾的玩家就不用先装载第一灾、选了再重载一次（手机上装载一章要好几秒）。测试页固定第一章。
+function bootChapterNumber() {
+  if (DEMO) return 1;
+  if (q.get('chapter')) return Number(q.get('chapter'));
+  if (SWITCH) return SWITCH.number;
+  if (AUTOTEST) return 1;
+  try { const r = resumeChapter(CHAPTERS); return (r && r.number) || 1; } catch { return 1; }
+}
+
+// 自动存档：状态一变就排一次（500 ms 合并）；过场 / 谜题动画进行中（ui.locked）等它结束再存，免得存下半截状态。
+let saveTimer = 0;
+function scheduleSave() {
+  if (saveTimer || !state.saving) return;
+  const tick = () => {
+    saveTimer = 0;
+    if (ui.locked) { saveTimer = setTimeout(tick, 800); return; }
+    state.save();
+  };
+  saveTimer = setTimeout(tick, 500);
+}
+
+// 章节的通关旗标一立起来就记进通关记录（解锁下一章靠它）
+function watchClear(ch) {
+  const flag = completeFlag(ch);
+  state.on('flag', ({ key, value }) => { if (key === flag && value) state.markCleared(ch.id); });
+}
 
 let engine = null;
 let world = null;
@@ -93,6 +134,7 @@ function ensureChapter(n) {
   chapterPromise = (async () => {
     chapter = await loadChapter(n);
     ctx.chapter = chapter;
+    if (!DEMO) watchClear(chapter);
     if (!setupDone.has(chapter.id)) {
       setupDone.add(chapter.id);
       state.chapter = chapter.id;
@@ -142,6 +184,7 @@ async function startChapter(n = 1, opts = {}) {
   const devFlags = opts.flags !== undefined ? opts.flags : q.get('flags');
   const devGive = opts.give !== undefined ? opts.give : q.get('give');
   if (devFlags || devGive) applyDevState(devFlags, devGive);
+  if (state.flag(completeFlag(ch))) state.markCleared(ch.id);
 
   const introWillPlay = !skipIntro && !state.flag('intro_done') && !view;
   if (introWillPlay) {
@@ -174,11 +217,7 @@ async function titleMenu() {
   audio.unlock();
   await ui.fade(1, 450);
   if (choice.number !== chapterNumber) {
-    let stored = false;
-    try { sessionStorage.setItem(SWITCH_KEY, JSON.stringify(choice)); stored = true; } catch { /* 隐私模式等 */ }
-    state.save();
-    if (stored) location.reload();
-    else location.search = `?chapter=${choice.number}`;
+    switchChapter(choice);
     return;
   }
   ui.menu.hide();
@@ -221,9 +260,13 @@ async function boot() {
   RLP.bootTimes = bootTimes;
   mark('core');
 
-  // 开放世界改版从初始进度开始，清除旧版固定镜头流程留下的章节存档。
-  // 从菜单换章节引起的重载除外：那时的存档是本次会话刚写的（菜单里可能选了“继续游戏”）。
-  if (!SWITCH) state.wipeAll();
+  // 存档、成就历史和通关记录跨启动保留在本机（localStorage，见 src/core/state.js）；测试页和 ?fresh=1 每次从空白开始。
+  // 旧版（启动即清档的时代）留下的存档版本对不上，state.js 读不到它们，不会污染这一版。
+  if (AUTOTEST || DEMO || q.get('fresh') === '1') state.wipeAll();
+  // 标题菜单期间不写存档（空章节的存档会让菜单误以为有进度）；startChapter 一开始就恢复
+  state.saving = false;
+  for (const evt of ['flag', 'inventory', 'view', 'achievement']) state.on(evt, scheduleSave);
+  window.addEventListener('pagehide', () => { if (state.saving && !ui.locked) state.save(); });
 
   // first user gesture unlocks WebAudio（手机浏览器只认抬起手指 / touchend 这类“激活”事件）
   const unlock = () => audio.unlock();
@@ -253,7 +296,7 @@ async function boot() {
   views.setCamera(P.overviewCam);
   views.setZone('exterior');
 
-  await ensureChapter(DEMO ? 1 : Number(q.get('chapter') || (SWITCH && SWITCH.number) || 1));
+  await ensureChapter(bootChapterNumber());
   mark('chapterSetup');
   if (engine.renderEnabled) engine.render(); // compile shaders up front
   mark('firstRender');
@@ -264,6 +307,17 @@ async function boot() {
     // Returning to the title: the save is already on disk; a reload gives a pristine world.
     state.save();
     location.reload();
+  });
+  // 通关结尾：有下一灾（编号 +1 且已解锁）就多一个“进入下一灾”并倒数自动进入，没有就只回主菜单。测试页不自动跳走。
+  ui.autoAdvance = !AUTOTEST && !DEMO;
+  ui.setEndingNext(DEMO ? null : () => {
+    const cur = CHAPTERS.find((c) => chapter && c.id === chapter.id);
+    const n = cur ? nextChapter(cur, CHAPTERS) : null;
+    return n ? { number: n.number, label: n.label, title: n.title } : null;
+  });
+  ui.on('next', ({ number }) => {
+    const n = CHAPTERS.find((c) => c.number === number);
+    switchChapter({ number, fresh: !(n && liveSave(n)) });
   });
 
   bootDone();

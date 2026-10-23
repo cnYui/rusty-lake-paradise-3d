@@ -121,12 +121,15 @@ state.chapter; state.flags /*{}*/; state.inventory /*item ids, max 6*/; state.se
 state.flag(key) → value ; state.setFlag(key, value = true)
 state.has(itemId) ; state.give(itemId) ; state.take(itemId) ; state.select(itemIdOrNull)
 state.replace(oldId, newId)        // keep slot position (jug ⇄ jug_blood)
-state.achieve(id) → boolean (true if newly unlocked)
-state.on(evt, fn) → off ; state.emit(evt, data)   // 'inventory' 'flag' 'select' 'view' 'achievement' 'reset'
-state.save() ; state.load(chapterId) → boolean ; state.reset(chapterId)
+state.achieve(id, { zh, en, ch }) → boolean (true if newly unlocked; also recorded in the profile history)
+state.on(evt, fn) → off ; state.emit(evt, data)   // 'inventory' 'flag' 'select' 'view' 'achievement' 'cleared' 'reset' 'load'
+state.save() ; state.load(chapterId) → boolean ; state.reset(chapterId) ; state.peekSave(chapterId) → data | null
+state.markCleared(chapterId) ; state.isCleared(chapterId) ; state.achievementHistory() ; state.lastChapter() ; state.wipeAll()
 ```
-localStorage key `rlp3d.save.<chapter>` (try/catch everything). Used items are removed and later
-items move up (no holes).
+localStorage (try/catch everything; 本机、跨启动保留): `rlp3d.save.<chapter>` (`v: 2`), `rlp3d.profile`
+(`{ ach: { id: { t, zh, en, ch } }, cleared: { chapterId: { t } } }`, 成就历史和通关记录，“重新开始”不清它),
+`rlp3d.last`. 写入失败时档案留在内存里。Used items are removed and later items move up (no holes).
+章节解锁 / 下一章 / 继续哪一章在 `src/core/progress.js`（注册表 `requires`），结尾卡的“进入下一灾”见 `ui.ending`。
 
 ### `src/core/views.js`
 ```js
@@ -233,7 +236,7 @@ ui.inspect(itemId) → Promise                // item inspector overlay (drag to
 ui.shakeSelected()
 ui.renderInventory()                        // auto-bound to state events
 ui.setArrows({ left, right, up, down, upScreen /*{x,y}|null*/ }, onClick(dir))   // used by views
-ui.menu.show(chapters) ; ui.menu.hide() ; ui.ending({ zh, en }) → Promise
+ui.menu.show(chapters) ; ui.menu.hide() ; ui.ending({ zh, en }) → Promise   // 有下一灾时多一个“进入下一灾”并倒数自动进入（ui.setEndingNext / ui.autoAdvance，事件 'next'）
 ```
 Inventory: **6** square beige slots in a dark vertical strip on the right, double white inner frame,
 icons may overflow the slot. 电脑上物品栏只用键盘（槽位不接收鼠标，右下角标着键位；触屏界面下

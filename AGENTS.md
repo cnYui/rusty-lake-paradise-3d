@@ -16,6 +16,15 @@
 - 小红书小工具只开放第一灾和第二灾：`build.py` 在打包副本里把第四、五灾的 `load` 置空，网页版源码不动。启动期不能出现几秒不让出主线程的同步任务（评论反馈过“白屏和载入页快速交替闪”，推测是慢手机上启动被容器判为无响应而反复重载）：大块同步建模在 `build.py` 补丁里按子步骤 `await __stage()` 让出一帧，第一次渲染由 `rotate.js` 的 `__RLP_WARM` 分片预热着色器；新加补丁后先确认页面能启动（`RLP.bootError` 为空）再看耗时数字。启动被反复重载时 `rotate.js` 会自动进轻量模式（`window.__RLP_LITE`：关阴影、像素比 1、关水面倒影），只用同步的 `localStorage`，不要在启动路径上等任何外部东西。`build.py --no-minify` 只用于采样排查，不能上传。记录见 `docs/ai/context/20261019-094500-xhs-minitool-ch12-flicker-fix.md`。
 - 口袋方舟 H5 上传时，ZIP 的 `index.html` 放在根目录，发布地区不选 GPark；资料中如实标注《Rusty Lake Paradise》同人重制及原作来源，不宣称已获授权。
 
+## 进度、存档与章节衔接
+
+- 存档、成就历史和通关记录都在本机 localStorage（`src/core/state.js`，全部 try/catch）：`rlp3d.save.<章节id>`（`v: 2`，版本对不上就当没有；旧版 v1 是“启动即清档”时代的存档，不再读）、`rlp3d.profile`（`ach`：成就历史 `{ id: { t, zh, en, ch } }`，`cleared`：通关记录 `{ 章节id: { t } }`）、`rlp3d.last`（最近玩的章节）。“重新开始”只清这一章的存档，成就历史和通关记录保留；只有设置里的“重置进度”（`state.wipeAll()`）全部清掉。写入失败时档案留在内存里，本次游戏内通关和成就仍有效，菜单会提示“这里不能保存进度”。
+- 启动不再清档；只有 `?autotest=1`、`?demo=1`、`?fresh=1` 每次从空白开始。测试页里要验证菜单、读档或解锁，先自己往 localStorage 垫 `rlp3d.profile`（见 `dev/plague2/test_plague2_browser.py` 的 `verify_menu_and_movement`）。标题菜单期间 `state.saving = false`（不写存档），`startChapter` 一开始才恢复；自动存档在 `main.js`（状态变化后 500 ms 合并，过场 `ui.locked` 期间等它结束再存，`pagehide` 立即存）。
+- 章节解锁在 `src/chapters/index.js` 的 `requires`（前置章节 id）和 `src/core/progress.js`（`chapterStatus` / `nextChapter` / `resumeChapter` / `liveSave`）：没通关前置章节的章在菜单里是“未解锁”（点了提示“通关第一灾后解锁”）；`requires` 可以是一个章节 id，也可以是数组（全部通关才解锁）：第二灾 `requires: 'plague1'`，第三灾 `requires: ['plague1', 'plague2']`（三灾必须按顺序玩，菜单提示会指到第一个没通关的前置章节），第四灾不依赖第二、三灾。开发跳转 `?chapter=N` 不经过菜单，不受锁影响；`?unlock=1`（或 `?wip=1`）让菜单跳过这把锁。章节的通关旗标（`completeFlag`，默认 `<id>_complete`）一立起来，`main.js` 的 `watchClear` 就记进通关记录。
+- 通关结尾（`ui.ending`）：有下一章（编号 +1 且已解锁、有 `load`）就出现“进入下一灾 / 返回主菜单”，倒数 8 秒后自动进入；点“返回主菜单”或关掉结尾卡就取消。进入下一章 = `main.js` 的 `switchChapter`（记进 sessionStorage 再重载，一个页面只装载一章；下一章有没打完的存档就继续，否则新开）。`?autotest=1` / `?demo=1` 不自动倒数，测试里要走自动进入就把 `RLP.ctx.ui.autoAdvance` 设为 true。启动时 `bootChapterNumber` 先装载玩家多半要点 ▶ 的那一章（最近玩的没打完的章节，通关第一灾后是第二灾），省掉一次重载；第一灾通关后菜单 ▶ 指向第二灾。
+- 新增章节要接上衔接：注册表里写好 `requires`、`load`，章节对象写 `completeFlag`，通关时 `await ctx.ui.ending(T.ending)`；成就表放在章节 `text.js` 的 `ACHIEVEMENTS`，想在菜单成就面板里按章节列出就在注册表写 `achievements`（没写的章节，解锁过的成就仍会出现在“其他章节”）。验收入口 `python dev/common/test_progress_browser.py`；小红书小工具的菜单测试（`dev/minitool/test_minitool.py`）已按解锁规则改过。记录见 `docs/ai/context/20261019-212200-progress-save-chapter-chain.md`。
+- 成就必须每一个都有发放点并能在自动通关里拿到：每章 `ACHIEVEMENTS` 里的 id 都要有 `ctx.achieve(id)` 调用，新增成就同时把它放进该章 `walkthrough`（可选动作也放，自动通关才能覆盖），验收入口 `python dev/common/test_achievements_browser.py`（三章依次自动通关，成就在章节存档和玩家档案里都有，重载后成就面板满格）。第一灾的“欢迎来到天堂岛（用虾开天堂门）/ 这是我（圣水盆倒影）/ 第一个符号（盖子滑开后点棺材里的符号）”曾经没有发放点（2026-10-22 补上，旧存档读档时按旗标静默补发）；棺材里的符号要画在水面上方，画在衬里上会被血水盖住。
+
 ## 第四灾与参考资料
 
 - 第三至第十灾的既定参考视频位于 `dev/common/ref/P03_*.mp4` 至 `dev/common/ref/P10_*.mp4`，源视频为 B 站 `BV1bo4y1y7fm`；定位和完整性记录见 `docs/ai/context/20261008-201654-bilibili-reference-videos.md`。视频与抽帧只作本地参考，不提交、不部署。
@@ -52,7 +61,7 @@
 - 美术与逻辑分开做：道具在 `src/art/props_p3_*.js`（id 一律 `p3_` 前缀，物品模型在 `props_p3_items.js`），人物变体在 `src/art/cast_p3*.js`（复用 cast.js 的身体）；章节逻辑在 `src/chapters/plague3/`。逻辑只按接口调用，不改美术文件。
 - 第三灾美术已全部做完（正式模型）；`props_p3_placeholders.js` 和 `cast_p3.js` 的回退只作兜底（`userData.placeholder` / `rig.placeholder`），新增 id 没做好时才会用到。实现偏差见 `docs/plague3_handoff.md` §2.1。
 - 有状态的道具 / 人物都提供 `setState`，`sync()` 只调用它做双向恢复。白桦林是独立 zone `p3_grove`（原点 [600,0,0]），从 G 空地红叉树倒下后的缺口进入。公共画作第三灾用 `{ insects: true }` + `banishWoman / frameFly / setState`。
-- 第三灾章节逻辑已实现（`src/chapters/plague3/`：`world.js` 布景与视图、`puzzles.js` 纯规则、`beach / forest / house / lake / temple / grove.js` 各区域），注册表里仍带 `wip: true`（菜单要 `?wip=1`）；去掉 `wip` 前要给 `dev/minitool/build.py` 加一条把第三灾 `load` 置空的补丁，否则小红书小工具会多出第三灾。验收入口：`node --test dev/plague3/test_plague3.mjs`、`python dev/plague3/test_plague3_browser.py`、`python dev/plague3/record_plague3_demo.py [--fast]`（真人输入走完全程并录像）、`python dev/plague3/shots_plague3.py`（逐视图截图）。写章节文件时注意 Windows 上 Python 文本模式写文件会把 LF 改成 CRLF，用 `newline=''` 或 Edit 工具。
+- 第三灾章节逻辑已实现（`src/chapters/plague3/`：`world.js` 布景与视图、`puzzles.js` 纯规则、`beach / forest / house / lake / temple / grove.js` 各区域），注册表里 2026-10-22 起已去掉 `wip`、写了 `requires: ['plague1', 'plague2']`，网页版、小红书小工具和口袋方舟包都开放第三灾（`build.py` 断言注册表里这条解锁条件还在）。验收入口：`node --test dev/plague3/test_plague3.mjs`、`python dev/plague3/test_plague3_browser.py`、`python dev/plague3/record_plague3_demo.py [--fast]`（真人输入走完全程并录像）、`python dev/plague3/shots_plague3.py`（逐视图截图）。写章节文件时注意 Windows 上 Python 文本模式写文件会把 LF 改成 CRLF，用 `newline=''` 或 Edit 工具。
 
 ## 网格人物与动物模型（2026-10-23 起）
 
