@@ -700,6 +700,8 @@ def main():
             '--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required',
             '--hide-scrollbars'])
         ctx = browser.new_context(viewport={'width': W, 'height': H}, device_scale_factor=1)
+        # 第二灾要先通关第一灾才在菜单里解锁（通关记录存在 localStorage）：演示从菜单点“第二灾”，先垫一条“已通关第一灾”的档案
+        ctx.add_init_script("if (!localStorage.getItem('rlp3d.profile')) localStorage.setItem('rlp3d.profile', JSON.stringify({ v: 1, ach: {}, cleared: { plague1: { t: 1760000000000 } } }));")
         rec = None if a.fast else Recorder(ctx, OUT_DIR / 'rec', size=(W, H))
         if a.fast:
             pass

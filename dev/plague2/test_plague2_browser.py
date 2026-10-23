@@ -129,14 +129,19 @@ def flat_steps(steps):
 
 
 def verify_menu_and_movement(page, base, touch=False):
+    # 第二灾要先通关第一灾才在菜单里解锁：垫一条“已通关第一灾”的玩家档案（localStorage），再从无参数首页走菜单
+    page.evaluate("localStorage.setItem('rlp3d.profile', JSON.stringify({v: 1, ach: {}, cleared: {plague1: {t: 1760000000000}}}))")
     boot(page, base, 'index.html?norender=1')
     assert page.locator('.plague').count() == 10
     assert 'open' in page.locator('.plague').nth(1).get_attribute('class')
+    # 已通关第一灾的玩家启动时直接装载第二灾，菜单点“第二灾”不再重载页面：片头在同一个页面里播，
+    # 要等它自己播完（intro_done）再重新开始，免得两次 startChapter 叠在一起互相抢视图
+    page.evaluate('RLP.timeScale=25')
     if touch:
         page.locator('.plague').nth(1).tap()
     else:
         page.locator('.plague').nth(1).click()
-    page.wait_for_function('window.RLP && RLP.ready && RLP.chapter?.number===2 && RLP.state.view')
+    page.wait_for_function('window.RLP && RLP.ready && RLP.chapter?.number===2 && RLP.state.view && RLP.state.flag("intro_done")')
     assert page.evaluate('RLP.bootError') is None
     page.evaluate('async ()=>{RLP.timeScale=25;await RLP.start(2,{fresh:true,skipIntro:true,view:"beach_mid"});}')
     settle(page)
