@@ -1,0 +1,30 @@
+/* ------------------------------------------------------------------ 口袋方舟（233 乐园）外壳
+   build.py --ark 把它拼在 minitool.css 之后。平台 WebView 本来就是横屏：ark_cfg.js 设置 window.__RLP_NOROT，rotate.js 不再旋转竖屏，
+   竖屏时显示游戏自带的 .rotate-hint；这里只处理页面滚动、点击高亮和 iOS 安全区（刘海 / Home 条）。
+   只用 Chrome 60 就认的写法：不用 min() / max() / clamp() / aspect-ratio / flex gap / inset / dvh。 */
+html, body {
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 安全区：#rot 铺满窗口，padding 把画面让在刘海 / 圆角 / Home 条之内；rotate.js（NOROT 版）读 padding 算舞台大小。
+   constant() 是 iOS 11.0–11.2 的旧写法，env() 是新写法；不认的浏览器（老安卓）会忽略那一行，padding 就是 0。 */
+#rot {
+  box-sizing: border-box;
+  padding: constant(safe-area-inset-top) constant(safe-area-inset-right) constant(safe-area-inset-bottom) constant(safe-area-inset-left);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* 触屏点击区域：舞台按宽度缩放，720px 宽的手机上 1em 只有 9px，标题菜单文字、章节按钮、齿轮、关闭叉这些按 em 算出来的按钮只有 24～38px，
+   比手指小很多。这里只在触屏界面（#stage.touch，粗指针时启动就带这个 class）用伪元素把可点区域撑到至少 44×44 CSS 像素，
+   看到的大小、排版、动画都不变；伪元素属于按钮本身，点到它就等于点到按钮。 */
+#stage.touch .menu-link, #stage.touch .gear, #stage.touch .panel-x, #stage.touch .plague, #stage.touch .btn { position: relative; }
+#stage.touch .gear, #stage.touch .panel-x { position: absolute; }
+#stage.touch .menu-link::before, #stage.touch .gear::before, #stage.touch .panel-x::before, #stage.touch .plague::before, #stage.touch .btn::before {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 100%; height: 100%;
+  min-width: 44px; min-height: 44px;
+  -webkit-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+}

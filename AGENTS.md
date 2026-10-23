@@ -13,7 +13,7 @@
 - 公网部署（https://aaccx.pw/rusty-lake/）只用 `bash dev/common/deploy_mac.sh`；线上路径里不能出现 `/vendor/`（Cloudflare WAF 会拦截），入口页之外的资源必须放在带版本号的目录里。Mac 上的 `127.0.0.1:8080` 是 Sub2API 的 Docker 容器，不是 nginx；游戏走 cloudflared 规则 → nginx `127.0.0.1:8081`。重启隧道会中断同域名下所有服务的长连接，非必要不要重启。
 - 触屏端（`src/core/touch.js`，`#stage.touch`）：漫游时画面左侧拖动是虚拟摇杆、其它位置拖动转视角，轻点互动，物品栏直接点（规则同数字键）。触屏逻辑只处理 `pointerType` 为 touch / pen 的指针，不能改变电脑端的鼠标和键盘行为；手机按横屏设计，竖屏显示旋转提示。
 - 小红书打包补丁只替换明确命名的目标函数，不按相邻注释截掉整段源码，避免误删章节菜单逻辑。每个待上传包必须从无参数首页验证菜单和真实触摸；`RLP.ready` 为真时仍须检查 `RLP.bootError` 为空，不能只测绕过菜单的 `RLP.autoplay()`。
-- 小红书小工具只开放第一灾和第二灾：`build.py` 在打包副本里把第四、五灾的 `load` 置空，网页版源码不动。启动期不能出现几秒不让出主线程的同步任务（评论反馈过“白屏和载入页快速交替闪”，推测是慢手机上启动被容器判为无响应而反复重载）：大块同步建模在 `build.py` 补丁里按子步骤 `await __stage()` 让出一帧，第一次渲染由 `rotate.js` 的 `__RLP_WARM` 分片预热着色器；新加补丁后先确认页面能启动（`RLP.bootError` 为空）再看耗时数字。启动被反复重载时 `rotate.js` 会自动进轻量模式（`window.__RLP_LITE`：关阴影、像素比 1、关水面倒影），只用同步的 `localStorage`，不要在启动路径上等任何外部东西。`build.py --no-minify` 只用于采样排查，不能上传。记录见 `docs/ai/context/20261019-094500-xhs-minitool-ch12-flicker-fix.md`。
+- 小红书小工具开放第一、二、三灾（第三灾 2026-10-22 起，解锁顺序同网页版：第三灾要先通关第一、二灾）：`build.py` 在打包副本里把第四、五灾的 `load` 置空，网页版源码不动；第三灾 David 的台词“我今天血糖非常低.”在小红书包里改成“x糖”（审核对“血”字敏感，口袋方舟包保持原文）。启动期不能出现几秒不让出主线程的同步任务（评论反馈过“白屏和载入页快速交替闪”，推测是慢手机上启动被容器判为无响应而反复重载）：大块同步建模在 `build.py` 补丁里按子步骤 `await __stage()` 让出一帧，第一次渲染由 `rotate.js` 的 `__RLP_WARM` 分片预热着色器；新加补丁后先确认页面能启动（`RLP.bootError` 为空）再看耗时数字。启动被反复重载时 `rotate.js` 会自动进轻量模式（`window.__RLP_LITE`：关阴影、像素比 1、关水面倒影），只用同步的 `localStorage`，不要在启动路径上等任何外部东西。`build.py --no-minify` 只用于采样排查，不能上传。记录见 `docs/ai/context/20261019-094500-xhs-minitool-ch12-flicker-fix.md`。
 - 口袋方舟 H5 上传时，ZIP 的 `index.html` 放在根目录，发布地区不选 GPark；资料中如实标注《Rusty Lake Paradise》同人重制及原作来源，不宣称已获授权。
 
 ## 进度、存档与章节衔接

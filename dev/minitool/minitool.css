@@ -29,7 +29,7 @@
 /* 竖屏时容器里没有“请把手机横过来”的余地，游戏自己转，不再弹提示 */
 .rotate-hint { display: none !important; }
 
-/* 载入页：上面转圈（只用 transform 的动画由合成线程跑，主线程忙着建世界时也照转，看得出页面没死），下面是 rotate.js 写的阶段文字 */
+/* 载入页：上面转圈（只用 transform 的动画由合成线程跑，主线程忙着建世界时也照转，看得出页面没停），下面是 rotate.js 写的阶段文字 */
 #boot { flex-direction: column; gap: 1.1em; text-align: center; padding: 0 2em; }
 #boot::before {
   content: '';

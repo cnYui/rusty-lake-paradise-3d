@@ -103,20 +103,26 @@ def main():
     ap = argparse.ArgumentParser(description='锈湖小红书小工具打包')
     ap.add_argument('--legacy', action='store_true', help='旧版（无声音线路补丁，ES2019，不转写 CSS），输出 dist/ + rusty-lake-minitool.zip')
     ap.add_argument('--release', action='store_true', help='声音版去掉屏幕上的声音调试状态条')
+    ap.add_argument('--ark', action='store_true', help='口袋方舟（233 乐园）H5 包：第一、二、三灾，原生横屏外壳（不旋转竖屏）+ 安全区，等同 --release；输出 dist-ark-ch123/ + upload/ark/rusty-lake-ark-ch123.zip')
     ap.add_argument('--no-minify', action='store_true', help='不压缩、保留函数名（只用来做 CPU 采样 / 排查，不要上传）')
     ap.add_argument('--out', help='输出目录（默认见上）')
     ap.add_argument('--zip', help='zip 路径（默认见上）')
     a = ap.parse_args()
     assert not (a.legacy and a.release), '--legacy 没有调试状态条，不需要 --release'
+    assert not (a.ark and a.legacy), '--ark 走声音版（ES2017）路径，不能和 --legacy 一起用'
     audio = not a.legacy
+    if a.ark:
+        a.release = True   # 口袋方舟包没有声音调试状态条
     if a.legacy:
         name_dist, name_zip = 'dist', 'rusty-lake-minitool.zip'
+    elif a.ark:
+        name_dist, name_zip = 'dist-ark-ch123', 'rusty-lake-ark-ch123.zip'
     elif a.release:
         name_dist, name_zip = 'dist-audio-release', 'rusty-lake-minitool-audio-release.zip'
     else:
         name_dist, name_zip = 'dist-audio', 'rusty-lake-minitool-audio.zip'
     DIST = os.path.abspath(a.out) if a.out else os.path.join(HERE, name_dist)
-    ZIP = os.path.abspath(a.zip) if a.zip else os.path.join(ROOT, 'upload', 'xhs-minitool', name_zip)   # 发布包统一放 upload/
+    ZIP = os.path.abspath(a.zip) if a.zip else os.path.join(ROOT, 'upload', 'ark' if a.ark else 'xhs-minitool', name_zip)   # 发布包统一放 upload/
 
     esbuild = next((c for c in ESBUILD_CANDIDATES if c and os.path.exists(c)), None)
     assert esbuild, '找不到 esbuild.exe（装一个，或设置环境变量 ESBUILD）'
@@ -143,6 +149,15 @@ def main():
         assert count == 1, f'src/core/ui.js: 全屏补丁必须只匹配一个 {name} 函数（命中 {count} 次）'
     wr(p, s)
 
+    # ---- 补丁 2b：玩家可见文字里的“死”改成 S（V1.0.6 被“内容未通过平台综合审核”驳回，后台只给一句话；同 V1.0.3 / V1.0.4 的“血”→x）。
+    #      只改打包副本，网页版源码不动；逐条精确匹配，文案改了会在这里停下来，不会悄悄漏掉。
+    patch('src/chapters/index.js', [("title: { zh: '长子之死', en: 'Death of the Firstborn' }", "title: { zh: '长子之S', en: 'Death of the Firstborn' }")])
+    patch('src/chapters/plague1/text.js', [("'自从收到母亲的死讯，'", "'自从收到母亲的S讯，'")])
+    # 第三灾 David 的台词“我今天血糖非常低.”：小红书审核对“血”字敏感（V1.0.4 起第一灾一律写 x），打包副本里同样改成 x；口袋方舟包保持原文。
+    if not a.ark:
+        patch('src/chapters/plague3/text.js', [("david: '我今天血糖非常低.',", "david: '我今天x糖非常低.',")])
+    # 第四灾的“生与死的炼金术”书名已随书改视图翻页（29336f3）从 text.js 里去掉，而第四灾不进任何打包产物（load 在下面置空），这条补丁不再需要。
+
     # ---- 补丁 3：分段启动。原来的启动（建世界 + 第一次渲染编译着色器）是一条几十秒不让出主线程的长任务：慢手机上页面
     #      整段没响应、load 事件迟迟不触发，容器 / 审核看到的就是“点不了”。改成每一步之间让出一帧（rotate.js 的 __RLP_STAGE
     #      同时更新“载入中”页的文字），第一屏的着色器改用 compileAsync（支持并行编译的 WebView 里不卡主线程；不支持就和原来一样）。
@@ -152,10 +167,10 @@ def main():
          "async function boot() {\n  await __stage('初始化画面…');\n  const canvas = document.getElementById('game');\n"),
         ("    mark('worldImport');\n    world = buildWorld(engine);\n",
          "    mark('worldImport');\n    await __stage('搭建小岛…');\n    world = await buildWorld(engine);\n"),
-        ("  await ensureChapter(DEMO ? 1 : Number(q.get('chapter') || (SWITCH && SWITCH.number) || 1));\n"
+        ("  await ensureChapter(bootChapterNumber());\n"
          "  mark('chapterSetup');\n  if (engine.renderEnabled) engine.render(); // compile shaders up front\n",
          "  await __stage('布置场景…');\n"
-         "  await ensureChapter(DEMO ? 1 : Number(q.get('chapter') || (SWITCH && SWITCH.number) || 1));\n"
+         "  await ensureChapter(bootChapterNumber());\n"
          "  mark('chapterSetup');\n"
          "  await __stage('准备画面（第一次会慢一点）…');\n"
          "  if (engine.renderEnabled) {\n"
@@ -255,17 +270,19 @@ def main():
     patch('src/main.js', [
         ("  bootDone();\n  RLP.ready = true;\n", "  bootDone();\n  RLP.ready = true;\n  if (window.__RLP_BOOT_DONE) window.__RLP_BOOT_DONE();\n"),
     ])
-    # 章节 setup：每个部分之间让出一帧（第一灾 / 第二灾都是 `for (const part of PARTS) await part.setup(ctx);`）
-    for chap in ('plague1', 'plague2'):
+    # 章节 setup：每个部分之间让出一帧（第一、二、三灾都是 `for (const part of PARTS) await part.setup(ctx);`）
+    for chap in ('plague1', 'plague2', 'plague3'):
         patch(f'src/chapters/{chap}/index.js', [(
             "for (const part of PARTS) await part.setup(ctx);",
             "for (const part of PARTS) { await part.setup(ctx); if (window.__RLP_STAGE) await window.__RLP_STAGE(); }",
         )])
-    # 小工具只开放第一灾和第二灾：第四灾 / 第五灾在副本里不注册 load（菜单显示“敬请期待”，代码也不进包）
+    # 小工具和口袋方舟只开放第一、二、三灾：第四灾 / 第五灾在副本里不注册 load（菜单显示“敬请期待”，代码也不进包）。
+    # 解锁顺序在源码注册表里：第二灾 requires 第一灾，第三灾 requires 第一、二灾（没通关前置章节菜单里就是“未解锁”），这里不用再补
     patch('src/chapters/index.js', [
         ("load: () => import('./plague4/index.js') }", "load: null }"),
         ("load: () => import('./plague5/index.js'), wip: true }", "load: null }"),
     ])
+    assert "requires: ['plague1', 'plague2'], load: () => import('./plague3/index.js') }" in rd(os.path.join(WORK, 'src/chapters/index.js')), '源码注册表里第三灾的解锁条件变了（要先通关第一、二灾）：更新 build.py'
 
     # ---- 补丁 4（声音版）：音频输出线路。audio.js 是程序合成（振荡器 / 噪声 / 卷积混响），总线最后一级 comp 原来直连 ac.destination；
     #      换成交给 audio_out.js：iPhone 上走 audioSession + MediaStream → <audio srcObject>（绕开静音拨片），其它平台直连（和原来一样）。
@@ -303,6 +320,9 @@ def main():
         index = INDEX_LEGACY
     else:
         index = INDEX_AUDIO.replace('{cfg}', '' if a.release else '<script src="./audio_cfg.js"></script>\n')
+        if a.ark:   # ark_cfg.js 要在 rotate.js 读它之前加载
+            index = index.replace('<script src="./rotate.js"></script>\n', '<script src="./ark_cfg.js"></script>\n<script src="./rotate.js"></script>\n')
+            assert index.count('./ark_cfg.js') == 1, 'index.html 里没找到 rotate.js 的位置'
     wr(os.path.join(DIST, 'index.html'), index)
     shutil.copy(os.path.join(HERE, 'rotate.js'), os.path.join(DIST, 'rotate.js'))
     css = rd(os.path.join(ROOT, 'styles.css'))
@@ -311,7 +331,14 @@ def main():
             assert css.count(line) == 1, f'styles.css 里找不到 #stage 的 min() 行：{line.strip()}（样式改过了？更新 build.py 的 STAGE_MIN）'
             css = css.replace(line, '')
         css = css.replace('#stage {\n  --vh: 1vh;', '#stage {\n  /* [小红书小工具] 舞台大小由 minitool.css 的 #rot #stage + rotate.js 提供（Chrome 61 不认 CSS 的 min()） */\n  --vh: 1vh;', 1)
-        css += '\n' + rd(os.path.join(HERE, 'minitool.css'))
+        mini_css = rd(os.path.join(HERE, 'minitool.css'))
+        if a.ark:
+            # 口袋方舟是原生横屏 WebView：不再隐藏游戏自带的竖屏旋转提示（styles.css 里 portrait + 粗指针 + 窄屏时显示），再追加安全区等外壳样式
+            hint_line = '.rotate-hint { display: none !important; }'
+            assert mini_css.count(hint_line) == 1, 'minitool.css 里找不到 .rotate-hint 隐藏规则（改过了？更新 build.py）'
+            mini_css = mini_css.replace(hint_line, '/* [口袋方舟] 竖屏旋转提示由游戏自己显示 */')
+            mini_css += '\n' + rd(os.path.join(HERE, 'ark.css'))
+        css += '\n' + mini_css
         css, notes = css_compat.transform(css)
         print('--- CSS 兼容转写 ---\n' + '\n'.join(notes))
         found = css_compat.scan(css)
@@ -320,6 +347,8 @@ def main():
         assert not [f for f in found if f[0] == '布局'], 'style.css 里还有 Chrome 61 会塌掉布局的写法，停止出包'
         shutil.copy(os.path.join(HERE, 'compat.js'), os.path.join(DIST, 'compat.js'))
         shutil.copy(os.path.join(HERE, 'audio_out.js'), os.path.join(DIST, 'audio_out.js'))
+        if a.ark:
+            wr(os.path.join(DIST, 'ark_cfg.js'), '// 口袋方舟版：rotate.js 读到它就不旋转竖屏、不改事件坐标和元素矩形读数（平台 WebView 本来就是横屏）。build.py --ark 生成。\nwindow.__RLP_NOROT = true;\n')
         if not a.release:
             wr(os.path.join(DIST, 'audio_cfg.js'), '// 调试版：左下角显示声音状态条（audio_out.js 读它）。build.py --release 不带这个文件。\nwindow.RLP_AUDIO_DEBUG = true;\n')
     else:

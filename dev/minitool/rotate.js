@@ -119,7 +119,10 @@
   // ------------------------------------------------------------------ 竖屏旋转
   // 容器永远是竖屏、页面没法让它转：只要窗口是竖的就把画面转 90°，不管是不是手机（电脑上的小红书模拟器也是竖的）。
   // 网址加 ?rot=0 可以关掉（调试用）
-  var canRot = new URLSearchParams(location.search).get('rot') !== '0';
+  // 口袋方舟版（build.py --ark 生成的 ark_cfg.js 设置 window.__RLP_NOROT）：平台的 WebView 本来就是横屏，不旋转、不改事件坐标和元素矩形的读数，
+  // 竖屏时由游戏自带的 .rotate-hint 提示玩家横过来；并把 #rot 的 safe-area padding（ark.css）从可用宽高里扣掉，舞台留在安全区内。
+  var noRot = !!window.__RLP_NOROT;
+  var canRot = !noRot && new URLSearchParams(location.search).get('rot') !== '0';
   var S = window.__RLP_ROT = { rot: false, fw: window.innerWidth, fh: window.innerHeight };
 
   function layout() {
@@ -128,9 +131,17 @@
     if (!fw || !fh) return;   // 容器还没给 WebView 定大小：保持上一次的布局
     S.fw = fw; S.fh = fh;
     S.rot = canRot && fh > fw;
-    var vw = S.rot ? fh : fw, vh = S.rot ? fw : fh;
-    box.style.width = vw + 'px';
-    box.style.height = vh + 'px';
+    var padW = 0, padH = 0;   // 安全区 padding（只有 noRot 版会有，其它情况恒为 0）
+    if (noRot) {
+      try {
+        var cs = window.getComputedStyle(box);
+        padW = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+        padH = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+      } catch (e) { /* 读不到就当没有安全区 */ }
+    }
+    var vw = S.rot ? fh : fw - padW, vh = S.rot ? fw : fh - padH;
+    box.style.width = (vw + padW) + 'px';   // box-sizing: border-box（ark.css），padding 在盒子里面；没有 padding 时就是 vw
+    box.style.height = (vh + padH) + 'px';
     box.style.setProperty('--rw', vw + 'px');
     box.style.setProperty('--rh', vh + 'px');
     // 舞台（16:9）的大小：原来写在 CSS 里的 min()，Chrome 61 不认（79 才有），改在这里算好交给 CSS
@@ -165,16 +176,20 @@
       Object.defineProperty(proto, p[0], { configurable: true, enumerable: d.enumerable, get: function () { return S.rot ? fn.call(this) : orig.call(this); } });
     });
   }
-  mapEventProto(window.MouseEvent && MouseEvent.prototype);
-  mapEventProto(window.Touch && Touch.prototype);
+  if (!noRot) {
+    mapEventProto(window.MouseEvent && MouseEvent.prototype);
+    mapEventProto(window.Touch && Touch.prototype);
+  }
 
   // 元素矩形：游戏里的元素在屏幕上是转过来的外接矩形，换算成游戏横屏坐标里的矩形
-  var gbcr = Element.prototype.getBoundingClientRect;
-  Element.prototype.getBoundingClientRect = function () {
-    var r = gbcr.call(this);
-    if (!S.rot || !box.contains(this)) return r;
-    return new DOMRect(r.top, S.fw - r.right, r.height, r.width);
-  };
+  if (!noRot) {
+    var gbcr = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () {
+      var r = gbcr.call(this);
+      if (!S.rot || !box.contains(this)) return r;
+      return new DOMRect(r.top, S.fw - r.right, r.height, r.width);
+    };
+  }
 
   // ------------------------------------------------------------------ 排查面板
   var diag = null, diagOn = false, diagTimer = 0, taps = [], lastDown = '还没点过', fps = 0, fpsN = 0, fpsT = 0;
