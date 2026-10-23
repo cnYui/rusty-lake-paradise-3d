@@ -110,6 +110,11 @@ const VIEW = (window.VIEW = { THREE, scene, renderer, rigs: [], camera: null, re
 async function main() {
   const mod = await import('../../src/art/characters.js');
   for (const extra of ['characters_p2', 'cast']) await import(`../../src/art/${extra}.js`).catch((e) => log(`${extra}: ${e.message}`));
+  // 网格人物模型（src/art/models）：先预加载；&models=0 强制用程序化人物做对照
+  if (q.get('models') !== '0') {
+    const rl = await import('../../src/art/rlpm.js');
+    await rl.preloadModels(['david', 'gerard', 'nicholas', 'margaret', 'ida', 'jakob_child', 'rabbit', 'boar', 'pigeon', 'deer']);
+  }
   const raw = q.get('preset') ? PRESETS[q.get('preset')] : (q.get('ids') ? q.get('ids').split(',') : mod.CHARACTER_IDS.filter((id) => id !== 'rower'));
   const gap = Number(q.get('gap') || 0.75);
   const specs = raw.map((s) => {

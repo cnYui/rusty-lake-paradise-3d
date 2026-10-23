@@ -2,6 +2,8 @@
 import * as THREE from 'three';
 import { toon, flat, unlit, canvasTexture } from './materials.js';
 import { animate, Ease } from '../core/tween.js';
+import { getModel } from './rlpm.js';
+import { makeCowModel } from './cow_model.js';
 
 const PI = Math.PI;
 const COLORS = ['#7eacb4', '#d09cb9', '#d6b965', '#9273b6', '#9eae68'];
@@ -258,7 +260,8 @@ function painting() {
 }
 
 export const FACTORIES = {
-  p5_cow: makeCow, p5_skin: makeSkin, p5_field: makeField, p5_constellation: makeThreads,
+  p5_cow: () => { const m = getModel('cow'); return m ? makeCowModel(m) : makeCow(); },   // 有网格牛就用网格，否则程序化牛
+  p5_skin: makeSkin, p5_field: makeField, p5_constellation: makeThreads,
   p5_barrel: makeBarrel, p5_empty_bucket: () => makeBucket(false), p5_milk_bucket: () => makeBucket(true),
   p5_knife: makeKnife, p5_raw_meat: () => meat(false), p5_ground_meat: () => meat(false), p5_cooked_meat: () => meat(true),
   p5_cheese: () => { const r = group('p5_cheese'); box(r, 'cheese', [0.6, 0.04, 0.5], '#dabb56'); return r; },

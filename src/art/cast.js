@@ -14,6 +14,7 @@ import {
   makeHuman, head, hands, shoes, hairCap, lockGeo, hairStrands, feltHat, finish, lifeIdle, playKeys,
   torsoSkin, limbSkin, skirtSkin, cloth, fabric, restPos,
 } from './human.js';
+import { modelHuman } from './rlpm.js';
 
 // ===========================================================================
 // 公共：脸部笔触
@@ -262,6 +263,8 @@ const DAVID_HEAD = {
  *      sleeves: 'rolled'|'long', breeches, bootTop, turnUp, hair: { color, line, cap }, handScale, collarOpen }
  */
 function manBody(id, o = {}) {
+  const mm = modelHuman(id);   // 有网格模型（src/art/models）就用模型，没有再用程序化建模
+  if (mm) return mm;
   const H = o.height || 1.78;
   const rig = makeHuman(id, { height: H, dims: o.dims || {} });
   const Y = rig.Y, M = rig.mats, sc = H / 1.78;
@@ -743,6 +746,8 @@ function paintNicholas(g, v) {
 }
 
 function nicholasBody(id, { robe = false } = {}) {
+  const mm = modelHuman(id);
+  if (mm) return { rig: mm, H: mm.dims.height };
   const H = 1.88;
   const rig = makeHuman(id, { height: H, dims: { head: 0.0745, headW: 0.66, headD: 0.84, shoulderW: 0.097, hip: 0.52, upper: 0.17, fore: 0.15 } });
   const Y = rig.Y, M = rig.mats, J = rig.joints;
@@ -901,23 +906,25 @@ function buildNicholasDeer() {
   const Y = rig.Y, M = rig.mats, J = rig.joints;
   rig.headTags = ['head', 'face', 'hair', 'neck'];
   rig.maskScale = rig.dims.headR[0] / 0.095;
-  const robe = cloth(rig, '#ebe9e3', { seed: 81, folds: 18, ink: 0.42, len: 0.7 });
-  const keys = [
-    { y: Y.hip - 0.03, w: 0.17, d: 0.13 }, { y: Y.waist, w: 0.168, d: 0.128, cz: 0.004 }, { y: Y.chest, w: 0.176, d: 0.124, cz: 0.006 },
-    { y: Y.armpit, w: 0.19, d: 0.115 }, { y: Y.shoulder, w: 0.19, d: 0.1 }, { y: Y.shoulder + 0.035, w: 0.14, d: 0.086, cz: -0.006 }, { y: Y.neck + 0.005, w: 0.06, d: 0.054 },
-  ];
-  torsoSkin(rig, keys, robe, { tag: 'robe' });
-  skirtSkin(rig, [
-    { y: 0.02, w: 0.29, d: 0.24, cz: 0.012 }, { y: Y.knee - 0.1, w: 0.25, d: 0.205, cz: 0.008 }, { y: Y.hip - 0.15, w: 0.205, d: 0.165, cz: 0.004 }, { y: Y.hip + 0.04, w: 0.172, d: 0.132 },
-  ], robe, { tag: 'robe', pleat: (th, k) => (0.045 * (1 - k) + 0.006) * Math.cos(th * 11 + 0.6) + 0.02 * (1 - k) * Math.cos(th * 5 + 1.3) });
-  const band = M.toon('#ffffff', { map: fabric('#f3f1ec', { folds: 2, ink: 0.2 }), side: THREE.DoubleSide, outline: 0.0035 });
-  const nrm = (p, o) => o.set(p.x, Math.max(0, p.y - Y.chest) * 2.2, p.z).normalize();
-  torsoSkin(rig, null, band, { tag: 'collar', geo: ribbonGeo([[-0.055, Y.neck + 0.01, -0.035], [-0.075, Y.neck - 0.01, 0.035], [-0.04, Y.chest + 0.05, 0.105], [0.03, Y.waist + 0.05, 0.128], [0.085, Y.hip + 0.0, 0.132]], 0.05, { nrm, lift: 0.005, seg: 34 }) });
-  torsoSkin(rig, null, band, { tag: 'collar', geo: ribbonGeo([[0.055, Y.neck + 0.01, -0.035], [0.075, Y.neck - 0.01, 0.035], [0.04, Y.chest + 0.05, 0.105], [-0.03, Y.waist + 0.05, 0.13], [-0.088, Y.hip + 0.0, 0.134]], 0.05, { nrm, lift: 0.009, seg: 34 }) });
-  longSleeves(rig, robe, { r: 0.07, elbow: 0.066, wrist: 0.07, bell: 0.06 });
-  hands(rig, 1.08, ['grip', 'flat']);
-  for (const side of ['L', 'R']) rig.ps.add(J['foot' + side], place(sphere(0.045, 0.03, 0.1), [0, -Y.ankle * 0.6, 0.05]), M.toon('#d9d3c6'), 'shoe');
-  finish(rig);
+  if (!rig.isModel) {   // 网格模型自带长袍和手，不用再建
+    const robe = cloth(rig, '#ebe9e3', { seed: 81, folds: 18, ink: 0.42, len: 0.7 });
+    const keys = [
+      { y: Y.hip - 0.03, w: 0.17, d: 0.13 }, { y: Y.waist, w: 0.168, d: 0.128, cz: 0.004 }, { y: Y.chest, w: 0.176, d: 0.124, cz: 0.006 },
+      { y: Y.armpit, w: 0.19, d: 0.115 }, { y: Y.shoulder, w: 0.19, d: 0.1 }, { y: Y.shoulder + 0.035, w: 0.14, d: 0.086, cz: -0.006 }, { y: Y.neck + 0.005, w: 0.06, d: 0.054 },
+    ];
+    torsoSkin(rig, keys, robe, { tag: 'robe' });
+    skirtSkin(rig, [
+      { y: 0.02, w: 0.29, d: 0.24, cz: 0.012 }, { y: Y.knee - 0.1, w: 0.25, d: 0.205, cz: 0.008 }, { y: Y.hip - 0.15, w: 0.205, d: 0.165, cz: 0.004 }, { y: Y.hip + 0.04, w: 0.172, d: 0.132 },
+    ], robe, { tag: 'robe', pleat: (th, k) => (0.045 * (1 - k) + 0.006) * Math.cos(th * 11 + 0.6) + 0.02 * (1 - k) * Math.cos(th * 5 + 1.3) });
+    const band = M.toon('#ffffff', { map: fabric('#f3f1ec', { folds: 2, ink: 0.2 }), side: THREE.DoubleSide, outline: 0.0035 });
+    const nrm = (p, o) => o.set(p.x, Math.max(0, p.y - Y.chest) * 2.2, p.z).normalize();
+    torsoSkin(rig, null, band, { tag: 'collar', geo: ribbonGeo([[-0.055, Y.neck + 0.01, -0.035], [-0.075, Y.neck - 0.01, 0.035], [-0.04, Y.chest + 0.05, 0.105], [0.03, Y.waist + 0.05, 0.128], [0.085, Y.hip + 0.0, 0.132]], 0.05, { nrm, lift: 0.005, seg: 34 }) });
+    torsoSkin(rig, null, band, { tag: 'collar', geo: ribbonGeo([[0.055, Y.neck + 0.01, -0.035], [0.075, Y.neck - 0.01, 0.035], [0.04, Y.chest + 0.05, 0.105], [-0.03, Y.waist + 0.05, 0.13], [-0.088, Y.hip + 0.0, 0.134]], 0.05, { nrm, lift: 0.009, seg: 34 }) });
+    longSleeves(rig, robe, { r: 0.07, elbow: 0.066, wrist: 0.07, bell: 0.06 });
+    hands(rig, 1.08, ['grip', 'flat']);
+    for (const side of ['L', 'R']) rig.ps.add(J['foot' + side], place(sphere(0.045, 0.03, 0.1), [0, -Y.ankle * 0.6, 0.05]), M.toon('#d9d3c6'), 'shoe');
+    finish(rig);
+  }
   const cube = blackCube(M, 0.14); cube.name = 'memory_cube';
   const cubeMount = new THREE.Group(); J.handR.add(cubeMount); cubeMount.position.set(0, -0.12, 0.035); cubeMount.add(cube);
   const cubeQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.25, 0.6, 0.12));
@@ -1061,6 +1068,8 @@ function paintMargaret(g, v) {
 
 /** Margaret 的身体：头巾、披肩、长裙、围裙。o: { standing } */
 function margaretBody(id, { stool = false, seat = 0 } = {}) {
+  const mm = modelHuman(id);
+  if (mm) { if (stool) mm.stoolSeat = seat; return mm; }
   const H = 1.56;
   const rig = makeHuman(id, { height: H, dims: { head: 0.083, headW: 0.82, headD: 0.9, shoulderW: 0.098, hip: 0.5, knee: 0.27, upper: 0.17, fore: 0.152, neck: 0.815, waist: 0.07 } });
   const Y = rig.Y, M = rig.mats, J = rig.joints;
@@ -1310,6 +1319,8 @@ function roundCollar(rig, mat, { w = 0.13, h = 0.1, y = null, z = 0.0 } = {}) {
  * o: { height, dims, head, dress, blouse, puff 泡泡短袖, bodice 方领背心色, skirtW, hem }
  */
 function womanBody(id, o) {
+  const mm = modelHuman(id);   // 目前只有 Ida 有模型
+  if (mm) return mm;
   const H = o.height;
   const rig = makeHuman(id, { height: H, dims: { head: 0.077, headW: 0.73, headD: 0.86, shoulderW: 0.088, hip: 0.53, hipW: 0.046, upper: 0.17, fore: 0.148, ...(o.dims || {}) } });
   const Y = rig.Y, M = rig.mats, sc = H / 1.62;

@@ -17,6 +17,7 @@ import { touch } from './core/touch.js';
 import { installDebug } from './core/debug.js';
 import { CHAPTERS } from './chapters/index.js';
 import { P } from './art/layout.js';
+import { preloadModels, CHAPTER_MODELS } from './art/rlpm.js';
 
 const q = new URLSearchParams(location.search);
 const AUTOTEST = q.get('autotest') === '1';
@@ -95,6 +96,7 @@ function ensureChapter(n) {
     if (!setupDone.has(chapter.id)) {
       setupDone.add(chapter.id);
       state.chapter = chapter.id;
+      await preloadModels(CHAPTER_MODELS[chapter.id] || []);   // 网格人物 / 动物模型（失败时自动回退程序化模型）
       await chapter.setup(ctx);
     }
     return chapter;
@@ -235,6 +237,7 @@ async function boot() {
   } else {
     const { buildWorld } = await import('./art/world.js');
     mark('worldImport');
+    await preloadModels(['tower']);   // 岛上的石塔是网格模型，世界建好之前先加载（失败回退程序化塔）
     world = buildWorld(engine);
   }
   mark('buildWorld');

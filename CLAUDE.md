@@ -13,7 +13,7 @@ CLAUDE.md  AGENTS.md  README.md  ARCHITECTURE.md   说明文档（本文件 = �
 index.html  styles.css  vendor/three/               网页入口、样式、three.js
 src/                                                 游戏本体（会部署）
 ├─ core/        公共：引擎、状态与存档、视图、热点、物品栏、界面、音频、触屏、章节进度（progress.js）
-├─ art/         公共：3D 素材。全是程序化建模代码（没有 .glb / 贴图文件）：世界、建筑、人物、道具
+├─ art/         公共：3D 素材。世界、建筑、道具是程序化建模代码；人物 / 山羊 / 牛 / 苍蝇人用 AI 生成的网格模型（models/*.rlpm，rlpm.js 加载，缺失时回退程序化）
 │                 世界与第一灾道具 island/lake/sky/buildings/props_beach|inner|lake/characters …
 │                 人物 cast.js + charkit.js + human.js（各章复用）
 │                 章节专属道具 props_p2_*（第二灾）、props_p3_* + cast_p3*（第三灾）、props_flies（第四灾）、props_p5（第五灾）
@@ -29,6 +29,7 @@ dev/                                                 开发期材料（不部署
 │   ├─ shot.py     无头浏览器截图 + 本地静态服务（所有浏览器验收都用它的 serve()）
 │   ├─ demo_recorder.py   录像器（CDP 录屏 + WebAudio 录声音），各章 record_*.py 共用
 │   ├─ viewer.html|js  cast.html|js  buildings_test.html|js   模型 / 人物 / 建筑查看器
+│   ├─ models/     网格人物 / 动物的 Blender 流水线（减面、烘贴图、绑骨骼、导出 .rlpm）和 README
 │   ├─ test_progress_browser.py   存档、解锁、章节衔接（跨章节）
 │   ├─ deploy_mac.sh（私有，不入库）  deploy_mac.example.sh   公网部署
 │   └─ media/      本地截图（不入库）

@@ -8,6 +8,8 @@ import { INK, OUT, TAU, clamp, lerp, smooth, step01, V, FS, FX, FY, matSet, cach
 import * as HUMAN from './human.js';
 import * as CASTMOD from './cast.js';
 import { CAST_P3 } from './cast_p3.js';   // 第三灾人物变体
+import { getModel } from './rlpm.js';
+import { buildGoatModel } from './goat_model.js';
 const { CAST } = CASTMOD;
 
 // 道具在别的模块里；存在就用，否则人物用自己的简易模型。
@@ -608,7 +610,8 @@ export function makeCharacter(id) {
 /** Build an animal rig. Only 'goat' exists. */
 export function makeAnimal(kind = 'goat') {
   if (kind !== 'goat') throw new Error(`makeAnimal: unknown kind "${kind}" (known: goat)`);
-  const rig = buildGoat();
+  const gm = getModel('goat');   // 有网格山羊就用网格（src/art/models/goat.rlpm），否则程序化山羊
+  const rig = gm ? buildGoatModel(gm) : buildGoat();
   rig.root.userData.rig = rig;
   return rig;
 }

@@ -9,6 +9,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { toon, flat, unlit, canvasTexture, rng, shade, tex } from './materials.js';
 import { P, SETS } from './layout.js';
+import { getModel } from './rlpm.js';
+import { makeTowerModel } from './tower_model.js';
 
 const TAU = Math.PI * 2;
 const INK = 0.006;          // outline thickness for building silhouettes
@@ -738,6 +740,8 @@ function buildTemple(anchors) {
 
 function buildTower() {
   const { pos } = P.tower;
+  const tm = getModel('tower');   // 有网格石塔（src/art/models/tower.rlpm）就用网格，否则程序化三层石塔
+  if (tm) return makeTowerModel(tm, pos);
   const g = new THREE.Group();
   g.name = 'tower';
   g.position.fromArray(pos);

@@ -69,7 +69,7 @@ export const P = {
   rowboat:     { pos: [16.5, 0.08, 47.2], rotY: -0.5 },       // beached, bow towards the lake
 
   // ---------------- Landmarks ----------------
-  tower:       { pos: [-30, 2.2, 18] },                       // three-storey stone tower on rocks (closed in P1)
+  tower:       { pos: [-24, 2.2, 14], height: 38, radius: 6.9 },  // 网格石塔（38 m，高出约 25 m 的森林树冠）站在西边的岩石平台上；从南面远景可见
 
   // ---------------- Forest (inside the palisade) ----------------
   forestPath:  { pos: [0, GROUND_Y, 33] },                    // narrow gap between huge trunks

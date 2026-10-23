@@ -3,6 +3,8 @@ import {
   THREE, toon, unlit, canvasTexture, ink, TAU, group, mesh, ball, bar, taperedTube, merged, placed, label, bake,
 } from './props_flies_kit.js';
 import { rng } from './materials.js';
+import { getModel } from './rlpm.js';
+import { makeFlyModel } from './fly_model.js';
 
 const lerp = (a, b, k) => a + (b - a) * k;
 
@@ -44,6 +46,8 @@ const veinTexture = () => canvasTexture(256, 512, (g, w, h) => {
 });
 
 export function makeFlyMan() {
+  const fm = getModel('fly');   // 有网格苍蝇人（src/art/models/fly.rlpm）就用网格，否则程序化苍蝇人
+  if (fm) return makeFlyModel(fm);
   const root = group('p4_flyman'), body = group('fly_body'); root.add(body);
   const dark = toon('#1e211d'), plume = toon('#262925'), skin = toon('#ddd9c4'), shirt = toon('#e8e4d2'),
     trousers = toon('#4d4a3a'), boot = toon('#2f2921'), glass = toon('#d8d27a', { emissive: '#43410f' });
