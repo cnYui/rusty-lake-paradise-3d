@@ -54,9 +54,9 @@ upload/                                              发布包（压缩包），
 | --- | --- | --- | --- | --- |
 | 第一灾 | `src/chapters/plague1/` | 世界和道具是公共的（`props_beach/inner/lake`、`buildings`） | `RLP.autoplay()`；`dev/plague1/record_plague1_demo.py`、`dev/plague1/promo/` | docs/ai/context |
 | 第二灾 | `src/chapters/plague2/` | `props_p2_*`、`props_frogs`、`characters_p2`、`mist_p2` | `dev/plague2/test_plague2*`、`record_plague2_demo.py`、`make_plague2_trailer.py` | `docs/plague2_*.md`，参考分析 `dev/common/ref/p2/analysis/` |
-| 第三灾 | `src/chapters/plague3/`（仍 `wip`） | `props_p3_*`、`cast_p3*` | `dev/plague3/test_plague3*`、`record_plague3_demo.py`、`shots_plague3.py`、`make_plague3_preview.py` | `docs/plague3_*.md` |
+| 第三灾 | `src/chapters/plague3/` | `props_p3_*`、`cast_p3*` | `dev/plague3/test_plague3*`、`record_plague3_demo.py`、`shots_plague3.py`、`make_plague3_preview.py` | `docs/plague3_*.md` |
 | 第四灾 | `src/chapters/plague4/` | `props_flies` | `dev/plague4/test_plague4*` | AGENTS.md「第四灾」 |
-| 第五灾 | `src/chapters/plague5/`（`wip`） | `props_p5` | `dev/plague5/test_plague5*` | AGENTS.md「第五灾」 |
+| 第五灾 | `src/chapters/plague5/` | `props_p5` | `dev/plague5/test_plague5*` | AGENTS.md「第五灾」 |
 
 第六至第十灾还没做，参考视频在 `dev/common/ref/P06_*` … `P10_*`。
 

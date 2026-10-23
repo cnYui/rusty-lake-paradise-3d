@@ -20,7 +20,7 @@
 
 - 存档、成就历史和通关记录都在本机 localStorage（`src/core/state.js`，全部 try/catch）：`rlp3d.save.<章节id>`（`v: 2`，版本对不上就当没有；旧版 v1 是“启动即清档”时代的存档，不再读）、`rlp3d.profile`（`ach`：成就历史 `{ id: { t, zh, en, ch } }`，`cleared`：通关记录 `{ 章节id: { t } }`）、`rlp3d.last`（最近玩的章节）。“重新开始”只清这一章的存档，成就历史和通关记录保留；只有设置里的“重置进度”（`state.wipeAll()`）全部清掉。写入失败时档案留在内存里，本次游戏内通关和成就仍有效，菜单会提示“这里不能保存进度”。
 - 启动不再清档；只有 `?autotest=1`、`?demo=1`、`?fresh=1` 每次从空白开始。测试页里要验证菜单、读档或解锁，先自己往 localStorage 垫 `rlp3d.profile`（见 `dev/plague2/test_plague2_browser.py` 的 `verify_menu_and_movement`）。标题菜单期间 `state.saving = false`（不写存档），`startChapter` 一开始才恢复；自动存档在 `main.js`（状态变化后 500 ms 合并，过场 `ui.locked` 期间等它结束再存，`pagehide` 立即存）。
-- 章节解锁在 `src/chapters/index.js` 的 `requires`（前置章节 id）和 `src/core/progress.js`（`chapterStatus` / `nextChapter` / `resumeChapter` / `liveSave`）：没通关前置章节的章在菜单里是“未解锁”（点了提示“通关第一灾后解锁”）；`requires` 可以是一个章节 id，也可以是数组（全部通关才解锁）：第二灾 `requires: 'plague1'`，第三灾 `requires: ['plague1', 'plague2']`（三灾必须按顺序玩，菜单提示会指到第一个没通关的前置章节），第四灾不依赖第二、三灾。开发跳转 `?chapter=N` 不经过菜单，不受锁影响；`?unlock=1`（或 `?wip=1`）让菜单跳过这把锁。章节的通关旗标（`completeFlag`，默认 `<id>_complete`）一立起来，`main.js` 的 `watchClear` 就记进通关记录。
+- 章节解锁在 `src/chapters/index.js` 的 `requires`（前置章节 id）和 `src/core/progress.js`（`chapterStatus` / `nextChapter` / `resumeChapter` / `liveSave`）：没通关前置章节的章在菜单里是“未解锁”（点了提示“通关第一灾后解锁”）；`requires` 可以是一个章节 id，也可以是数组（全部通关才解锁）：第二灾 `requires: 'plague1'`，第三灾 `requires: ['plague1', 'plague2']`（三灾必须按顺序玩，菜单提示会指到第一个没通关的前置章节），第四灾 `requires: ['plague1', 'plague2', 'plague3']`，第五灾 `requires: ['plague1', 'plague2', 'plague3', 'plague4']`（前五灾必须严格按顺序一章一章解锁，不能单独玩后面的章）。开发跳转 `?chapter=N` 不经过菜单，不受锁影响；`?unlock=1`（或 `?wip=1`）让菜单跳过这把锁。章节的通关旗标（`completeFlag`，默认 `<id>_complete`）一立起来，`main.js` 的 `watchClear` 就记进通关记录。
 - 通关结尾（`ui.ending`）：有下一章（编号 +1 且已解锁、有 `load`）就出现“进入下一灾 / 返回主菜单”，倒数 8 秒后自动进入；点“返回主菜单”或关掉结尾卡就取消。进入下一章 = `main.js` 的 `switchChapter`（记进 sessionStorage 再重载，一个页面只装载一章；下一章有没打完的存档就继续，否则新开）。`?autotest=1` / `?demo=1` 不自动倒数，测试里要走自动进入就把 `RLP.ctx.ui.autoAdvance` 设为 true。启动时 `bootChapterNumber` 先装载玩家多半要点 ▶ 的那一章（最近玩的没打完的章节，通关第一灾后是第二灾），省掉一次重载；第一灾通关后菜单 ▶ 指向第二灾。
 - 新增章节要接上衔接：注册表里写好 `requires`、`load`，章节对象写 `completeFlag`，通关时 `await ctx.ui.ending(T.ending)`；成就表放在章节 `text.js` 的 `ACHIEVEMENTS`，想在菜单成就面板里按章节列出就在注册表写 `achievements`（没写的章节，解锁过的成就仍会出现在“其他章节”）。验收入口 `python dev/common/test_progress_browser.py`；小红书小工具的菜单测试（`dev/minitool/test_minitool.py`）已按解锁规则改过。记录见 `docs/ai/context/20261019-212200-progress-save-chapter-chain.md`。
 - 成就必须每一个都有发放点并能在自动通关里拿到：每章 `ACHIEVEMENTS` 里的 id 都要有 `ctx.achieve(id)` 调用，新增成就同时把它放进该章 `walkthrough`（可选动作也放，自动通关才能覆盖），验收入口 `python dev/common/test_achievements_browser.py`（三章依次自动通关，成就在章节存档和玩家档案里都有，重载后成就面板满格）。第一灾的“欢迎来到天堂岛（用虾开天堂门）/ 这是我（圣水盆倒影）/ 第一个符号（盖子滑开后点棺材里的符号）”曾经没有发放点（2026-10-22 补上，旧存档读档时按旗标静默补发）；棺材里的符号要画在水面上方，画在衬里上会被血水盖住。
@@ -28,13 +28,13 @@
 ## 第四灾与参考资料
 
 - 第三至第十灾的既定参考视频位于 `dev/common/ref/P03_*.mp4` 至 `dev/common/ref/P10_*.mp4`，源视频为 B 站 `BV1bo4y1y7fm`；定位和完整性记录见 `docs/ai/context/20261008-201654-bilibili-reference-videos.md`。视频与抽帧只作本地参考，不提交、不部署。
-- 第四灾逻辑集中在 `src/chapters/plague4/`，专属程序化模型在 `src/art/props_flies.js`；不依赖第二、三灾进度。天堂门和木小屋开局开放，绿色宝石解锁神殿入口，以免湖边寄居蟹与宝石形成循环前置。
+- 第四灾逻辑集中在 `src/chapters/plague4/`，专属程序化模型在 `src/art/props_flies.js`；游戏状态（flags / 物品）不依赖第二、三灾进度，但菜单里要先通关第一到第三灾才解锁（见“进度、存档与章节衔接”）。天堂门和木小屋开局开放，绿色宝石解锁神殿入口，以免湖边寄居蟹与宝石形成循环前置。
 - 第四灾寄居蟹保留三轮真实导向模拟，用“点贝壳、点空格、点寄居蟹出发”统一鼠标和触屏；轮次、摆放与选中状态保存到 `p4_crab_*` flags。规则和窗锁校验在 `puzzles.js`，场景同步必须支持新游戏和读档的双向恢复。
 - 第四灾验收入口为 `node --test dev/plague4/test_plague4.mjs` 和 `python dev/plague4/test_plague4_browser.py`。真实点击采样前等待画布的 CSS 入场动画结束；游戏加速不会加速 CSS 过渡，不能把变化中的画布坐标当成稳定落点。
 
 ## 第五灾
 
-- 第五灾逻辑集中在 `src/chapters/plague5/`，专属模型工厂位于 `src/art/props_p5.js` 并统一使用 `p5_` 前缀，入口暂保留 `wip: true`。第五灾独立于其它章节，参考为 `dev/common/ref/P05_第五灾-疫灾_BV1bo4y1y7fm.mp4`。
+- 第五灾逻辑集中在 `src/chapters/plague5/`，专属模型工厂位于 `src/art/props_p5.js` 并统一使用 `p5_` 前缀，已去掉 `wip`，要先通关第一到第四灾才解锁（`?unlock=1` / `?wip=1` 可跳过这把锁）。第五灾的游戏状态独立于其它章节，参考为 `dev/common/ref/P05_第五灾-疫灾_BV1bo4y1y7fm.mp4`。
 - 菜地为三轮可移动菜苗的行列占格数谜题，连线为五轮节点度数与全图连通谜题；纯规则在 `rules.js`，接受所有满足约束的解，不能把自动流程的解写成玩家唯一答案。
 - 牛治好后才能取肉和挤奶；蔬菜切片、肉馅煎熟、汉堡逐层消耗食材。Gerard 吃完才开放厕所，林间连线解完才开放圆盘回忆，黑方块从回忆取得后才开放神殿，不能跳过汉堡主线。
 - 斑点、菜地、连线、汉堡中途进度均保存到 flags；`sync()` 必须支持新游戏、旧档与重复调用。公共吊架下降是累加接口，恢复时按差值；不可逆的插入/点燃显示需要回退时，只重建本章对象并更新热点和帧注册。

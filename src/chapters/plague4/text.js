@@ -31,8 +31,8 @@ export const T = {
 };
 
 export const ACHIEVEMENTS = {
-  p4_crab: { zh: '借来的壳', en: '' },
-  p4_hearts: { zh: '三颗心', en: '' },
-  p4_card: { zh: '洞底的红心', en: '' },
-  p4_memory: { zh: '父亲与儿子', en: '' },
+  p4_crab: { zh: '借来的壳', en: 'Borrowed Shells' },          // 寄居蟹三轮全部过关，苍蝇人吃掉最后一只
+  p4_hearts: { zh: '三颗心', en: 'Three Hearts' },               // 猫头鹰图腾吃满三颗心
+  p4_card: { zh: '洞底的红心', en: 'Heart at the Bottom' },       // 地洞底部的红心牌
+  p4_memory: { zh: '父亲与儿子', en: 'Father and Son' },          // 神殿里的父子回忆
 };

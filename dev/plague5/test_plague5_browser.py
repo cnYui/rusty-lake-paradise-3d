@@ -216,15 +216,18 @@ def run():
             results['roam_collision_return_and_gates'] = True
             print('室内碰撞、原位返回和门禁通过', flush=True)
 
+            # 前五灾必须按顺序：空档时第五灾是锁着的，通关第一到第四灾后才开放（?unlock=1 / ?wip=1 跳过这把锁）
             boot(page, base, 'index.html?norender=1')
             assert page.locator('.plague').count() == 10
             assert 'open' not in page.locator('.plague').nth(4).get_attribute('class')
-            results['normal_menu_fifth_still_wip'] = True
-            boot(page, base, 'index.html?wip=1&norender=1')
+            results['normal_menu_fifth_locked_until_fourth_cleared'] = True
+            page.evaluate("localStorage.setItem('rlp3d.profile', JSON.stringify({v: 1, ach: {}, cleared: {plague1: {t: 1}, plague2: {t: 1}, plague3: {t: 1}, plague4: {t: 1}}}))")
+            boot(page, base, 'index.html?norender=1')
+            assert 'open' in page.locator('.plague').nth(4).get_attribute('class')
             page.locator('.plague').nth(4).click()
             page.wait_for_function('window.RLP && RLP.ready && RLP.chapter?.number===5')
             assert page.evaluate('RLP.bootError') is None
-            results['wip_menu_enters_fifth'] = True
+            results['normal_menu_enters_fifth_after_fourth_cleared'] = True
             page.close()
 
             mobile = browser.new_context(viewport={'width':844,'height':390}, is_mobile=True, has_touch=True)

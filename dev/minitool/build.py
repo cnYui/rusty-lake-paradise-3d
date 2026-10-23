@@ -277,10 +277,10 @@ def main():
             "for (const part of PARTS) { await part.setup(ctx); if (window.__RLP_STAGE) await window.__RLP_STAGE(); }",
         )])
     # 小工具和口袋方舟只开放第一、二、三灾：第四灾 / 第五灾在副本里不注册 load（菜单显示“敬请期待”，代码也不进包）。
-    # 解锁顺序在源码注册表里：第二灾 requires 第一灾，第三灾 requires 第一、二灾（没通关前置章节菜单里就是“未解锁”），这里不用再补
+    # 解锁顺序在源码注册表里：前五灾严格按顺序（第二灾 requires 第一灾，第三灾 requires 第一、二灾，第四灾 requires 第一到第三灾，第五灾 requires 第一到第四灾；没通关前置章节菜单里就是“未解锁”），这里不用再补
     patch('src/chapters/index.js', [
         ("load: () => import('./plague4/index.js') }", "load: null }"),
-        ("load: () => import('./plague5/index.js'), wip: true }", "load: null }"),
+        ("load: () => import('./plague5/index.js') }", "load: null }"),
     ])
     assert "requires: ['plague1', 'plague2'], load: () => import('./plague3/index.js') }" in rd(os.path.join(WORK, 'src/chapters/index.js')), '源码注册表里第三灾的解锁条件变了（要先通关第一、二灾）：更新 build.py'
 

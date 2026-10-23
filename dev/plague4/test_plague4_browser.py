@@ -302,9 +302,15 @@ def run():
             print('漫游位置恢复、室内碰撞和神殿入口门禁通过', flush=True)
 
             # 普通无参数首页必须能显示菜单，且能实际选择第四灾重载进入。
+            # 前五灾必须按顺序：空档时第四灾是锁着的，通关第一到第三灾后才开放
             boot(page, base, 'index.html')
             page.wait_for_selector('.plague.open')
             assert page.locator('.plague').count() == 10
+            assert 'open' not in page.locator('.plague').nth(3).get_attribute('class')
+            results['normal_menu_chapter4_locked_until_third_cleared'] = True
+            page.evaluate("localStorage.setItem('rlp3d.profile', JSON.stringify({v: 1, ach: {}, cleared: {plague1: {t: 1}, plague2: {t: 1}, plague3: {t: 1}}}))")
+            boot(page, base, 'index.html')
+            page.wait_for_selector('.plague.open')
             card = page.locator('.plague').nth(3)
             assert 'open' in card.get_attribute('class')
             card.click()
