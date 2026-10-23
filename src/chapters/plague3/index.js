@@ -79,7 +79,7 @@ export default {
     // 6 海滩：撬贻贝，挖 X，滑块，开盒拿球茎
     ...beach.shovelWalkthrough,
     // 7 白树空地：捕蝇草吃贻贝和耳朵 → 开花拿黄花；斧子砍红叉树进白桦林
-    ...forest.feedWalkthrough(['p3_mussel', 'p3_ear']), ...forest.flowerWalkthrough, ...forest.chopWalkthrough,
+    ...forest.feedWalkthrough(['p3_mussel', 'p3_ear']), ...forest.flowerWalkthrough, ...temple.harveyWalkthrough, ...forest.chopWalkthrough,
     // 8 白桦林：浆果、桦树汁、David 的桌子、幼虫吐球茎；神龛放黄花和两只花瓶
     { click: 'p3_grove_entry' }, { expectView: 'p3_grove' },
     ...grove.berryWalkthrough, ...grove.sapWalkthrough, ...grove.davidWalkthrough,

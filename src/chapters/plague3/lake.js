@@ -99,5 +99,7 @@ export function sync(ctx) {
 export const walkthrough = [
   { go: 'lake_shore' }, { click: 'p3_margaret' }, { expectView: 'p3_margaret' },
   { use: 'p3_swatter', on: 'p3_margaret' }, { expectFlag: 'p3_margaret_swatted' }, { click: 'p3_gnats_item' }, { expectItem: 'p3_gnats' }, { back: true },
-  { click: 'p3_stump_zoom' }, { expectView: 'p3_stump' }, { click: 'p3_snail' }, { click: 'p3_axe' }, { expectItem: ['p3_snail', 'p3_axe'] }, { back: true },
+  { click: 'p3_stump_zoom' }, { expectView: 'p3_stump' }, { click: 'p3_snail' }, { click: 'p3_axe' }, { expectItem: ['p3_snail', 'p3_axe'] },
+  // 成就“第三个符号”：斧子砍木桩 8 下裂开，点里面的符号（可选；斧子不会用掉，之后照样去砍红叉树）
+  { repeat: 8, step: { use: 'p3_axe', on: 'p3_stump_hit' } }, { click: 'p3_stump_symbol' }, { back: true },
 ];

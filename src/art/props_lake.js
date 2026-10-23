@@ -390,7 +390,8 @@ function coffinTextures() {
     // --- faint hand-drawn symbol: triangle with a vertical line through the apex past the base
     const symbol = canvasTexture(256, 256, (g) => {
       g.clearRect(0, 0, 256, 256);
-      g.strokeStyle = 'rgba(70,28,18,0.55)'; g.lineWidth = 7; g.lineJoin = 'round'; g.lineCap = 'round';
+      // 淡淡的手绘符号：暗红衬里上要看得见才点得到（成就“第一个符号”），所以用发白的刮痕色而不是更深的红
+      g.strokeStyle = 'rgba(238,222,190,0.9)'; g.lineWidth = 9; g.lineJoin = 'round'; g.lineCap = 'round';
       g.beginPath(); g.moveTo(128, 46); g.lineTo(210, 168); g.lineTo(44, 176); g.closePath(); g.stroke();
       g.beginPath(); g.moveTo(130, 28); g.lineTo(124, 228); g.stroke();
     }, { wrap: false });
@@ -482,10 +483,11 @@ function makeCoffin() {
   cubeShadow.name = 'coffin_cube_shadow';
   cubeShadow.position.set(-0.075, floorY + 0.002, 0.075);
   fl.add(cubeShadow);
-  const symbol = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2).rotateX(-Math.PI / 2),
+  const symbol = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3).rotateX(-Math.PI / 2),
     unlit('#ffffff', { map: T.symbol, transparent: true, depthWrite: false }));
   symbol.name = 'coffin_symbol';
-  symbol.position.set(0.43, floorY + 0.003, 0.0);
+  // 衬里的底在水面以下 0.16 m，符号贴在底上会被血水盖住（点不到也看不见）：画在水面上方一点点（衬里底约 -0.16、棺材自己又沉了约 0.04），像印在棺材里的血面上
+  symbol.position.set(0.43, 0.06, 0.0);
   fl.add(symbol);
 
   // waterline: dark shadow band + burst ripple (root frame, not tilting)

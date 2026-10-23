@@ -172,6 +172,13 @@ export function sync(ctx) {
 export const walkthrough = [
   { go: 'temple_door' }, { click: 'temple_entry' }, { expectView: 'temple_int' }, { click: 'p3_scissors_item' }, { expectItem: 'p3_scissors' }, { back: true },
 ];
+/** 成就“哈维”（可选）：窗台盘放一朵黄花 → 离开再进神殿，鹦鹉落下 → 点它 → 点盘子把花拿回来（后面神龛还要用）。 */
+export const harveyWalkthrough = [
+  { go: 'temple_door' }, { click: 'temple_entry' }, { expectView: 'temple_int' }, { click: 'p3_sill_zoom' }, { expectView: 'p3_sill' },
+  { use: 'p3_flower_yellow', on: 'p3_sill_plate' }, { expectFlag: 'p3_sill_flower' }, { back: true }, { back: true },
+  { click: 'temple_entry' }, { expectFlag: 'p3_parrot' }, { click: 'p3_parrot' }, { expectFlag: 'p3_harvey_seen' },
+  { click: 'p3_sill_zoom' }, { click: 'p3_sill_plate' }, { expectItem: 'p3_flower_yellow' }, { back: true }, { back: true },
+];
 /** 结尾：黑方块放进吊架，一路演出到 plague3_complete。 */
 export const endingWalkthrough = [
   { go: 'temple_door' }, { click: 'temple_entry' }, { click: 'holder' }, { click: 'holder' },
