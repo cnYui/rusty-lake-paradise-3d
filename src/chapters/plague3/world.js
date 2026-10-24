@@ -102,16 +102,17 @@ export function character(ctx, id, spot, zone = 'exterior') {
 
 /**
  * 以 object 的局部坐标定义一个谜题特写：target / eye 是 object 局部坐标里的点（object 在世界里怎么摆，镜头就怎么跟）。
- * 特写的 look 为 0（点击密集，镜头不晃）。
+ * 特写的 look 为 0（点击密集，镜头不晃）。target / eye / fov 也可以是函数，go() 时才取值（机位随旗标变）。
  */
 export function closeup(ctx, id, object, back, { target = [0, 1, 0], eye = [0, 1.2, 2], fov = 40, zone = 'exterior', onEnter } = {}) {
+  const val = (v) => (typeof v === 'function' ? v() : v);
   ctx.views.define({
     id, zone, closeup: true, back, look: 0, onEnter,
     // 函数形式的机位在 go() 时才解析，这样 object 之后被挪动 / 替换也不会过期
     cam: () => {
       object.updateWorldMatrix(true, false);
-      const at = (p) => object.localToWorld(new THREE.Vector3(...p)).toArray();
-      return { pos: at(eye), target: at(target), fov };
+      const at = (p) => object.localToWorld(new THREE.Vector3(...val(p))).toArray();
+      return { pos: at(eye), target: at(target), fov: val(fov) };
     },
   });
 }

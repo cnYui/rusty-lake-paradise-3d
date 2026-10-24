@@ -913,9 +913,10 @@ function makeLarva() {
   const swarm = makeGnatSwarm({ count: 220, len: 0.05, seed: 5, speed: 1 });
   swarm.setCloud([0, 0.45, 0.05], [0.8, 0.4, 0.4]); swarm.setCover(points); root.add(swarm);
   // 点击盒
-  const bodyHit = hit(root, 'larva_body_hit', [1.62, 0.52, 0.62], [0, 0.26, 0]);
-  const mouthHit = hit(root, 'larva_mouth_hit', [0.2, 0.34, 0.3], [LARVA_RINGS.rings[0].x + 0.05, 0.22, LARVA_RINGS.rings[0].z + 0.08]);
-  const bulbHit = hit(root, 'larva_bulb_hit', [0.3, 0.2, 0.3], GROUND.toArray());
+  // 身体盒要把弯向 +z 的头也罩进去（头在 z≈0.35 一带，原来的 ±0.31 点不到）；球茎只有 0.28 m 长，盒子放大一圈方便手指点
+  const bodyHit = hit(root, 'larva_body_hit', [1.72, 0.52, 0.9], [-0.04, 0.26, 0.15]);
+  const mouthHit = hit(root, 'larva_mouth_hit', [0.3, 0.4, 0.4], [LARVA_RINGS.rings[0].x + 0.05, 0.22, LARVA_RINGS.rings[0].z + 0.08]);
+  const bulbHit = hit(root, 'larva_bulb_hit', [0.46, 0.36, 0.46], [GROUND.x, 0.14, GROUND.z]);
   const S = { gnats: 0, spat: false, bulbTaken: false };
   let headPulse = 0;
   const showSwarm = (k) => { swarm.visible = k > 0.001; swarm.setCount(Math.round(220 * clamp(k * 1.6))); swarm.setMix(k); swarm.setAway(0); cover.setCover(k); };

@@ -56,7 +56,13 @@ export async function setup(ctx) {
   // ---- 视图（特写都在 p3_grove 这个 zone 里；机位用物体局部坐标，跟着物体走）
   closeup(ctx, 'p3_berries', bush, 'p3_grove', { zone: 'p3_grove', target: [-0.07, 0.34, 0.06], eye: [-0.05, 0.62, 1.1], fov: 40 });
   closeup(ctx, 'p3_birch', birch, 'p3_grove', { zone: 'p3_grove', target: [0.05, 0.9, 0], eye: [0.1, 1.2, 2.5], fov: 44 });
-  closeup(ctx, 'p3_david', table, 'p3_grove', { zone: 'p3_grove', target: [0.1, 0.55, 0.3], eye: [0.55, 1.5, 2.9], fov: 44 });
+  // 圆桌特写；David 消失、幼虫出现后改框幼虫和它吐出的球茎（球茎在幼虫头前方，按桌面框法会被挤到画面最底边）
+  const covered = () => !!ctx.flag('p3_david_covered');
+  closeup(ctx, 'p3_david', table, 'p3_grove', {
+    zone: 'p3_grove', fov: 44,
+    target: () => (covered() ? [0.3, 0.12, 1.15] : [0.1, 0.55, 0.3]),
+    eye: () => (covered() ? [0.3, 1.35, 3.45] : [0.55, 1.5, 2.9]),
+  });
   closeup(ctx, 'p3_shrine', shrine, 'p3_grove', { zone: 'p3_grove', target: [0, 1.15, 0.2], eye: [0, 1.5, 3.3], fov: 44 });
   closeup(ctx, 'p3_portrait', shrine, 'p3_shrine', { zone: 'p3_grove', target: [0, 1.87, 0.05], eye: [0, 1.87, 1.25], fov: 40 });
   ctx.views.define({
@@ -126,6 +132,8 @@ export async function setup(ctx) {
     larva.visible = true;
     await larva.setState({ gnats: 1 });
     ctx.sfx('stinger');
+    await ctx.wait(500);
+    await ctx.go('p3_david', { teleport: true });    // 换成框幼虫的机位
   };
   const serve = (part, item, flag, set) => ({
     [item]: () => ctx.cutscene(async () => {
@@ -171,7 +179,8 @@ export async function setup(ctx) {
     }),
   });
   ctx.hotspots.define({
-    id: 'p3_larva_bulb', views: ['p3_david'], object: larva.getObjectByName('larva_bulb_hit'), cursor: 'grab',
+    // 球茎掉在地上，漫游时走到跟前直接点就能捡（不用先点幼虫进特写）
+    id: 'p3_larva_bulb', views: ['p3_david', 'p3_grove'], object: larva.getObjectByName('larva_bulb_hit'), cursor: 'grab',
     when: () => !!ctx.flag('p3_larva_spat') && !ctx.flag('p3_larva_bulb_taken'),
     onClick: async () => {
       if (!(await giveItem(ctx, 'p3_bulb', larva.getObjectByName('larva_bulb_hit')))) return;
