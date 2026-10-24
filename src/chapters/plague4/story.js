@@ -78,11 +78,14 @@ export function setup(ctx) {
     when: () => !ctx.flag('p4_rabbit_lured'), onClick: () => ctx.say(T.rabbit),
     onItem: { carrot: async () => { ctx.take('carrot'); ctx.setFlag('p4_rabbit_lured'); refresh(ctx); ctx.sfx('rustle'); } },
   });
+  // 点击范围放大到整块翘起的石板和板下的空地：虫子要放在板下，玩家会点那片地
+  ctx.hotspots.makeProxy(0.6, 0.32, 0.42, [-0.02, 0.15, 0], W.trap);
   hs('bird_trap', ['trap'], W.trap, {
     when: () => !ctx.flag('p4_bird_eaten'), onClick: () => ctx.say(T.trap),
     onItem: {
-      branch: async () => { if (ctx.flag('p4_trap_propped')) { noItem(ctx); return; } ctx.take('branch'); ctx.setFlag('p4_trap_propped'); refresh(ctx); },
-      worm: async () => { if (ctx.flag('p4_trap_baited')) { noItem(ctx); return; } ctx.take('worm'); ctx.setFlag('p4_trap_baited'); refresh(ctx); },
+      // 树枝有三根，take 之后树枝仍留在选中状态，再点虫子会变成“树枝 + 虫子”合成失败：用完立刻取消选中
+      branch: async () => { if (ctx.flag('p4_trap_propped')) { noItem(ctx); return; } ctx.take('branch'); noItem(ctx); ctx.setFlag('p4_trap_propped'); refresh(ctx); },
+      worm: async () => { if (ctx.flag('p4_trap_baited')) { noItem(ctx); return; } ctx.take('worm'); noItem(ctx); ctx.setFlag('p4_trap_baited'); refresh(ctx); },
     },
   });
   hs('crab_feast_zoom', ['lake_shore'], W.freeCrab, { cursor: 'zoom', goto: 'crab_feast', when: () => count(ctx, 'p4_crab_round') === 3 && !ctx.flag('p4_crab_eaten') });

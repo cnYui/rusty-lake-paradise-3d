@@ -103,7 +103,8 @@ function buildTrap() {
   const slabGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.02, bevelSegments: 2 });
   slabGeo.rotateX(-Math.PI / 2); slabGeo.translate(0, 0.0, 0);
   mesh(lid, slabGeo, stone, [0, 0, 0], 'trap_slab');
-  const support = bar(root, [0.4, 0.0, 0.05], [0.4, 0.42, 0.05], 0.022, toon('#7c6343'), 0.016); support.name = 'trap_branch';
+  // 石板翘起 0.5 rad（setState），板头在 x≈0.37：树枝要正好顶在翘起的板底（x=0.27、高 0.40），不能立在板外
+  const support = bar(root, [0.27, 0.0, 0.0], [0.27, 0.41, 0.0], 0.022, toon('#7c6343'), 0.016); support.name = 'trap_branch';
   const bait = group('trap_bait'); bait.position.set(0.1, 0.02, 0.0); root.add(bait);
   bait.add(taperedTube([[-0.07, 0, 0], [-0.02, 0.012, 0.025], [0.03, 0.01, -0.02], [0.08, 0.004, 0.01]], 0.013, 0.008, toon('#d6a39a'), { radial: 6, segments: 10 }));
   root.setState = (propped, baited, caught) => {
