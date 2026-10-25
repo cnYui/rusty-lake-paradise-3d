@@ -1,5 +1,6 @@
 // Plague I — Blood. Composes the three parts of the chapter.
 import { defineItems } from './items.js';
+import { HINTS } from './hints.js';
 import * as beach from './beach.js';
 import * as forest from './forest.js';
 import * as lake from './lake.js';
@@ -12,6 +13,7 @@ export default {
   title: { zh: 'x灾', en: 'x' },
   label: { zh: '第一灾', en: 'Plague I' },
   completeFlag: 'plague1_complete',
+  hints: HINTS,   // 提示任务表（233 乐园版的提示按钮用，见 src/core/hints.js）
 
   async setup(ctx) {
     defineItems(ctx);

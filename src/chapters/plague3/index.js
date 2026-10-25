@@ -4,6 +4,7 @@
 //
 // 每个部分导出 setup(ctx) / sync(ctx) / walkthrough（约定见 world.js 顶部）；sync 只调用道具 / 人物的 setState，幂等、双向。
 import { defineItems } from './items.js';
+import { HINTS } from './hints.js';
 import { T, ACHIEVEMENTS } from './text.js';
 import * as puzzles from './puzzles.js';
 import * as world from './world.js';
@@ -45,6 +46,7 @@ export default {
   title: { zh: '蚊灾和虱灾', en: 'Gnats & Lice' },
   label: { zh: '第三灾', en: 'Plague III' },
   completeFlag: 'plague3_complete',
+  hints: HINTS,   // 提示任务表（233 乐园版的提示按钮用，见 src/core/hints.js）
 
   async setup(ctx) {
     ctx.defineAchievements(ACHIEVEMENTS);

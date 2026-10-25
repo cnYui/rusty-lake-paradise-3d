@@ -21,6 +21,8 @@ import { CHAPTERS } from './chapters/index.js';
 import { P } from './art/layout.js';
 import { preloadModels, CHAPTER_MODELS } from './art/rlpm.js';
 import { resumeChapter, nextChapter, liveSave, completeFlag } from './core/progress.js';
+import { initHints } from './core/hintflow.js';
+import { nextHint, isDone } from './core/hints.js';
 
 const q = new URLSearchParams(location.search);
 const AUTOTEST = q.get('autotest') === '1';
@@ -258,6 +260,11 @@ async function boot() {
     getChapter: () => chapter,
   });
   RLP.bootTimes = bootTimes;
+  // 提示（233 乐园版）：测试用，next() = 此刻该提示哪一条，tasks() = 每条任务的完成情况
+  RLP.hints = {
+    next: () => { const h = nextHint(chapter, state); return { status: h.status, id: h.task ? h.task.id : null, text: h.text }; },
+    tasks: () => ((chapter && chapter.hints) || []).map((t) => ({ id: t.id, after: t.after || [], done: isDone(t, state) })),
+  };
   mark('core');
 
   // 存档、成就历史和通关记录跨启动保留在本机（localStorage，见 src/core/state.js）；测试页和 ?fresh=1 每次从空白开始。
@@ -308,6 +315,7 @@ async function boot() {
     state.save();
     location.reload();
   });
+  initHints({ ui, state, ctx });   // 灯泡按钮的流程（按钮本身只在 233 乐园版显示）
   // 通关结尾：有下一灾（编号 +1 且已解锁）就多一个“进入下一灾”并倒数自动进入，没有就只回主菜单。测试页不自动跳走。
   ui.autoAdvance = !AUTOTEST && !DEMO;
   ui.setEndingNext(DEMO ? null : () => {

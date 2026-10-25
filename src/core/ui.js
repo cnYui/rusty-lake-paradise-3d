@@ -17,6 +17,7 @@ import { ctx } from './context.js';
 import { views } from './views.js';
 import { animate, Ease } from './tween.js';
 import { chapterStatus, requiredChapter, resumeChapter, liveSave } from './progress.js';
+import { isLeyuan } from './leyuan.js';
 
 let engine = null;
 const el = {};
@@ -653,6 +654,18 @@ export const ui = {
     el.gear.setAttribute('aria-label', '设置');
     el.gear.innerHTML = gearSVG();
     el.gear.addEventListener('click', () => { audio.unlock(); this.openSettings(); });
+    // 提示按钮：只在 233 乐园版显示；点了发 'hint-request'（观看广告再给提示由监听方接，见 setHintButton）
+    el.hintBtn = h('button', 'hint-btn', root);
+    el.hintBtn.type = 'button';
+    el.hintBtn.title = '提示';
+    el.hintBtn.setAttribute('aria-label', '提示');
+    el.hintBtn.innerHTML = bulbSVG();
+    el.hintBtn.addEventListener('click', () => {
+      audio.unlock();
+      if (this.locked || this.modalOpen) return;
+      emit('hint-request');
+    });
+    this.setHintButton(isLeyuan());
     el.slots = [];
     for (let i = 0; i < MAX_SLOTS; i++) {
       // 第二列（第 7–12 格）在第一列左边，物品超过 6 件时才展开
@@ -719,7 +732,7 @@ export const ui = {
       return;
     }
     if (el.modal.classList.contains('show')) {
-      if (k === 'Escape') { ev.preventDefault(); el.modal.querySelector('.btn')?.click(); }
+      if (k === 'Escape') { ev.preventDefault(); (el.modal.querySelector('.btn.esc') || el.modal.querySelector('.btn'))?.click(); }
       return;
     }
     if (this.menu.visible || !plain) return;
@@ -768,6 +781,11 @@ export const ui = {
 
   showInventory(on = true) {
     el.stage.classList.toggle('inv-on', !!on);
+  },
+
+  /** 显示 / 隐藏右上角的提示按钮（默认只在 233 乐园版显示，见 leyuan.js）。 */
+  setHintButton(on = true) {
+    el.stage.classList.toggle('hint-on', !!on);
   },
 
   /** 切换室外漫游样式；实际移动由 views 统一驱动。 */
@@ -1335,6 +1353,45 @@ export const ui = {
     this.setArrows(null);
   },
 
+  /**
+   * 通用应用内对话框（和暂停面板同款）：标题、几行文字、一排按钮；返回的 Promise 在点了按钮时给出该按钮的 value。
+   * buttons 为空时没有按钮（“广告加载中”这类等待框），由返回的 promise.close(value) 关闭；Esc 点 esc 为真的按钮，没有就点第一个。
+   * 同一时间只开一个：已有浮层时直接给 null。
+   */
+  dialog({ title = '', lines = [], buttons = [{ label: '知道了', value: true }] } = {}) {
+    let close = () => {};
+    const promise = new Promise((resolve) => {
+      if (this.menu.visible || el.modal.classList.contains('show')) { resolve(null); return; }
+      modalCount++;
+      el.modal.innerHTML = '';
+      const p = h('div', 'panel', el.modal);
+      if (title) h('h2', '', p, title);
+      for (const t of (Array.isArray(lines) ? lines : [lines])) h('p', '', p, t);
+      let done = false;
+      close = (value = null) => {
+        if (done) return;
+        done = true;
+        el.modal.classList.remove('show');
+        el.modal.innerHTML = '';
+        modalCount = Math.max(0, modalCount - 1);
+        views.refreshArrows();
+        resolve(value);
+      };
+      if (buttons.length) {
+        const row = h('div', 'btn-row', p);
+        for (const b of buttons) {
+          const btn = h('button', b.esc ? 'btn esc' : 'btn', row, b.label);
+          btn.type = 'button';
+          btn.addEventListener('click', () => close(b.value));
+        }
+      }
+      el.modal.classList.add('show');
+      this.setArrows(null);
+    });
+    promise.close = (value) => close(value);
+    return promise;
+  },
+
   // --------------------------------------------------------------------------- ending
   // main.js 注册：() => { number, label, title } | null。有下一灾（已解锁、可进入）时，结尾卡多一个“进入下一灾”按钮，
   // 并在按钮出现后倒数几秒自动进入（点“返回主菜单”或关掉结尾卡就取消）；点了 / 倒数完发 'next' 事件，由 main.js 换章。
@@ -1640,6 +1697,15 @@ function gearSVG() {
     d += `${i === 0 ? 'M' : 'L'}${(14 + Math.cos(a0) * rad).toFixed(2)} ${(14 + Math.sin(a0) * rad).toFixed(2)} L${(14 + Math.cos(a1) * rad).toFixed(2)} ${(14 + Math.sin(a1) * rad).toFixed(2)} `;
   }
   return `<svg viewBox="0 0 28 28"><path d="${d}Z" fill="#d8d2c4" stroke="#111" stroke-width="1.2"/><circle cx="14" cy="14" r="3.6" fill="#111"/></svg>`;
+}
+
+function bulbSVG() {
+  return '<svg viewBox="0 0 28 28">'
+    + '<path d="M14 3C9.3 3 5.8 6.6 5.8 11c0 2.7 1.3 4.6 2.9 6.2.9.9 1.4 1.8 1.4 3v.8h7.8v-.8c0-1.2.5-2.1 1.4-3 1.6-1.6 2.9-3.5 2.9-6.2C22.2 6.6 18.7 3 14 3Z" fill="#d8d2c4" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/>'
+    + '<path d="M11 10.6l3 3.2 3-3.2M14 13.8v6" fill="none" stroke="#111" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<rect x="10.4" y="21.6" width="7.2" height="2" rx=".7" fill="#938c76" stroke="#111" stroke-width="1.1"/>'
+    + '<rect x="11.6" y="24" width="4.8" height="1.7" rx=".7" fill="#938c76" stroke="#111" stroke-width="1.1"/>'
+    + '</svg>';
 }
 
 export { drawHandLines };

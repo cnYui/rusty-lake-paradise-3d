@@ -70,3 +70,10 @@
 - 模型要在章节 `setup` 前预加载：`main.js` 按 `rlpm.js` 的 `CHAPTER_MODELS[章节 id]` 先 `preloadModels`；新增用到模型的章节要往表里加。加载失败自动回退程序化模型（控制台一条警告），不会白屏。
 - 限制：手是网格的一部分，`setHand` 只记录不换形状；脸没有表情 / 眨眼 / 说话贴花（`rig.face` 是占位对象）；网格人物的头（含头发、帽子）单独一块，`headTags` / `showTag('head')` 照旧能整块隐藏（换动物头）；射线点击走 SkinnedMesh 逐三角形，没有单独的碰撞代理。没有模型的角色（Caroline、Elizabeth / `elizabeth_pheasant`、Jakob 成年、灵魂）继续程序化。
 - 小红书 / 口袋方舟打包（`dev/minitool/build.py`）还没处理模型文件：esbuild 打成单个 iife 后 `import.meta.url` 不可用，加载器会回退到程序化模型，所以现有打包流程不会出错，但包里仍是旧造型；要带上新模型需要给 build.py 加资源拷贝和预加载路径（体积见 `upload/README.md`，网格人物每章约 3–6 MB）。
+
+## 233 乐园版：提示按钮（2026-10-25 起）
+
+- 右上角灯泡按钮只在 233 乐园版显示：`index.html` 里写 `window.__RLP_233 = true`，或开发时 URL 加 `?leyuan=1`（`src/core/leyuan.js`）；网页版、小红书包、口袋方舟包都不显示。点灯泡 → 确认“观看一段广告” → 激励视频广告（`src/core/rewardad.js`，官方封装的 JS 版，参考副本在 `dev/common/leyuan-ref/`）→ 只有广告回调 `status === 4` 才显示一条提示；广告可以一直看，看一次显示一条。流程在 `src/core/hintflow.js`。
+- 提示内容：每章 `src/chapters/plagueN/hints.js` 导出 `HINTS`（`id / after 前置 / done(s) / text`，纯数据，只读 `s.flag()` 和 `s.has()`），章节对象的 `hints` 字段指向它；`src/core/hints.js` 的 `nextHint` 只取“没做完且前置都做完”的第一条，通关后不放广告。文案只说去哪、做什么，不给谜题答案。新增 / 改章节谜题时同步改 `hints.js`，物品用掉会从物品栏消失，“做完没有”要用旗标判断。
+- 广告模拟：没有 `window.MetaH5Ad` 且（本机 localhost / 127.0.0.1，或乐园预览注入 `__PM_BUILD_PROFILE__ === 'fast'`）时用模拟广告（弹窗里选完整观看 / 中途关闭 / 跳过 / 失败）；真机乐园和线上发布永不模拟。`window.alert / confirm / prompt` 不能用，用 `ui.dialog()`。
+- 验收：`node --test dev/common/test_hints.mjs`（引擎、广告回调、每章表的结构和旗标）、`python dev/common/test_hints_browser.py`（五章逐步自动通关，每一步都有提示、通关后全部完成，以及灯泡流程）。设计与记录见 `docs/ai/context/20261025-133000-leyuan-hint-design.md`。233 乐园的专用打包还没做（要注入 `__RLP_233` 和 `metah5ad_v1.min.js`，线上路径里不能出现 `/vendor/`）。
