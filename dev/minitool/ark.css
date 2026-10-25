@@ -19,7 +19,7 @@ html, body {
    看到的大小、排版、动画都不变；伪元素属于按钮本身，点到它就等于点到按钮。 */
 #stage.touch .menu-link, #stage.touch .gear, #stage.touch .panel-x, #stage.touch .plague, #stage.touch .btn { position: relative; }
 #stage.touch .gear, #stage.touch .panel-x { position: absolute; }
-#stage.touch .menu-link::before, #stage.touch .gear::before, #stage.touch .panel-x::before, #stage.touch .plague::before, #stage.touch .btn::before {
+#stage.touch .menu-link::before, #stage.touch .gear::before, #stage.touch .hint-btn::before, #stage.touch .panel-x::before, #stage.touch .plague::before, #stage.touch .btn::before {
   content: "";
   position: absolute;
   left: 50%; top: 50%;

@@ -622,7 +622,8 @@ button { font-size: inherit; font-family: inherit; }
 #stage.touch .slot:active { transform: scale(0.94); }
 #stage.touch .sel-name span { font-size: 1.45em; }
 #stage.touch .gear { left: 71.9em; top: 1em; width: 3em; height: 3em; }
-#stage.touch .hint-btn { left: 69.2em; top: 1.2em; width: 2.6em; height: 2.6em; }
+/* 触屏：口袋方舟的 ark.css 会把齿轮的可点区域撑到 44×44，灯泡放在齿轮旁边会盖掉一截；挪到画面右上角（物品栏黑条左边），两个 44px 的可点区域互不重叠 */
+#stage.touch .hint-btn { left: 65.9em; top: 1.2em; width: 2.6em; height: 2.6em; }
 #stage.touch .arrow { width: 5.4em; height: 5.4em; margin: -2.7em 0 0 -2.7em; }
 #stage.touch .arrow i { transform: translate(-50%, -50%) scale(2.1); }
 #stage.touch .arrow:hover i { transform: translate(-50%, -50%) scale(2.1); }

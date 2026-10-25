@@ -34,6 +34,7 @@
 | `rusty-lake-ark-20261014.zip` | ZIP 根目录就是 `index.html`，6 个文件，423071 字节；发布地区只选 233 派对，不选 GPark |
 | `rusty-lake-ark-ch123-20261021.zip` | 第一、二、三灾；`python dev/minitool/build.py --ark` 的产物（原生横屏外壳、安全区、触屏点击区域 ≥ 44px、Chrome 60 垫片），7 个根目录文件，539966 字节，SHA256 `d9f210f2…316c26f`；针对 v1.0.0 被“移动端适配有问题”拒绝而做，2026-10-21 本地验收通过（`dev/minitool/test_ark.py`），已传到口袋方舟：1.0.1（名称“锈湖天堂岛3D”）被拒；1.0.2（同一个包，改名“锈湖天堂岛3D（玩家自制）”）2026-10-21 19:02 提审，审核中，记录见 `docs/ai/context/20261021-160000-ark-ch123-mobile-adaptation.md` |
 | `rusty-lake-ark-ch1234-20261024.zip` | 第一到第四灾；`python dev/minitool/build.py --ark` 的产物（同上外壳，`--ark` 不再去掉第四灾），7 个根目录文件，573119 字节，SHA256 `e31abd89…`；2026-10-24 本地验收 `test_ark.py --full` 93/93；传到口袋方舟：1.0.3（名称不变“锈湖天堂岛3D（玩家自制）”）2026-10-24 15:12 提审，审核中（线上仍是已发布的 1.0.2）；记录见 `docs/ai/context/20261024-153000-ark-ch1234-submit.md` |
+| `rusty-lake-ark-ch1234-leyuan-20261025.zip` | 第一到第四灾 + 提示按钮；`python dev/minitool/make_leyuan.py` 的产物（`build.py --ark` + ark_cfg.js 写 `__RLP_233` + 233 广告 SDK `<script async>`），7 个根目录文件，586118 字节，SHA256 `dd4b8d64…801b`；`test_leyuan.py` 12/12，去掉 SDK 标签后 `test_ark.py --full` 93/93；传到口袋方舟：1.0.4（营收勾“广告”）2026-10-25 10:26 提审，审核中（线上仍是 1.0.3） |
 | `home-16x9.jpg` | 首页 16:9 图 |
 | `screenshots/` | 旧版（第一、四灾）详情页截图（1280×720，4 张） |
 | `screenshots-ch123/` | 第一、二、三灾详情页截图（1280×720，5 张：ch1 总览 / 房子，ch2 湖边，ch3 林间空地 / 白桦林） |
