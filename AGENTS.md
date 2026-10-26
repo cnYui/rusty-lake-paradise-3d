@@ -30,6 +30,7 @@
 - 第三至第十灾的既定参考视频位于 `dev/common/ref/P03_*.mp4` 至 `dev/common/ref/P10_*.mp4`，源视频为 B 站 `BV1bo4y1y7fm`；定位和完整性记录见 `docs/ai/context/20261008-201654-bilibili-reference-videos.md`。视频与抽帧只作本地参考，不提交、不部署。
 - 第四灾逻辑集中在 `src/chapters/plague4/`，专属程序化模型在 `src/art/props_flies.js`；游戏状态（flags / 物品）不依赖第二、三灾进度，但菜单里要先通关第一到第三灾才解锁（见“进度、存档与章节衔接”）。天堂门和木小屋开局开放，绿色宝石解锁神殿入口，以免湖边寄居蟹与宝石形成循环前置。
 - 第四灾寄居蟹保留三轮真实导向模拟，用“点贝壳、点空格、点寄居蟹出发”统一鼠标和触屏；轮次、摆放与选中状态保存到 `p4_crab_*` flags。规则和窗锁校验在 `puzzles.js`，场景同步必须支持新游戏和读档的双向恢复。
+- 第四灾的小物件（兔洞、鸟、心脏、胡萝卜等）靠 `world.js` 的 `fatten(ctx, object, { min })` 挂不可见点击盒放大点击范围；新加的小热点照这样做，点击盒重叠时用 `when` 让位（见 `docs/ai/context/20261026-093500-save-button-p4-click-areas.md`）。右上角暂停面板有“保存进度”按钮（自动存档照常，按钮是手动再存一次）。
 - 第四灾验收入口为 `node --test dev/plague4/test_plague4.mjs` 和 `python dev/plague4/test_plague4_browser.py`。真实点击采样前等待画布的 CSS 入场动画结束；游戏加速不会加速 CSS 过渡，不能把变化中的画布坐标当成稳定落点。
 
 ## 第五灾

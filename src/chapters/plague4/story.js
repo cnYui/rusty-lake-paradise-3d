@@ -78,8 +78,7 @@ export function setup(ctx) {
     when: () => !ctx.flag('p4_rabbit_lured'), onClick: () => ctx.say(T.rabbit),
     onItem: { carrot: async () => { ctx.take('carrot'); ctx.setFlag('p4_rabbit_lured'); refresh(ctx); ctx.sfx('rustle'); } },
   });
-  // 点击范围放大到整块翘起的石板和板下的空地：虫子要放在板下，玩家会点那片地
-  ctx.hotspots.makeProxy(0.6, 0.32, 0.42, [-0.02, 0.15, 0], W.trap);
+  // 陷阱的点击盒（整块翘起的石板、板下的空地和旁边的鸟）在 world.js 的 fatten 里挂
   hs('bird_trap', ['trap'], W.trap, {
     when: () => !ctx.flag('p4_bird_eaten'), onClick: () => ctx.say(T.trap),
     onItem: {
@@ -88,6 +87,8 @@ export function setup(ctx) {
       worm: async () => { if (ctx.flag('p4_trap_baited')) { noItem(ctx); return; } ctx.take('worm'); noItem(ctx); ctx.setFlag('p4_trap_baited'); refresh(ctx); },
     },
   });
+  // 陷阱旁的鸟本身也能点（漫游时玩家点的是鸟，不是石板）：和石板一样进陷阱特写
+  hs('bird_zoom', ['bird_clearing'], W.bird, { cursor: 'zoom', goto: 'trap', when: () => !!ctx.flag('p4_trap_propped') && !!ctx.flag('p4_trap_baited') && !ctx.flag('p4_bird_eaten') });
   hs('crab_feast_zoom', ['lake_shore'], W.freeCrab, { cursor: 'zoom', goto: 'crab_feast', when: () => count(ctx, 'p4_crab_round') === 3 && !ctx.flag('p4_crab_eaten') });
   for (const id of ['crab', 'rabbit', 'bird']) {
     const view = { crab: 'crab_feast', rabbit: 'rabbit', bird: 'trap' }[id];

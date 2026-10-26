@@ -1344,8 +1344,19 @@ export const ui = {
     h('h2', '', p, '暂停');
     volumeRow(p);
     const row = h('div', 'btn-row', p);
+    const saveBtn = h('button', 'btn', row, '保存进度');
     const resume = h('button', 'btn', row, '继续游戏');
     const toMenu = h('button', 'btn', row, '返回主菜单');
+    // 游戏本来就会在每次变化后自动存档；这个按钮让玩家能手动存一次并看到结果（时间取存档里记下的 savedAt）
+    const last = state.peekSave(state.chapter);
+    const note = h('p', 'set-note', p, last && last.savedAt ? `上次保存：${fmtTime(last.savedAt)}（进度会自动保存）` : '进度会自动保存，也可以点“保存进度”立刻存一次。');
+    saveBtn.type = 'button';
+    saveBtn.addEventListener('click', () => {
+      audio.sfx('click');
+      if (this.locked) { note.textContent = '正在播放过场，结束后会自动保存。'; return; } // 半截状态不存（和自动存档一样）
+      if (state.save() && state.storageOk()) note.textContent = `已保存：${fmtTime(Date.now())}`;
+      else note.textContent = '这里不能保存进度，关掉后会从头开始。';
+    });
     const close = () => { el.modal.classList.remove('show'); el.modal.innerHTML = ''; modalCount = Math.max(0, modalCount - 1); views.refreshArrows(); };
     resume.addEventListener('click', close);
     toMenu.addEventListener('click', () => { close(); state.save(); emit('menu'); });

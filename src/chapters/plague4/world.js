@@ -23,6 +23,34 @@ export function place(ctx, id, object, parent, pos, { scale = 1, rotY = 0 } = {}
   if (object.update) ctx.register('prop', `p4_${id}`, object);
   return object;
 }
+const _inv = new THREE.Matrix4(), _mat = new THREE.Matrix4(), _box = new THREE.Box3(), _part = new THREE.Box3(), _sc = new THREE.Vector3();
+/**
+ * 放大小物件的点击范围：在物件下挂一个不可见的点击盒（每边至少 min 米，并比实体多出 pad 米），
+ * 手机上和漫游走远了也点得到。include 里的物件（陷阱旁的鸟、洞口的兔子）一起算进盒子。
+ * min / 盒子按物件自己的局部轴；只往上长高、底边贴着实体，不会陷进地里。同一物件只挂一个。
+ */
+export function fatten(ctx, object, { min = [0.5, 0.5, 0.5], pad = 0.1, include = [] } = {}) {
+  if (!object || object.userData.fat) return null;
+  object.updateWorldMatrix(true, true);
+  _inv.copy(object.matrixWorld).invert();
+  _box.makeEmpty();
+  for (const root of [object, ...include]) {
+    root.updateWorldMatrix(true, true);
+    root.traverse((o) => {
+      if (!o.isMesh || o.userData.proxy || !o.geometry) return;
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      _part.copy(o.geometry.boundingBox).applyMatrix4(_mat.multiplyMatrices(_inv, o.matrixWorld));
+      _box.union(_part);
+    });
+  }
+  if (_box.isEmpty()) return null;
+  const s = object.getWorldScale(_sc).x || 1;   // 世界缩放（物件一律 1，只有猫头鹰上的宝石带父级缩放）
+  const size = ['x', 'y', 'z'].map((a, i) => Math.max((_box.max[a] - _box.min[a]) * s + 2 * pad, min[i]) / s);
+  const at = [(_box.min.x + _box.max.x) / 2, _box.min.y - 0.02 / s + size[1] / 2, (_box.min.z + _box.max.z) / 2];
+  const proxy = ctx.hotspots.makeProxy(size[0], size[1], size[2], at, object);
+  object.userData.fat = proxy;
+  return proxy;
+}
 /** 回忆里父亲坐的木凳（座面高 0.49，与高背椅一致）。 */
 function memoryStool() {
   const g = new THREE.Group(); g.name = 'p4_memory_stool';
@@ -190,15 +218,34 @@ export async function setup(ctx) {
   for (const [x, , z] of [SPOTS.owl, SPOTS.cocoon]) ctx.world.colliders.circles.push([x, z, 0.75]);
   ctx.world.colliders.circles.push([SPOTS.pit[0], SPOTS.pit[2], 0.7]);
   ctx.world.colliders.boxes.push([21.9, -28.8, 26.1, -25.2]);
+  // 小物件和小动物的点击盒放大（手机上、漫游离远了点不中）：数字是最小边长（米），按物件自己的轴
+  fatten(ctx, W.trap, { min: [1.2, 0.7, 1.0] });                              // 翘起的石板和板下空地
+  fatten(ctx, W.rabbitHole, { min: [1.1, 0.7, 1.1], include: [W.rabbit] });  // 浅浅的兔洞和洞口的兔子
+  fatten(ctx, W.rabbit, { min: [0.55, 0.5, 0.55] });
+  fatten(ctx, W.bird, { min: [0.6, 0.55, 0.6] });
+  fatten(ctx, W.freeCrab, { min: [0.7, 0.4, 0.7] });
+  for (const id of ['crab', 'rabbit', 'bird']) fatten(ctx, W[`${id}Heart`], { min: [0.42, 0.42, 0.42] });
+  fatten(ctx, W.carrot, { min: [0.45, 0.5, 0.45] });
+  fatten(ctx, W.candle, { min: [0.45, 0.5, 0.45] });
+  fatten(ctx, W.cube, { min: [0.55, 0.55, 0.55] });
+  fatten(ctx, W.gem, { min: [0.55, 0.6, 0.5] });
+  fatten(ctx, W.omen, { min: [1.1, 1, 0.3] });
   const proxy = (id, ids, dims, pos, parent, rest = {}) => ctx.hotspots.define({ id, views: ids, object: ctx.hotspots.makeProxy(...dims, pos, parent), cursor: 'zoom', ...rest });
   proxy('overview_island', ['overview'], [40, 9, 6], [0, 3.6, 43], ext, { goto: 'beach_mid' });
   proxy('house_entry', ['house_clearing'], [2.5, 2.3, 0.6], [3, 1.5, -11.2], ext, { goto: 'house_int' });
+  const heartReady = (id) => !!ctx.flag(`p4_${id}_eaten`) && !ctx.flag(`p4_${id}_heart_taken`);
   proxy('house_exit', ['house_int'], [1.2, 2.3, 0.3], wpos(ctx, 'house_int.door').map((n, i) => i === 1 ? 1.15 : n), house, { goto: 'house_clearing' });
   for (const [id, ids, object, target] of [
     ['cocoon_zoom', ['forest_clearing'], W.cocoon, 'cocoon'], ['trap_zoom', ['bird_clearing'], W.trap, 'trap'],
     ['rabbit_zoom', ['pump_clearing'], W.rabbitHole, 'rabbit'], ['pit_zoom', ['pit_clearing'], W.pit, 'pit'],
     ['owl_zoom', ['owl_clearing'], W.owl, 'owl'], ['crab_zoom', ['lake_shore'], W.board, 'crab_board'],
-  ]) ctx.hotspots.define({ id, views: ids, object, cursor: 'zoom', goto: target });
+  ]) ctx.hotspots.define({
+    id, views: ids, object, cursor: 'zoom', goto: target,
+    // 猎物被吃掉、心脏摆在洞口 / 陷阱旁时，让出点击给心脏（心脏的点击盒比洞口 / 石板小，重叠处要先点中它）；
+    // 蟹盘通关后蟹盘特写没有用了，让出点击给岸边的蟹
+    when: () => id === 'crab_zoom' ? (Number(ctx.flag('p4_crab_round')) || 0) < 3
+      : id === 'rabbit_zoom' ? !heartReady('rabbit') : id === 'trap_zoom' ? !heartReady('bird') : true,
+  });
 }
 
 export function sync(ctx) {
