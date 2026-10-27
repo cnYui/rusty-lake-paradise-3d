@@ -4,11 +4,11 @@ r"""验证口袋方舟（233 乐园）H5 包（python dev/minitool/build.py --ar
      不旋转（__RLP_NOROT）、舞台在视口内、画布在舞台内、标题菜单的可点元素在视口内并报告尺寸
   2. 安全区：给 #rot 加刘海 padding 后，舞台完整落在 padding 之内
   3. 竖屏（375×812 / 390×844）：显示游戏自带的“请把手机横过来游玩”，不旋转，不滚动
-  4. 章节菜单：第一灾开放，第二、三灾按解锁规则（空档锁着，通关前一章后开放），第四灾起“敬请期待”，?unlock=1 可跳过锁
+  4. 章节菜单：第一灾开放，第二、三、四灾按解锁规则（空档锁着，通关前一章后开放），第五灾起“敬请期待”，?unlock=1 可跳过锁
   5. 真实触摸（720×360）：点“新游戏”、轻点天堂门进入漫游、摇杆向前走、右侧拖动转视角（没有旋转，点击落点必须和画面一致）
   6. 第三灾能启动（?chapter=3）
   7. 稳定性：监听器不随重开章节增长、切后台再回来渲染循环仍在跑、不联网
-  8. --full：第一、二、三灾各跑一遍 RLP.autoplay()
+  8. --full：第一到第四灾各跑一遍 RLP.autoplay()
 
 用法：MINITOOL_DIST=<dist 目录> python dev/minitool/test_ark.py [--full] [输出目录]
 退出码：全部通过 0，有失败 1，没设置 MINITOOL_DIST 2。
@@ -236,21 +236,21 @@ with sync_playwright() as p:
     boot(page, 'index.html')
     assert poll(page, "document.querySelector('.menu.show')", 15)
     st = chapter_states(page)
-    check('章节菜单（空档）：第一灾开放，第二、三灾未解锁，第四灾起敬请期待', st == ['open', 'gated', 'gated'] + ['locked'] * 7, st)
+    check('章节菜单（空档）：第一灾开放，第二、三、四灾未解锁，第五灾起敬请期待', st == ['open', 'gated', 'gated', 'gated'] + ['locked'] * 6, st)
     ctx.close()
     ctx, page, log = new_page(browser, 720, 360, dsf=2)
     boot(page, 'index.html?unlock=1')
     assert poll(page, "document.querySelector('.menu.show')", 15)
     st = chapter_states(page)
-    check('?unlock=1：第一、二、三灾可点，第四、五灾仍是敬请期待（这两章没打进包）', st[:3] == ['open', 'open', 'open'] and st[3:] == ['locked'] * 7, st)
+    check('?unlock=1：第一到第四灾可点，第五灾起仍是敬请期待（第五灾没打进包）', st[:4] == ['open'] * 4 and st[4:] == ['locked'] * 6, st)
     ctx.close()
-    for cleared, expect in [(['plague1'], ['open', 'open', 'gated']), (['plague1', 'plague2'], ['open', 'open', 'open'])]:
+    for cleared, expect in [(['plague1'], ['open', 'open', 'gated', 'gated']), (['plague1', 'plague2'], ['open', 'open', 'open', 'gated']), (['plague1', 'plague2', 'plague3'], ['open'] * 4)]:
         ctx, page, log = new_page(browser, 720, 360, dsf=2)
         page.add_init_script(profile_script(cleared))
         boot(page, 'index.html')
         assert poll(page, "document.querySelector('.menu.show')", 15)
         st = chapter_states(page)
-        check(f'通关 {"、".join(cleared)} 后：前三章状态 {expect}', st[:3] == expect and st[3:] == ['locked'] * 7, st)
+        check(f'通关 {"、".join(cleared)} 后：前四章状态 {expect}', st[:4] == expect and st[4:] == ['locked'] * 6, st)
         ctx.close()
 
     # ------------------------------------------------------------------ 5. 真实触摸（720×360，没有旋转，点击落点必须和画面一致）
@@ -360,7 +360,7 @@ with sync_playwright() as p:
 
     # ------------------------------------------------------------------ 8. 完整流程
     if FULL:
-        for n in (1, 2, 3):
+        for n in (1, 2, 3, 4):
             ctx, page, log = new_page(browser, 720, 360, dsf=1)
             boot(page, f'index.html?autotest=1&chapter={n}')
             if n != 1:

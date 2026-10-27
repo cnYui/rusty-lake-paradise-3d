@@ -106,6 +106,9 @@ function defineViews(ctx) {
       return cam([24, 0.56 + height, -26.999], [24, 0.56, -27], 48);
     },
   });
+  const board = ctx.views.get('crab_board');
+  board.onEnter = async () => { W.fly.visible = false; };
+  board.onExit = async () => { W.fly.visible = !!ctx.flag('p4_fly_awake') && !ctx.flag('p4_father_taken'); };
   close('crab_feast', [24, 1.5, -23.2], [24, 0.55, -24.9], 'lake_shore');
   const k = SPOTS.kitchen, hd = BUILDING_DIMS.house_int;
   ctx.views.defineRoamArea('house_int', {
@@ -215,9 +218,6 @@ export async function setup(ctx) {
   person(ctx, 'memorySon', 'jakob_child', memory, [500.05, 0, -0.36], { rotY: -0.15 });
   W.memoryFatherRig.restHandOn([0.38, 1.12, 0.12], { side: 'L' });
   setupBoard(ctx, ext); defineViews(ctx);
-  for (const [x, , z] of [SPOTS.owl, SPOTS.cocoon]) ctx.world.colliders.circles.push([x, z, 0.75]);
-  ctx.world.colliders.circles.push([SPOTS.pit[0], SPOTS.pit[2], 0.7]);
-  ctx.world.colliders.boxes.push([21.9, -28.8, 26.1, -25.2]);
   // 小物件和小动物的点击盒放大（手机上、漫游离远了点不中）：数字是最小边长（米），按物件自己的轴
   fatten(ctx, W.trap, { min: [1.2, 0.7, 1.0] });                              // 翘起的石板和板下空地
   fatten(ctx, W.rabbitHole, { min: [1.1, 0.7, 1.1], include: [W.rabbit] });  // 浅浅的兔洞和洞口的兔子
@@ -230,10 +230,13 @@ export async function setup(ctx) {
   fatten(ctx, W.cube, { min: [0.55, 0.55, 0.55] });
   fatten(ctx, W.gem, { min: [0.55, 0.6, 0.5] });
   fatten(ctx, W.omen, { min: [1.1, 1, 0.3] });
+  for (const [x, , z] of [SPOTS.owl, SPOTS.cocoon]) ctx.world.colliders.circles.push([x, z, 0.75]);
+  ctx.world.colliders.circles.push([SPOTS.pit[0], SPOTS.pit[2], 0.7]);
+  ctx.world.colliders.boxes.push([21.9, -28.8, 26.1, -25.2]);
+  const heartReady = (id) => !!ctx.flag(`p4_${id}_eaten`) && !ctx.flag(`p4_${id}_heart_taken`);
   const proxy = (id, ids, dims, pos, parent, rest = {}) => ctx.hotspots.define({ id, views: ids, object: ctx.hotspots.makeProxy(...dims, pos, parent), cursor: 'zoom', ...rest });
   proxy('overview_island', ['overview'], [40, 9, 6], [0, 3.6, 43], ext, { goto: 'beach_mid' });
   proxy('house_entry', ['house_clearing'], [2.5, 2.3, 0.6], [3, 1.5, -11.2], ext, { goto: 'house_int' });
-  const heartReady = (id) => !!ctx.flag(`p4_${id}_eaten`) && !ctx.flag(`p4_${id}_heart_taken`);
   proxy('house_exit', ['house_int'], [1.2, 2.3, 0.3], wpos(ctx, 'house_int.door').map((n, i) => i === 1 ? 1.15 : n), house, { goto: 'house_clearing' });
   for (const [id, ids, object, target] of [
     ['cocoon_zoom', ['forest_clearing'], W.cocoon, 'cocoon'], ['trap_zoom', ['bird_clearing'], W.trap, 'trap'],
@@ -262,7 +265,8 @@ export function sync(ctx) {
   W.bird.visible = !!ctx.flag('p4_trap_propped') && !!ctx.flag('p4_trap_baited'); W.bird.setDead(!!ctx.flag('p4_bird_eaten'));
   W.rabbit.visible = !!ctx.flag('p4_rabbit_lured'); W.rabbit.setDead(!!ctx.flag('p4_rabbit_eaten'));
   for (const id of ['crab', 'rabbit', 'bird']) W[`${id}Heart`].visible = !!ctx.flag(`p4_${id}_eaten`) && !ctx.flag(`p4_${id}_heart_taken`);
-  W.fly.visible = !!ctx.flag('p4_fly_awake') && !ctx.flag('p4_father_taken');
+  // 蟹盘谜题是正上方的俯视特写，镜头就在苍蝇人悬停的高度上，他会整个挡在镜头前：在谜题里先藏起来
+  W.fly.visible = !!ctx.flag('p4_fly_awake') && !ctx.flag('p4_father_taken') && ctx.state.view !== 'crab_board';
   const flyPos = !ctx.flag('p4_crab_eaten') ? SPOTS.crab : !ctx.flag('p4_rabbit_eaten') ? SPOTS.rabbit : !ctx.flag('p4_bird_eaten') ? SPOTS.trap : wpos(ctx, 'temple.door');
   W.fly.position.set(flyPos[0], flyPos[1] + 2, flyPos[2] - 0.5);
   if ((ctx.flag('p4_crab_round') || 0) >= 3 && !ctx.flag('p4_crab_eaten')) W.fly.position.set(24, 2.5, -24.9);

@@ -103,7 +103,7 @@ def main():
     ap = argparse.ArgumentParser(description='锈湖小红书小工具打包')
     ap.add_argument('--legacy', action='store_true', help='旧版（无声音线路补丁，ES2019，不转写 CSS），输出 dist/ + rusty-lake-minitool.zip')
     ap.add_argument('--release', action='store_true', help='声音版去掉屏幕上的声音调试状态条')
-    ap.add_argument('--ark', action='store_true', help='口袋方舟（233 乐园）H5 包：第一、二、三灾，原生横屏外壳（不旋转竖屏）+ 安全区，等同 --release；输出 dist-ark-ch123/ + upload/ark/rusty-lake-ark-ch123.zip')
+    ap.add_argument('--ark', action='store_true', help='口袋方舟（233 乐园）H5 包：第一到第四灾（2026-10-24 起；之前是第一到第三灾），原生横屏外壳（不旋转竖屏）+ 安全区，等同 --release；输出 dist-ark-ch1234/ + upload/ark/rusty-lake-ark-ch1234.zip')
     ap.add_argument('--no-minify', action='store_true', help='不压缩、保留函数名（只用来做 CPU 采样 / 排查，不要上传）')
     ap.add_argument('--out', help='输出目录（默认见上）')
     ap.add_argument('--zip', help='zip 路径（默认见上）')
@@ -116,7 +116,7 @@ def main():
     if a.legacy:
         name_dist, name_zip = 'dist', 'rusty-lake-minitool.zip'
     elif a.ark:
-        name_dist, name_zip = 'dist-ark-ch123', 'rusty-lake-ark-ch123.zip'
+        name_dist, name_zip = 'dist-ark-ch1234', 'rusty-lake-ark-ch1234.zip'
     elif a.release:
         name_dist, name_zip = 'dist-audio-release', 'rusty-lake-minitool-audio-release.zip'
     else:
@@ -156,7 +156,9 @@ def main():
     # 第三灾 David 的台词“我今天血糖非常低.”：小红书审核对“血”字敏感（V1.0.4 起第一灾一律写 x），打包副本里同样改成 x；口袋方舟包保持原文。
     if not a.ark:
         patch('src/chapters/plague3/text.js', [("david: '我今天血糖非常低.',", "david: '我今天x糖非常低.',")])
-    # 第四灾的“生与死的炼金术”书名已随书改视图翻页（29336f3）从 text.js 里去掉，而第四灾不进任何打包产物（load 在下面置空），这条补丁不再需要。
+    # 第四灾的“生与死的炼金术”书名已随书改视图翻页（29336f3）从 text.js 里去掉。第四灾进小红书包（2026-10-24 起）：书页里画在画布上的
+    # “将会有一个人遇见死亡”同样把“死”改成 S。
+    patch('src/art/props_flies_book.js', [("text(g, '遇见死亡', PW / 2, 206, 44);", "text(g, '遇见S亡', PW / 2, 206, 44);")])
 
     # ---- 补丁 3：分段启动。原来的启动（建世界 + 第一次渲染编译着色器）是一条几十秒不让出主线程的长任务：慢手机上页面
     #      整段没响应、load 事件迟迟不触发，容器 / 审核看到的就是“点不了”。改成每一步之间让出一帧（rotate.js 的 __RLP_STAGE
@@ -164,8 +166,26 @@ def main():
     patch('src/main.js', [
         ("async function boot() {\n  const canvas = document.getElementById('game');\n",
          "const __stage = (t) => (window.__RLP_STAGE ? window.__RLP_STAGE(t) : Promise.resolve());\n"
+         "let __earlyChoice = null;   // 提前出现的标题菜单的选择（下面 3c）\n"
          "async function boot() {\n  await __stage('初始化画面…');\n  const canvas = document.getElementById('game');\n"),
-        ("    mark('worldImport');\n    world = buildWorld(engine);\n",
+        # 3c 标题菜单提前出现：审核说“页面按钮无法点击”（V1.0.10 / V1.0.11 连续两次），模拟器里能点，但原来菜单要等建世界 + 编译着色器全部做完才出现
+        #    （桌面 6 秒，慢手机十几二十秒，期间满屏“载入中”，点什么都没反应）。核心（界面 / 存档 / 音频）初始化完就把标题菜单画出来，
+        #    世界在后台继续搭；提前点了开始 / 章节就排队，世界搭好再进（菜单上写“正在载入”）。载入提示缩成屏幕下方一行小字（minitool.css 的 .boot-early）。
+        ("  if (DEMO && q.get('world') !== '1') {\n    world = buildStubWorld(engine);\n",
+         "  if (!AUTOTEST && !DEMO && !SWITCH && !(q.has('view') || q.get('skipIntro') === '1' || q.has('chapter'))) {\n"
+         "    document.getElementById('stage').classList.add('boot-early');\n"
+         "    __earlyChoice = ui.menu.show(CHAPTERS);\n"
+         "    __earlyChoice.then(() => {\n"
+         "      const m = document.querySelector('.menu'), st = document.querySelector('.menu-status');\n"
+         "      if (m) m.style.pointerEvents = 'none';\n"
+         "      if (st) st.textContent = '正在载入，马上开始……';\n"
+         "    });\n"
+         "  }\n"
+         "  if (DEMO && q.get('world') !== '1') {\n    world = buildStubWorld(engine);\n"),
+        ("  const choice = await ui.menu.show(CHAPTERS);\n", "  const choice = await (__earlyChoice || ui.menu.show(CHAPTERS));\n"),
+        ("  engine.start();\n  document.getElementById('boot')?.remove();\n",
+         "  engine.start();\n  document.getElementById('boot')?.remove();\n  document.getElementById('stage').classList.remove('boot-early');\n"),
+        ("    mark('worldImport');\n    await preloadModels(['tower']);   // 岛上的石塔是网格模型，世界建好之前先加载（失败回退程序化塔）\n    world = buildWorld(engine);\n",
          "    mark('worldImport');\n    await __stage('搭建小岛…');\n    world = await buildWorld(engine);\n"),
         ("  await ensureChapter(bootChapterNumber());\n"
          "  mark('chapterSetup');\n  if (engine.renderEnabled) engine.render(); // compile shaders up front\n",
@@ -270,18 +290,23 @@ def main():
     patch('src/main.js', [
         ("  bootDone();\n  RLP.ready = true;\n", "  bootDone();\n  RLP.ready = true;\n  if (window.__RLP_BOOT_DONE) window.__RLP_BOOT_DONE();\n"),
     ])
+    # 第四灾的 setup 是 world.setup + story.setup 两大块：中间让出一帧
+    patch('src/chapters/plague4/index.js', [("await world.setup(ctx); story.setup(ctx); this.sync(ctx);",
+                                             "await world.setup(ctx); if (window.__RLP_STAGE) await window.__RLP_STAGE(); story.setup(ctx); this.sync(ctx);")])
     # 章节 setup：每个部分之间让出一帧（第一、二、三灾都是 `for (const part of PARTS) await part.setup(ctx);`）
     for chap in ('plague1', 'plague2', 'plague3'):
         patch(f'src/chapters/{chap}/index.js', [(
             "for (const part of PARTS) await part.setup(ctx);",
             "for (const part of PARTS) { await part.setup(ctx); if (window.__RLP_STAGE) await window.__RLP_STAGE(); }",
         )])
-    # 小工具和口袋方舟只开放第一、二、三灾：第四灾 / 第五灾在副本里不注册 load（菜单显示“敬请期待”，代码也不进包）。
-    # 解锁顺序在源码注册表里：前五灾严格按顺序（第二灾 requires 第一灾，第三灾 requires 第一、二灾，第四灾 requires 第一到第三灾，第五灾 requires 第一到第四灾；没通关前置章节菜单里就是“未解锁”），这里不用再补
-    patch('src/chapters/index.js', [
-        ("load: () => import('./plague4/index.js') }", "load: null }"),
-        ("load: () => import('./plague5/index.js') }", "load: null }"),
-    ])
+    # 解锁顺序在源码注册表里：前五灾严格按顺序（第二灾 requires 第一灾，第三灾 requires 第一、二灾，第四灾 requires 第一到第三灾，第五灾 requires 第一到第四灾；没通关前置章节菜单里就是“未解锁”），这里不用再补。
+    # 开放范围：口袋方舟包和小红书小工具都是第一到第四灾（2026-10-24 起；口袋方舟之前只有第一到第三灾）。第五灾的谜题正在重做成真 3D（牛身疫斑 / 菜地 / 连线 / 砧板），
+    # 两种包里都不注册它的 load（菜单显示“敬请期待”，代码也不进包）。
+    _reg = rd(os.path.join(WORK, 'src/chapters/index.js'))
+    assert "requires: ['plague1', 'plague2', 'plague3'], load: () => import('./plague4/index.js') }" in _reg, '源码注册表里第四灾的解锁条件变了（要先通关第一到第三灾）：更新 build.py'
+    assert "requires: ['plague1', 'plague2', 'plague3', 'plague4'], load: () => import('./plague5/index.js') }" in _reg, '源码注册表里第五灾的解锁条件变了（要先通关第一到第四灾，且不再是 wip）：更新 build.py'
+    cut = [("load: () => import('./plague5/index.js') }", "load: null }")]
+    patch('src/chapters/index.js', cut)
     assert "requires: ['plague1', 'plague2'], load: () => import('./plague3/index.js') }" in rd(os.path.join(WORK, 'src/chapters/index.js')), '源码注册表里第三灾的解锁条件变了（要先通关第一、二灾）：更新 build.py'
 
     # ---- 补丁 4（声音版）：音频输出线路。audio.js 是程序合成（振荡器 / 噪声 / 卷积混响），总线最后一级 comp 原来直连 ac.destination；

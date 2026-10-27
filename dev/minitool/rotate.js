@@ -64,11 +64,16 @@
   });
 
   // ------------------------------------------------------------------ 启动进度
+  // 让出主线程：距离上次“等整帧”不到 80 ms 时只让一个宏任务（输入事件照样能处理，省下每次 ~16 ms 的等帧），
+  // 超过 80 ms 才等一次真正的 rAF（让页面合成出一帧）。桌面上启动要让出 90 多次，每次都等整帧就是 1.5 秒白白等待；
+  // 慢手机每一段活本来就超过 80 ms，行为和以前一样（每段之间等整帧，不会长时间不出帧）。
+  var lastFrame = performance.now();
   function tick() {
     return new Promise(function (resolve) {
       var done = false;
       function fin() { if (!done) { done = true; resolve(); } }
-      if (window.requestAnimationFrame) requestAnimationFrame(function () { setTimeout(fin, 0); });
+      if (performance.now() - lastFrame < 80) { setTimeout(fin, 0); return; }
+      if (window.requestAnimationFrame) requestAnimationFrame(function () { lastFrame = performance.now(); setTimeout(fin, 0); });
       setTimeout(fin, 100);   // 页面在后台时 rAF 不触发，不能因此卡住启动
     });
   }

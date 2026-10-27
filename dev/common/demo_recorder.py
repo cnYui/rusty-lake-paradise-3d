@@ -12,6 +12,7 @@
 """
 import base64
 import json
+import os
 import shutil
 import subprocess
 import threading
@@ -99,12 +100,13 @@ INIT_JS = r"""
 
 
 class Recorder:
-    def __init__(self, context, out_dir, size=(1280, 720), fps=30, quality=92):
+    def __init__(self, context, out_dir, size=(1280, 720), fps=30, quality=None):
         self.context = context
         self.out_dir = Path(out_dir)
         self.size = size
         self.fps = fps
-        self.quality = quality
+        # 画质可以用环境变量拉高（发布用的母版）：DEMO_JPEG_Q（截屏的 JPEG 质量，默认 92）、DEMO_CRF（H.264，默认 25）、DEMO_PRESET（默认 faster）
+        self.quality = int(quality if quality is not None else os.environ.get('DEMO_JPEG_Q', 92))
         self.frames_dir = self.out_dir / 'frames'
         if self.out_dir.exists():
             shutil.rmtree(self.out_dir)
@@ -169,7 +171,7 @@ class Recorder:
         silent = self.out_dir / 'video_silent.mp4'
         self._ffmpeg(['-f', 'concat', '-safe', '0', '-i', str(lst),
                       '-vf', f'fps={self.fps},scale={self.size[0]}:{self.size[1]}:flags=lanczos,format=yuv420p',
-                      '-c:v', 'libx264', '-preset', 'faster', '-crf', '25', '-movflags', '+faststart', str(silent)])
+                      '-c:v', 'libx264', '-preset', os.environ.get('DEMO_PRESET', 'faster'), '-crf', os.environ.get('DEMO_CRF', '25'), '-movflags', '+faststart', str(silent)])
         # 声音：每段按开始时刻放回时间线
         segs = []
         with self.lock:
