@@ -83,42 +83,115 @@
     return tick();
   };
 
-  // ------------------------------------------------------------------ 分片预热着色器
+  // ------------------------------------------------------------------ 分片预热着色器（按 zone、按材质）
   // 第一次渲染要把场景里用到的几十个着色器程序同步编译、链接完，是启动里最长的一次卡顿：桌面上 1.6 秒，手机 GPU 上要好几秒，
   // 期间主线程和 GPU 都被占满，页面合成不出来，表现成“白屏和载入页快速交替闪”，严重时还会被容器 / 系统判定无响应而重载。
-  // 这里按材质把场景分成若干片，每次只让一片的物体可见、渲一帧（编译这一片用到的程序），累计超过 40 ms 就让出一帧；
-  // 最后把可见性恢复原样。engine / world 由 build.py 给 main.js 副本加的调用传进来。
+  //
+  // 程序缓存键里包含灯的数量，室内 zone 有自己的灯，所以不能把所有 zone 一起渲染（会编出真正游戏时用不到的变体）：
+  // 对每个 zone 临时只让它自己可见，收集 zone 子树里所有可渲染物体（用 traverse，不用 traverseVisible：暂时隐藏的物体以后也会出现），
+  // 按材质分组（多材质对象按 uuid 列表成键）。每次只显示一组、其它可渲染物体隐藏，组以及祖先（到 zone 为止）临时可见 +
+  // frustumCulled=false，调 engine.render() 一次——这样一组只会编译主程序 + 阴影深度程序 + 水面倒影变体，一般 1~3 个程序。
+  // 室外水面（name === 'lake'）在每一组都保持原可见性，倒影那遍的变体跟着当前组一起编出来，不会全堆到最后一次整体渲染。
+  // 一组编出新程序就让出主线程；没编出新程序时按 25 ms 累计让出一次，保证两次让出之间最多只有一组的编译。
+  // 全部结束后严格恢复每个物体原来的 visible / frustumCulled 和每个 zone 的 visible；出错也恢复。
+  // engine / world 由 build.py 给 main.js 副本加的调用传进来；engine 或 world.zones 不存在时直接 resolve。
   window.__RLP_WARM = function (engine, world) {
-    var ext = world && world.zones && world.zones.exterior;
-    if (!ext || !engine || typeof engine.render !== 'function') return Promise.resolve();
-    var entries = [];
-    ext.traverse(function (o) {
-      if (o.isMesh || o.isLine || o.isPoints || o.isSprite) entries.push({ m: o, v: o.visible, keep: o.name === 'lake' });
-    });
-    var byMat = {}, groups = [];
-    entries.forEach(function (e) {
-      var mats = Array.isArray(e.m.material) ? e.m.material : [e.m.material];
-      var key = mats.map(function (x) { return x ? x.uuid : '-'; }).join(',');
-      if (!byMat[key]) { byMat[key] = []; groups.push(byMat[key]); }
-      byMat[key].push(e);
-    });
-    var per = Math.max(6, Math.ceil(groups.length / 30));          // 最多约 30 片
-    var slices = [];
-    for (var g = 0; g < groups.length; g += per) slices.push(groups.slice(g, g + per));
-    // 水面每一片都保持可见：它的倒影是另一遍带裁剪面的渲染，每种材质都多一个着色器变体，不跟着分片的话会全堆到最后一次整体渲染里
-    function hideAll() { entries.forEach(function (e) { if (!e.keep) e.m.visible = false; }); }
-    function restore() { entries.forEach(function (e) { e.m.visible = e.v; }); }
-    var i = 0, lastYield = performance.now();
-    function step() {
-      if (i >= slices.length) return Promise.resolve();
-      hideAll();
-      slices[i].forEach(function (grp) { grp.forEach(function (e) { e.m.visible = e.v; }); });
-      engine.render();
-      i++;
-      if (performance.now() - lastYield < 40) return step();
-      return window.__RLP_STAGE('准备画面 ' + i + '/' + slices.length + '…').then(function () { lastYield = performance.now(); return step(); });
+    var zones = world && world.zones;
+    if (!zones || !engine || typeof engine.render !== 'function' || !engine.renderer) return Promise.resolve();
+    var stage = window.__RLP_STAGE || function () { return Promise.resolve(); };
+    var info = engine.renderer.info;
+    var programs = info && info.programs ? info.programs.length : 0;
+    var ids = Object.keys(zones);
+    // exterior 最先预热（标题菜单背后看到的就是它）；其余保持 Object.keys 的顺序
+    var order = ids.indexOf('exterior') >= 0 ? ['exterior'] : [];
+    for (var i = 0; i < ids.length; i++) if (ids[i] !== 'exterior') order.push(ids[i]);
+
+    // 先只收集和分组，不渲染：记录每个节点的原状态，最后一次性恢复
+    var plan = [];
+    for (var n = 0; n < order.length; n++) {
+      var id = order[n], zone = zones[id];
+      if (!zone || typeof zone.traverse !== 'function') continue;
+      var nodes = [], groups = [], byMat = Object.create(null);
+      zone.traverse(function (o) {
+        var rec = { o: o, vis: o.visible, fc: o.frustumCulled, render: !!(o.isMesh || o.isLine || o.isPoints || o.isSprite) };
+        nodes.push(rec);
+        if (!rec.render) return;
+        var mats = Array.isArray(o.material) ? o.material : [o.material];
+        var key = mats.map(function (x) { return x ? x.uuid : '-'; }).join(',');
+        var grp = byMat[key];
+        if (!grp) { grp = byMat[key] = []; groups.push(grp); }
+        grp.push(rec);
+      });
+      if (groups.length) plan.push({ id: id, zone: zone, vis: zone.visible, nodes: nodes, groups: groups });
     }
-    return step().then(restore, function (err) { restore(); throw err; });
+    if (!plan.length) return Promise.resolve();
+
+    var total = 0;
+    for (var t = 0; t < plan.length; t++) total += plan[t].groups.length;
+    var pi = 0, gi = 0, done = 0, lastYield = performance.now(), restored = false;
+
+    // 只显示这一组：本 zone 其它可渲染物体隐藏（室外水面除外），组和祖先可见、不剔出视锥
+    function showGroup(p, grp) {
+      for (var a = 0; a < p.nodes.length; a++) {
+        var rec = p.nodes[a];
+        if (!rec.render) continue;
+        rec.o.visible = (p.id === 'exterior' && rec.o.name === 'lake') ? rec.vis : false;
+      }
+      for (var b = 0; b < grp.length; b++) {
+        var e = grp[b];
+        e.o.visible = true;
+        e.o.frustumCulled = false;
+        var up = e.o.parent;
+        while (up && up !== p.zone) { up.visible = true; up = up.parent; }
+      }
+    }
+
+    // 只让一个 zone 可见：程序缓存键里的灯数和真正游戏时一致
+    function showZone(p) {
+      for (var z = 0; z < plan.length; z++) plan[z].zone.visible = plan[z] === p;
+    }
+
+    function restore() {
+      if (restored) return;
+      restored = true;
+      for (var z = 0; z < plan.length; z++) {
+        var p = plan[z];
+        for (var k = 0; k < p.nodes.length; k++) {
+          p.nodes[k].o.visible = p.nodes[k].vis;
+          p.nodes[k].o.frustumCulled = p.nodes[k].fc;
+        }
+        p.zone.visible = p.vis;
+      }
+    }
+
+    function step() {
+      // 同一段任务里连续处理“没有编出新程序”的组；一旦编译了新程序或累计超过 25 ms 就让出
+      for (;;) {
+        if (pi >= plan.length) return Promise.resolve();
+        var p = plan[pi];
+        if (gi === 0) showZone(p);
+        var before = info && info.programs ? info.programs.length : 0;
+        showGroup(p, p.groups[gi]);
+        engine.render();
+        done++;
+        var after = info && info.programs ? info.programs.length : before;
+        if (after > before) programs = after;
+        gi++;
+        if (gi >= p.groups.length) { pi++; gi = 0; }
+        var now = performance.now();
+        if (after === before && now - lastYield < 25) continue;
+        var text = '准备画面 ' + done + '/' + total + '…';
+        if (programs) text = '准备画面 ' + done + '/' + total + '（已编译 ' + programs + ' 个程序）…';
+        return stage(text).then(function () { lastYield = performance.now(); return step(); });
+      }
+    }
+
+    try {
+      return step().then(restore, function (err) { restore(); throw err; });
+    } catch (err) {
+      restore();
+      return Promise.reject(err);
+    }
   };
 
   // ------------------------------------------------------------------ 竖屏旋转

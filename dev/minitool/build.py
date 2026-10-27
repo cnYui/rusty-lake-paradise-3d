@@ -194,14 +194,8 @@ def main():
          "  mark('chapterSetup');\n"
          "  await __stage('准备画面（第一次会慢一点）…');\n"
          "  if (engine.renderEnabled) {\n"
-         "    try {\n"
-         "      await Promise.race([\n"
-         "        engine.renderer.compileAsync((world.zones && world.zones.exterior) || engine.scene, engine.camera, engine.scene),\n"
-         "        new Promise((r) => setTimeout(r, 20000)),\n"
-         "      ]);\n"
-         "    } catch { /* 退回同步编译 */ }\n"
          "    // 第一次渲染要把几十个着色器程序全部链接完，是启动里最长的一次卡顿（手机 GPU 上要好几秒，期间页面合成不出来，\n"
-         "    // 表现成白屏 ↔ 载入页闪烁）：先分片预热（每片只渲一部分物体，片间让出一帧），最后再整体渲一次\n"
+         "    // 表现成白屏 ↔ 载入页闪烁）：先分片预热（按 zone / 材质，每片只渲一组、片间让出一帧），最后再整体渲一次\n"
          "    try { if (window.__RLP_WARM) await window.__RLP_WARM(engine, world); } catch { /* 退回一次性编译 */ }\n"
          "    engine.render(); // compile shaders up front\n"
          "  }\n"),
@@ -319,6 +313,68 @@ def main():
             "    if (window.__RLP_AUDIO_OUT) window.__RLP_AUDIO_OUT(ac, comp); else comp.connect(ac.destination);",
         )])
 
+    # ---- 补丁 4b（声音版、非口袋方舟）：小红书 Storage API 存档层（dev/minitool/storage_xhs.js，在 game.js 之前加载）。
+    #      只在副本里把 state.js / audio.js / main.js 的存储读写交给 window.__RLP_STORE；网页版源码不动。
+    #      口袋方舟包没有小红书 Storage API，不需要这个文件，也不打这些补丁。
+    if audio and not a.ark:
+        patch('src/core/state.js', [
+            ("  try { return window.localStorage.getItem(key); } catch { return null; }",
+             "  try { return (window.__RLP_STORE || window.localStorage).getItem(key); } catch { return null; }"),
+            ("  try { window.localStorage.setItem(key, val); storageBroken = false; return true; } catch { storageBroken = true; return false; }",
+             "  try { (window.__RLP_STORE || window.localStorage).setItem(key, val); storageBroken = false; return true; } catch { storageBroken = true; return false; }"),
+            ("  try { window.localStorage.removeItem(key); } catch { /* ignore */ }",
+             "  try { (window.__RLP_STORE || window.localStorage).removeItem(key); } catch { /* ignore */ }"),
+            ("  storageOk() {\n"
+             "    try { window.localStorage.setItem('rlp3d.probe', '1'); window.localStorage.removeItem('rlp3d.probe'); return true; } catch { return false; }\n"
+             "  },",
+             "  storageOk() {\n"
+             "    if (window.__RLP_STORE) { try { return window.__RLP_STORE.ok(); } catch { return false; } }\n"
+             "    try { (window.__RLP_STORE || window.localStorage).setItem('rlp3d.probe', '1'); (window.__RLP_STORE || window.localStorage).removeItem('rlp3d.probe'); return true; } catch { return false; }\n"
+             "  },"),
+            ("      for (let i = 0; i < window.localStorage.length; i++) {\n"
+             "        const k = window.localStorage.key(i);",
+             "      for (let i = 0; i < (window.__RLP_STORE || window.localStorage).length; i++) {\n"
+             "        const k = (window.__RLP_STORE || window.localStorage).key(i);"),
+            ("    for (let i = 0; i < window.localStorage.length; i++) {\n"
+             "      const k = window.localStorage.key(i);\n"
+             "      if (!k || !k.startsWith(SAVE_PREFIX)) continue;\n"
+             "      const id = k.slice(SAVE_PREFIX.length);\n"
+             "      const data = JSON.parse(window.localStorage.getItem(k));",
+             "    for (let i = 0; i < (window.__RLP_STORE || window.localStorage).length; i++) {\n"
+             "      const k = (window.__RLP_STORE || window.localStorage).key(i);\n"
+             "      if (!k || !k.startsWith(SAVE_PREFIX)) continue;\n"
+             "      const id = k.slice(SAVE_PREFIX.length);\n"
+             "      const data = JSON.parse((window.__RLP_STORE || window.localStorage).getItem(k));"),
+        ])
+        patch('src/core/audio.js', [(
+            "try {\n"
+            "  const s = JSON.parse(storage.get('rlp3d.settings') || '{}');\n"
+            "  if (typeof s.volume === 'number') volume = Math.max(0, Math.min(1, s.volume));\n"
+            "  if (typeof s.muted === 'boolean') muted = s.muted;\n"
+            "} catch { /* ignore */ }",
+            "function __loadSettings() {\n"
+            "  try {\n"
+            "    const s = JSON.parse(storage.get('rlp3d.settings') || '{}');\n"
+            "    if (typeof s.volume === 'number') volume = Math.max(0, Math.min(1, s.volume));\n"
+            "    if (typeof s.muted === 'boolean') muted = s.muted;\n"
+            "  } catch { /* ignore */ }\n"
+            "}\n"
+            "__loadSettings();\n"
+            "if (window.__RLP_STORE) window.__RLP_STORE.ready.then(__loadSettings);",
+        )])
+        patch('src/main.js', [(
+            "  mark('core');\n\n"
+            "  // 存档、成就历史和通关记录跨启动保留在本机（localStorage，见 src/core/state.js）；测试页和 ?fresh=1 每次从空白开始。",
+            "  mark('core');\n"
+            "  if (window.__RLP_STORE) await window.__RLP_STORE.ready;   // 存档层最多 1.5 秒（storage_xhs.js 自己限时），读档案 / 菜单之前\n\n"
+            "  // 存档、成就历史和通关记录跨启动保留在本机（localStorage，见 src/core/state.js）；测试页和 ?fresh=1 每次从空白开始。",
+        )])
+        # 设置面板的说明改成小红书里如实的话（网页版原文不动）
+        patch('src/core/ui.js', [(
+            "  h('p', 'set-note', p, '进度、通关记录和成就保存在这台设备的浏览器里，清除浏览器数据或换设备后不会带过去。');",
+            "  h('p', 'set-note', p, '进度、通关记录和成就保存在小红书里（不支持时保存在这台设备上），清除缓存或换设备后不会带过去。');",
+        )])
+
     # ---- 打包。声音版编译到 ES2017（Chrome 61 / Android 8.1 WebView 的基线）：esbuild 会把 ?. ?? catch {} 类字段对象展开等降级；
     #      旧版是 ES2019，里面的 catch {}（Chrome 66+）在老安卓上会让整个 game.js 解析失败。
     vendor = os.path.join(ROOT, 'vendor', 'three').replace('\\', '/')
@@ -345,6 +401,10 @@ def main():
         index = INDEX_LEGACY
     else:
         index = INDEX_AUDIO.replace('{cfg}', '' if a.release else '<script src="./audio_cfg.js"></script>\n')
+        if not a.ark:   # 存档层在 compat.js 之后、rotate.js 之前；口袋方舟包不带它
+            index = index.replace('<script src="./rotate.js"></script>\n',
+                                  '<script src="./storage_xhs.js"></script>\n<script src="./rotate.js"></script>\n')
+            assert index.count('./storage_xhs.js') == 1, 'index.html 里没找到 storage_xhs.js 的位置'
         if a.ark:   # ark_cfg.js 要在 rotate.js 读它之前加载
             index = index.replace('<script src="./rotate.js"></script>\n', '<script src="./ark_cfg.js"></script>\n<script src="./rotate.js"></script>\n')
             assert index.count('./ark_cfg.js') == 1, 'index.html 里没找到 rotate.js 的位置'
@@ -372,6 +432,8 @@ def main():
         assert not [f for f in found if f[0] == '布局'], 'style.css 里还有 Chrome 61 会塌掉布局的写法，停止出包'
         shutil.copy(os.path.join(HERE, 'compat.js'), os.path.join(DIST, 'compat.js'))
         shutil.copy(os.path.join(HERE, 'audio_out.js'), os.path.join(DIST, 'audio_out.js'))
+        if not a.ark:
+            shutil.copy(os.path.join(HERE, 'storage_xhs.js'), os.path.join(DIST, 'storage_xhs.js'))
         if a.ark:
             wr(os.path.join(DIST, 'ark_cfg.js'), '// 口袋方舟版：rotate.js 读到它就不旋转竖屏、不改事件坐标和元素矩形读数（平台 WebView 本来就是横屏）。build.py --ark 生成。\nwindow.__RLP_NOROT = true;\n')
         if not a.release:
@@ -398,6 +460,19 @@ def main():
         assert not any(k in out_js for k in ('blob:', 'createObjectURL', 'data:')), 'audio_out.js 里有 data: / blob: 地址'
         assert out_js.count('new Audio(') == 1 and game.count('new Audio(') == 0, '<audio> 元素只应该在 audio_out.js 里创建一次'
         print('game.js 里的媒体地址相关写法（three.js 的加载器可能提到，游戏没调用，只报告）：', {k: game.count(k) for k in MEDIA_URL if game.count(k)} or '无')
+        if not a.ark:
+            # 存档层接管后，state.js 里不应再有直接读写 window.localStorage 的存档路径（例外键和 progress.js 的裸 localStorage 不受影响）
+            assert game.count('window.localStorage.getItem') == 0, 'game.js 里还残留 window.localStorage.getItem（state.js 的存储补丁没打全）'
+            assert game.count('window.localStorage.setItem') == 0, 'game.js 里还残留 window.localStorage.setItem（state.js 的存储补丁没打全）'
+            assert '__RLP_STORE' in game, 'game.js 里没有存档层补丁'
+            store_js = rd(os.path.join(DIST, 'storage_xhs.js'))
+            for bad in ('eval(', 'new Function', 'fetch(', 'XMLHttpRequest'):
+                assert bad not in store_js, f'storage_xhs.js 里有容器禁用 / 不安全的写法：{bad}'
+            assert './storage_xhs.js' in index and './rotate.js' in index and index.index('./storage_xhs.js') < index.index('./rotate.js'), \
+                'index.html 里 storage_xhs.js 必须在 rotate.js 之前'
+        else:
+            assert not os.path.exists(os.path.join(DIST, 'storage_xhs.js')), '口袋方舟包不应该带 storage_xhs.js'
+            assert './storage_xhs.js' not in index and '__RLP_STORE' not in game, '口袋方舟包不应该打小红书存储补丁'
         run_es2017_gate(DIST)
         # 不压缩副本上的接口提示（只报告：每一条人工判断有没有保护 / 垫片）
         node = shutil.which('node')
