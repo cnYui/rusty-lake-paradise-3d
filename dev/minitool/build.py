@@ -224,13 +224,65 @@ def main():
         ("export function buildSky(scene) {\n  const group = new THREE.Group();\n",
          "export async function buildSky(scene) {\n" + STAGE_DEF + "  const group = new THREE.Group();\n"),
         ("  group.add(makeDome(shared));\n  const ring = makeRing(shared);\n  group.add(ring);\n  group.add(makeHills());\n",
-         "  group.add(await makeDome(shared));\n  await __stage();\n  const ring = makeRing(shared);\n  group.add(ring);\n  await __stage();\n  group.add(makeHills());\n  await __stage();\n"),
+         "  group.add(await makeDome(shared));\n  await __stage();\n  const ring = await makeRing(shared);\n  group.add(ring);\n  await __stage();\n  group.add(makeHills());\n  await __stage();\n"),
         # 云：136 次带渐变的画布绘制，浏览器攒到任务结束才光栅化；按批次让出一帧，把这一大块拆开
         ("function makeDome(shared) {\n  const clouds = paintClouds();\n", "async function makeDome(shared) {\n  const clouds = await paintClouds();\n"),
         ("function paintClouds() {\n", "async function paintClouds() {\n"),
         ("  for (let i = 0; i < 70; i++) {\n    const y = H * (0.18 + r() * 0.8);\n", "  for (let i = 0; i < 70; i++) {\n    if (i % 18 === 17) await __stage();\n    const y = H * (0.18 + r() * 0.8);\n"),
         ("  for (let i = 0; i < 40; i++) {\n    const y = H * (0.62 + r() * 0.34);\n", "  for (let i = 0; i < 40; i++) {\n    if (i % 14 === 13) await __stage();\n    const y = H * (0.62 + r() * 0.34);\n"),
         ("  for (let i = 0; i < 26; i++) {\n    const y = H * (0.25 + r() * 0.45);\n", "  for (let i = 0; i < 26; i++) {\n    if (i % 13 === 12) await __stage();\n    const y = H * (0.25 + r() * 0.45);\n"),
+    ])
+
+    # ---- 补丁 3b：2D 画布改 CPU 光栅化（willReadFrequently）+ 全景环分段。
+    #      无头 Chromium + SwiftShader（软件 GPU）+ CPU 降速 3× 实测：默认 getContext('2d') 建出来的是 GPU 加速画布，大量绘制会推迟到第一次
+    #      上传贴图时在 GPU 进程里光栅化——启动后 GPU 进程要忙约 16 s，期间页面点击要等好几秒；改成 willReadFrequently 走 CPU 光栅化后，
+    #      这段空转消失，RLP.ready 38 s → 27 s，点击延迟降到 0.3～0.6 s。sky.js 的 cpuCanvas() 一直这么建；这里把其余大量绘制的画布补齐。
+    #      两份包（小红书 / 口袋方舟）都打，网页版源码不动；每处都用带上下文的精确旧串，只命中明确命名的目标画布。
+    #      src/core 的 ui.js / items.js / engine.js / hotspots.js 不动；p5_kit.js / props_p5.js 里对 texture.image 再取上下文的不动（取到的是同一个上下文）。
+    patch('src/art/materials.js', [(
+        # materials.js:114 canvasTexture：所有程序化贴图共用的画布
+        "  const g = canvas.getContext('2d');",
+        "  const g = canvas.getContext('2d', { willReadFrequently: true });",
+    )])
+    patch('src/art/props_inner.js', [(
+        # props_inner.js:1863-1864 画框放大快照：把几张贴图画到一张大画布上
+        "    const g = c.getContext('2d');\n    g.drawImage(frontM.map.image, 0, 0, cw, ch);",
+        "    const g = c.getContext('2d', { willReadFrequently: true });\n    g.drawImage(frontM.map.image, 0, 0, cw, ch);",
+    )])
+    patch('src/art/props_lake.js', [(
+        # props_lake.js:1476 paintPlagueBase 的主画布（画女人时可能临时换成丢弃画布，见同一函数 1691 行）
+        "  let g = c.getContext('2d');   // 画女人时可能临时换成丢弃画布（见下）",
+        "  let g = c.getContext('2d', { willReadFrequently: true });   // 画女人时可能临时换成丢弃画布（见下）",
+    ), (
+        # props_lake.js:1691 丢弃画布（woman=false 时让随机数消耗不变，笔触不落在成品上）
+        "  if (!woman) { const scratch = document.createElement('canvas'); scratch.width = W; scratch.height = H; g = scratch.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round'; }",
+        "  if (!woman) { const scratch = document.createElement('canvas'); scratch.width = W; scratch.height = H; g = scratch.getContext('2d', { willReadFrequently: true }); g.lineCap = 'round'; g.lineJoin = 'round'; }",
+    ), (
+        # props_lake.js:1768-1769 公共画作的成品画布（接下来把 paintPlagueBase 的底画上去）
+        "  const g = canvas.getContext('2d');\n  const base = paintPlagueBase(",
+        "  const g = canvas.getContext('2d', { willReadFrequently: true });\n  const base = paintPlagueBase(",
+    )])
+    patch('src/art/buildings.js', [(
+        # buildings.js:242 半分辨率画布先 putImageData 再放大，默认上下文会把上传推迟到 GPU
+        "    half.getContext('2d').putImageData(img, 0, 0);",
+        "    half.getContext('2d', { willReadFrequently: true }).putImageData(img, 0, 0);",
+    )])
+    patch('src/art/props_p3_grove.js', [(
+        # props_p3_grove.js:298 岩壁小画布（逐像素写 ImageData 后放大）
+        "    const sg = small.getContext('2d'), img = sg.createImageData(LW, LH), d = img.data;",
+        "    const sg = small.getContext('2d', { willReadFrequently: true }), img = sg.createImageData(LW, LH), d = img.data;",
+    ), (
+        # props_p3_grove.js:322 256² 噪点小画布（逐像素写 ImageData 后做 pattern）
+        "    const ng = nc.getContext('2d'), nimg = ng.createImageData(256, 256);",
+        "    const ng = nc.getContext('2d', { willReadFrequently: true }), nimg = ng.createImageData(256, 256);",
+    )])
+    # sky.js 的 makeRing() 在一个同步循环里画完 RING_SEGS（6）张 2048×1024 的全景画布，慢设备上是一段 3～4 s 不让出主线程的长任务：
+    #      改成 async，第 2 张起每张之前让出一帧。buildSky 里的调用处已在上面的补丁里改成 `const ring = await makeRing(shared);`；
+    #      __stage 由同一组补丁定义在 sky.js 副本顶部（module 级，makeRing 能直接读到）。makeHills() 只是低模几何 + 顶点色（没有画布绘制），不动。
+    patch('src/art/sky.js', [
+        ("function makeRing(shared) {\n", "async function makeRing(shared) {\n"),
+        ("  for (let k = 0; k < RING_SEGS; k++) {\n    const { canvas, g } = cpuCanvas(SEG_W, SEG_H);\n",
+         "  for (let k = 0; k < RING_SEGS; k++) {\n    if (k > 0) await __stage();\n    const { canvas, g } = cpuCanvas(SEG_W, SEG_H);\n"),
     ])
     patch('src/art/island.js', [
         # 地形：每隔若干行让出一帧（buildTerrain / paintGround 在副本里变成 async）
@@ -375,6 +427,12 @@ def main():
             "  h('p', 'set-note', p, '进度、通关记录和成就保存在小红书里（不支持时保存在这台设备上），清除缓存或换设备后不会带过去。');",
         )])
 
+    # ---- 补丁 3b 生效断言（打包前直接查副本源码）：全景环必须是 async makeRing，buildSky 必须 await 它，循环里要有让出点。
+    _sky = rd(os.path.join(WORK, 'src/art/sky.js'))
+    assert 'async function makeRing' in _sky, 'sky.js 副本里没有 async function makeRing（补丁 3b 没生效）'
+    assert 'await makeRing(shared)' in _sky, 'sky.js 副本里 buildSky 没有 await makeRing(shared)（补丁 3b 没生效）'
+    assert 'if (k > 0) await __stage();' in _sky, 'sky.js 副本的 makeRing 循环里没有分段让出（补丁 3b 没生效）'
+
     # ---- 打包。声音版编译到 ES2017（Chrome 61 / Android 8.1 WebView 的基线）：esbuild 会把 ?. ?? catch {} 类字段对象展开等降级；
     #      旧版是 ES2019，里面的 catch {}（Chrome 66+）在老安卓上会让整个 game.js 解析失败。
     vendor = os.path.join(ROOT, 'vendor', 'three').replace('\\', '/')
@@ -445,6 +503,12 @@ def main():
 
     # ---- 自检
     game = rd(os.path.join(DIST, 'game.js'))
+    # willReadFrequently（补丁 3b）：压缩后的 game.js 里应该 >= 9 处 = sky.js 的 cpuCanvas 1 处（改前就有）
+    #   + 本次新加的 8 处（materials.js 1、props_inner.js 1、props_lake.js 3、buildings.js 1、props_p3_grove.js 2）。
+    #   改前实测 1 处；2026-10-27 改后实测 9 处（esbuild 只压掉注释和空白，对象键名保留）。
+    _n_wrf = game.count('willReadFrequently')
+    print(f'game.js 里的 willReadFrequently：{_n_wrf} 处（改前 1 处，期望 >= 9）')
+    assert _n_wrf >= 9, f'game.js 里只有 {_n_wrf} 处 willReadFrequently（应 >= 9：CPU 画布补丁没进包）'
     print('game.js 里的禁用写法（只报告）：', {k: game.count(k) for k in BANNED if game.count(k)} or '无')
     own = rd(os.path.join(DIST, 'rotate.js')) + index
     assert not re.search(r'<script(?![^>]*\bsrc=)[^>]*>', index), 'index.html 里有内联脚本'
