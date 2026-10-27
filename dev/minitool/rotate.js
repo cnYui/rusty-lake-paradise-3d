@@ -89,10 +89,16 @@
   //
   // 程序缓存键里包含灯的数量，室内 zone 有自己的灯，所以不能把所有 zone 一起渲染（会编出真正游戏时用不到的变体）：
   // 对每个 zone 临时只让它自己可见，收集 zone 子树里所有可渲染物体（用 traverse，不用 traverseVisible：暂时隐藏的物体以后也会出现），
-  // 按材质分组（多材质对象按 uuid 列表成键）。每次只显示一组、其它可渲染物体隐藏，组以及祖先（到 zone 为止）临时可见 +
-  // frustumCulled=false，调 engine.render() 一次——这样一组只会编译主程序 + 阴影深度程序 + 水面倒影变体，一般 1~3 个程序。
+  // 按材质分组（多材质对象按 uuid 列表成键）。链接本身是异步的（gl.linkProgram 只是把命令发给 GPU 进程），真正卡主线程的是
+  // three 在程序第一次使用时做的同步查询（WebGLProgram 的 getUniforms / getAttributes → onFirstUse，要等 GPU 进程链接完）。
+  // 所以每组按三步走：
+  //   a. 先只对组里的每个物体调 renderer.compile(物体, camera, scene) 发起编译、链接，不渲染、不做同步查询；
+  //   b. 程序数增加了就用 fenceSync + setTimeout 轮询等 GPU 链接完（getSyncParameter 不阻塞，最多 20 秒），等待期间主线程空闲；
+  //   c. 再只显示这一组、engine.render() 一次——主程序已经链接好，同步查询很快；阴影深度 / 水面倒影的变体在这里新建，
+  //      render 后程序数又增加或 render 超过 25 ms，就再等一次 GPU，然后让出主线程。
+  // 没有 fenceSync（WebGL1 / 老设备）时 waitGpu 直接返回，退回原来的同步行为；engine.camera 不存在时跳过 a。
   // 室外水面（name === 'lake'）在每一组都保持原可见性，倒影那遍的变体跟着当前组一起编出来，不会全堆到最后一次整体渲染。
-  // 一组编出新程序就让出主线程；没编出新程序时按 25 ms 累计让出一次，保证两次让出之间最多只有一组的编译。
+  // 等过 GPU 或编出新程序就让出主线程；没编出新程序时按 25 ms 累计让出一次，保证两次让出之间最多只有一组的编译。
   // 全部结束后严格恢复每个物体原来的 visible / frustumCulled 和每个 zone 的 visible；出错也恢复。
   // engine / world 由 build.py 给 main.js 副本加的调用传进来；engine 或 world.zones 不存在时直接 resolve。
   window.__RLP_WARM = function (engine, world) {
@@ -101,6 +107,8 @@
     var stage = window.__RLP_STAGE || function () { return Promise.resolve(); };
     var info = engine.renderer.info;
     var programs = info && info.programs ? info.programs.length : 0;
+    var gl = null;
+    try { gl = engine.renderer.getContext ? engine.renderer.getContext() : null; } catch (e) { gl = null; }
     var ids = Object.keys(zones);
     // exterior 最先预热（标题菜单背后看到的就是它）；其余保持 Object.keys 的顺序
     var order = ids.indexOf('exterior') >= 0 ? ['exterior'] : [];
@@ -164,25 +172,94 @@
       }
     }
 
+    // 等 GPU 把刚发起的链接做完：WebGL2 插一个 fence，用 setTimeout 轮询 getSyncParameter（不阻塞主线程），
+    // 信号到了或累计超过 20 秒就删掉 fence 并 resolve；没有 fenceSync（WebGL1 / 老设备）或出错时直接 resolve，退回旧行为。
+    // 不用 clientWaitSync 的非 0 超时（会阻塞主线程）。
+    function waitGpu(gl) {
+      return new Promise(function (resolve) {
+        if (!gl || typeof gl.fenceSync !== 'function') { resolve(); return; }
+        var s = null;
+        try {
+          s = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+          if (!s) { resolve(); return; }
+          gl.flush();
+        } catch (e) {
+          if (s) { try { gl.deleteSync(s); } catch (e2) { /* 忽略 */ } }
+          resolve();
+          return;
+        }
+        var start = performance.now(), done = false;
+        function fin() {
+          if (done) return;
+          done = true;
+          try { gl.deleteSync(s); } catch (e) { /* 忽略 */ }
+          resolve();
+        }
+        function poll() {
+          if (done) return;
+          var signaled = false;
+          try { signaled = gl.getSyncParameter(s, gl.SYNC_STATUS) === gl.SIGNALED; } catch (e) { signaled = true; }
+          if (signaled || performance.now() - start > 20000) { fin(); return; }
+          setTimeout(poll, 16);
+        }
+        setTimeout(poll, 16);
+      });
+    }
+
+    // 渲染一组；返回下一步：'continue' = 同一段任务里接着下一组，'wait' = 先等 GPU 再让出，'yield' = 直接让出
+    function renderGroup(p, grp) {
+      var before = info && info.programs ? info.programs.length : 0;
+      showGroup(p, grp);
+      var renderStart = performance.now();
+      engine.render();
+      var renderMs = performance.now() - renderStart;
+      done++;
+      var after = info && info.programs ? info.programs.length : before;
+      if (after > before) programs = after;
+      gi++;
+      if (gi >= p.groups.length) { pi++; gi = 0; }
+      var now = performance.now();
+      if (after > before || renderMs > 25) return 'wait';
+      if (now - lastYield < 25) return 'continue';
+      return 'yield';
+    }
+
+    function yieldStep() {
+      var text = '准备画面 ' + done + '/' + total + '…';
+      if (programs) text = '准备画面 ' + done + '/' + total + '（已编译 ' + programs + ' 个程序）…';
+      return stage(text).then(function () { lastYield = performance.now(); return step(); });
+    }
+
+    // 等完编译链接后的这一组：照旧渲染，再按程序数 / 渲染耗时决定要不要再等一次 GPU
+    function afterCompileWait(p, grp) {
+      var next = renderGroup(p, grp);
+      if (next === 'wait') return waitGpu(gl).then(yieldStep);
+      if (next === 'continue') return step();
+      return yieldStep();
+    }
+
     function step() {
-      // 同一段任务里连续处理“没有编出新程序”的组；一旦编译了新程序或累计超过 25 ms 就让出
+      // 同一段任务里连续处理“没有编出新程序”的组；一旦等过 GPU 或累计超过 25 ms 就让出
       for (;;) {
         if (pi >= plan.length) return Promise.resolve();
-        var p = plan[pi];
+        var p = plan[pi], grp = p.groups[gi];
         if (gi === 0) showZone(p);
+        // a. 只发起编译、链接，不渲染（compile 只创建程序并 linkProgram，不做同步查询）
         var before = info && info.programs ? info.programs.length : 0;
-        showGroup(p, p.groups[gi]);
-        engine.render();
-        done++;
-        var after = info && info.programs ? info.programs.length : before;
-        if (after > before) programs = after;
-        gi++;
-        if (gi >= p.groups.length) { pi++; gi = 0; }
-        var now = performance.now();
-        if (after === before && now - lastYield < 25) continue;
-        var text = '准备画面 ' + done + '/' + total + '…';
-        if (programs) text = '准备画面 ' + done + '/' + total + '（已编译 ' + programs + ' 个程序）…';
-        return stage(text).then(function () { lastYield = performance.now(); return step(); });
+        if (engine.camera) {
+          for (var c = 0; c < grp.length; c++) {
+            try { engine.renderer.compile(grp[c].o, engine.camera, engine.scene); } catch (e) { /* 单个物体编译失败就跳过 */ }
+          }
+        }
+        var afterCompile = info && info.programs ? info.programs.length : before;
+        if (afterCompile > before) programs = afterCompile;
+        // b. 发起了新的链接：用 setTimeout 轮询 fence 等 GPU，等待期间主线程空闲
+        if (afterCompile > before) return waitGpu(gl).then(function () { return afterCompileWait(p, grp); });
+        // c. 没有新程序：直接照旧渲染这一组
+        var next = renderGroup(p, grp);
+        if (next === 'continue') continue;
+        if (next === 'wait') return waitGpu(gl).then(yieldStep);
+        return yieldStep();
       }
     }
 
