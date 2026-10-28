@@ -171,7 +171,7 @@ def run():
                     if real_steps % 25 == 0:
                         print('真实鼠标 / 数字键已通过：', real_steps, flush=True)
                     view = page.evaluate('RLP.state.view')
-                    if view not in captures and view in ['p5_cow','p5_skin','p5_field','p5_constellation','p5_kitchen','p5_dining','p5_toilet','p5_memory','p5_altar','p5_painting']:
+                    if view not in captures and view in ['p5_cow','p5_skin','p5_field','p5_constellation','p5_kitchen','p5_cutboard','p5_dining','p5_table','p5_toilet','p5_memory','p5_altar','p5_painting']:
                         shot(page, 'checked-' + view); captures.add(view)
                     kind = None
                     if target == 'p5_field_cell_4' and 'field' not in checkpoints: kind = 'field'

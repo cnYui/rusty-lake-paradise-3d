@@ -1,48 +1,17 @@
 // 第五灾模型只呈现传入状态，玩法真值由章节的 flags 和 inventory 保存。
+// 食材 / 餐具 / 厨房在 props_p5_food.js，菜地和连线在 props_p5_garden.js，牛斑点在 cow_model.js；这里放其余道具。
 import * as THREE from 'three';
 import { toon, flat, unlit, canvasTexture } from './materials.js';
 import { animate, Ease } from '../core/tween.js';
 import { getModel } from './rlpm.js';
-import { makeCowModel } from './cow_model.js';
+import { makeCowModel, attachCowSpots } from './cow_model.js';
+import { FOOD_FACTORIES, lettuce } from './props_p5_food.js';
+import { GARDEN_FACTORIES } from './props_p5_garden.js';
+import { PI, group, add, box, ball, cyl, ring, clear, label } from './p5_kit.js';
 
-const PI = Math.PI;
-const COLORS = ['#7eacb4', '#d09cb9', '#d6b965', '#9273b6', '#9eae68'];
-const VEG = { lettuce: '#6c9149', tomato: '#b84a36', cucumber: '#739458', carrot: '#cc873d', pumpkin: '#d3ac47', potato: '#bba283' };
-const group = (name) => { const g = new THREE.Group(); g.name = name; return g; };
-const add = (g, o, name, p = [0, 0, 0]) => { o.name = name; o.position.fromArray(p); g.add(o); return o; };
-const box = (g, name, size, color, p = [0, 0, 0], mat = null) => add(g, new THREE.Mesh(new THREE.BoxGeometry(...size), mat || toon(color)), name, p);
-const ball = (g, name, r, color, p, scale = [1, 1, 1]) => { const o = add(g, new THREE.Mesh(new THREE.SphereGeometry(r, 20, 12), toon(color)), name, p); o.scale.fromArray(scale); return o; };
-const cyl = (g, name, r, h, color, p, sides = 24) => add(g, new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, sides), toon(color)), name, p);
-const ring = (g, name, r, tube, color, p) => add(g, new THREE.Mesh(new THREE.TorusGeometry(r, tube, 8, 32), toon(color)), name, p);
+export { label };
 
-function clear(g) {
-  g.traverse((o) => { o.geometry?.dispose(); (Array.isArray(o.material) ? o.material : o.material ? [o.material] : []).forEach((m) => m.dispose()); });
-  g.clear();
-}
-
-export function label(text, width = 2, height = 0.3, { color = '#352e29', background = null } = {}) {
-  const texture = canvasTexture(1024, Math.max(64, Math.round(1024 * height / width)), () => {}, { wrap: false });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), unlit('#ffffff', { map: texture, transparent: true, side: THREE.DoubleSide }));
-  mesh.setText = (value, tint = color) => {
-    const c = texture.image, g = c.getContext('2d');
-    g.clearRect(0, 0, c.width, c.height);
-    if (background) { g.fillStyle = background; g.fillRect(0, 0, c.width, c.height); }
-    g.fillStyle = tint; g.textAlign = 'center'; g.textBaseline = 'middle';
-    let size = Math.round(c.height * 0.68);
-    g.font = `600 ${size}px "Microsoft YaHei", sans-serif`;
-    while (g.measureText(String(value)).width > 990 && size > 22) { size -= 4; g.font = `600 ${size}px "Microsoft YaHei", sans-serif`; }
-    g.fillText(String(value), c.width / 2, c.height / 2); texture.needsUpdate = true;
-  };
-  mesh.setText(text); return mesh;
-}
-
-function line(g, a, b) {
-  const d = new THREE.Vector3().subVectors(b, a);
-  const o = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, d.length(), 8), unlit('#ae6561'));
-  o.position.copy(a).add(b).multiplyScalar(0.5);
-  o.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); g.add(o);
-}
-
+// 没有网格牛时的程序化牛（接口和网格牛一样，斑点也贴在它的身上）
 function makeCow() {
   const root = group('p5_cow');
   ball(root, 'cow_body', 1, '#e8e5d9', [0, 1.25, 0], [1.3, 0.72, 0.55]);
@@ -57,102 +26,11 @@ function makeCow() {
   for (const x of [-0.9, 0.85]) for (const z of [-0.34, 0.34]) { cyl(root, 'cow_leg', 0.09, 0.83, '#e8e5d9', [x, 0.47, z]); box(root, 'cow_hoof', [0.23, 0.12, 0.28], '#4c493e', [x, 0.07, z]); }
   ball(root, 'cow_udder', 0.22, '#cfac98', [-0.55, 0.64, 0], [1.4, 0.7, 1]);
   for (const x of [-0.7, -0.42]) cyl(root, 'cow_teat', 0.04, 0.15, '#cfac98', [x, 0.47, 0.12]);
-  const lesions = [[-0.85, 1.48, 0.44], [-0.45, 1.15, 0.52], [0.1, 1.62, 0.44], [0.58, 1.35, 0.5], [-0.35, 1.8, 0.25], [0.95, 1.4, 0.33]].map((p, i) => {
-    ball(root, 'cow_patch', 0.26, '#704d2d', p, [0.8 + (i % 2) * 0.3, 1, 0.08]);
-    return ball(root, 'cow_lesion', 0.065, COLORS[i % 5], [p[0], p[1], p[2] + 0.03]);
-  });
-  const wound = ball(root, 'cow_wound', 0.17, '#9e3a37', [0.1, 1.25, 0.55], [0.9, 1.2, 0.08]);
+  for (const p of [[-0.85, 1.48], [-0.45, 1.15], [0.1, 1.62], [0.58, 1.35], [-0.35, 1.8], [0.95, 1.4]]) ball(root, 'cow_patch', 0.26, '#704d2d', [p[0], p[1], 0.44], [0.8, 1, 0.08]);
   const tail = cyl(root, 'cow_tail', 0.035, 0.9, '#776854', [-1.28, 0.95, 0]); tail.rotation.z = -0.2;
-  root.setState = ({ cured = false, meat = false } = {}) => { lesions.forEach((o) => { o.visible = !cured; }); wound.visible = meat; };
-  root.setState(); return root;
-}
-
-function makeSkin() {
-  const root = group('p5_skin');
-  box(root, 'skin_board', [6.3, 4.15, 0.1], '#e9e5dc', [0, 2.1, 0], unlit('#e9e5dc'));
-  const positions = [[-2.3, 3.2], [-0.9, 3.65], [0.2, 3.3], [1.8, 3.5], [2.2, 2.2], [-1.8, 1.95], [-2.3, 0.9], [-0.6, 1.25], [0.9, 1.1], [1.8, 0.7]];
-  const colors = [0, 1, 2, 3, 4, 2, 0, 4, 1, 3];
-  const dots = positions.map(([x, y], i) => {
-    ball(root, 'skin_patch', 0.44, '#704d2d', [x, y, 0.08], [0.9, 1.25, 0.06]);
-    const d = ball(root, `skin_dot_${i}`, 0.18, COLORS[colors[i]], [x, y, 0.18]);
-    const outline = ring(d, 'skin_selected', 0.24, 0.018, '#e3b95e', [0, 0, 0.03]); outline.visible = false; return d;
-  });
-  add(root, label('点出两颗同色斑点', 3.4, 0.27), 'skin_hint', [0, 0.22, 0.2]);
-  root.userData.dots = dots;
-  root.setState = (cleared = [], selected = null) => dots.forEach((d, i) => { d.visible = !cleared.includes(i); d.children[0].visible = selected === i; });
+  root.updateMatrixWorld(true);
+  attachCowSpots(root, root.getObjectByName('cow_body'));
   return root;
-}
-
-function vegetable(type) {
-  const root = group(`p5_${type}`), c = VEG[type] || '#a98464';
-  if (type === 'lettuce') for (let i = 0; i < 6; i++) { const a = i * PI / 3; ball(root, 'lettuce_leaf', 0.19, i % 2 ? '#81a65c' : c, [Math.cos(a) * 0.15, 0.1, Math.sin(a) * 0.15], [1, 0.35, 0.75]); }
-  else if (type === 'cucumber' || type === 'carrot') {
-    const o = type === 'carrot' ? add(root, new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.62, 16), toon(c)), 'vegetable', [0, 0.13, 0]) : cyl(root, 'vegetable', 0.12, 0.6, c, [0, 0.13, 0]);
-    o.rotation.x = PI / 2;
-    if (type === 'carrot') ball(root, 'carrot_leaf', 0.08, '#65804b', [0, 0.16, 0.32]);
-  } else { ball(root, 'vegetable', type === 'pumpkin' ? 0.2 : 0.17, c, [0, 0.14, 0], type === 'potato' ? [1.5, 0.75, 1] : [1, 0.85, 1]); cyl(root, 'stem', 0.025, 0.08, '#61734b', [0, 0.33, 0]); }
-  return root;
-}
-
-function makeField() {
-  const root = group('p5_field');
-  box(root, 'field_soil', [5.15, 0.12, 3.8], '#ab8c63', [0, -0.1, 0], flat('#ab8c63'));
-  const at = (x, y) => [(x - 2.5) * 0.72, 0.02, (y - 2) * 0.62];
-  const cells = Array.from({ length: 30 }, (_, i) => box(root, `field_cell_${i}`, [0.68, 0.035, 0.58], '#b99d73', at(i % 6, Math.floor(i / 6)), flat('#b99d73')));
-  const text = (value, w, h, p) => { const o = add(root, label(value, w, h), 'field_label', p); o.rotation.x = -PI / 2; return o; };
-  const rows = Array.from({ length: 5 }, (_, i) => text('', 0.36, 0.26, [-2.65, 0.06, (i - 2) * 0.62]));
-  const cols = Array.from({ length: 6 }, (_, i) => text('', 0.36, 0.26, [(i - 2.5) * 0.72, 0.06, -1.88]));
-  const title = text('', 4.7, 0.3, [0, 0.06, -2.38]);
-  const hint = text('点菜苗，再点左上角田格；红数是占格数', 5.0, 0.27, [0, 0.08, 2.85]);
-  const reset = text('重新摆放', 1.25, 0.25, [0, 0.08, 3.25]);
-  const trays = Array.from({ length: 6 }, (_, i) => box(root, `field_tray_${i}`, [0.65, 0.05, 0.62], '#d2bc92', [(i - 2.5) * 0.82, 0.02, 2.05]));
-  const sizes = trays.map((_, i) => text('', 0.6, 0.2, [(i - 2.5) * 0.82, 0.07, 2.5]));
-  const plants = group('field_plants'); root.add(plants); root.userData = { cells, trays, reset, at };
-  root.setState = (level, positions, selected, round, solved = false) => {
-    clear(plants);
-    const counts = { rows: Array(5).fill(0), cols: Array(6).fill(0) }, targets = { rows: Array(5).fill(0), cols: Array(6).fill(0) };
-    cells.forEach((o) => { o.userData.piece = null; o.material.color.set('#b99d73'); });
-    level.pieces.forEach((piece, i) => {
-      const [w, h] = piece.size, pos = positions[i], goal = level.solution[i];
-      for (let y = goal[1]; y < goal[1] + h; y++) for (let x = goal[0]; x < goal[0] + w; x++) { targets.rows[y]++; targets.cols[x]++; }
-      const v = vegetable(piece.type); plants.add(v);
-      if (pos) {
-        v.position.fromArray(at(pos[0] + (w - 1) / 2, pos[1] + (h - 1) / 2)); v.scale.set(w, 1, h * 0.8);
-        for (let y = pos[1]; y < pos[1] + h; y++) for (let x = pos[0]; x < pos[0] + w; x++) { const cell = cells[y * 6 + x]; cell.userData.piece = i; cell.material.color.set(selected === i ? '#d2ba73' : '#879767'); counts.rows[y]++; counts.cols[x]++; }
-      } else { v.position.set((i - 2.5) * 0.82, 0.1, 2.05); v.scale.setScalar(0.8); }
-      trays[i].material.color.set(selected === i ? '#d2b565' : '#d2bc92');
-      sizes[i].setText(`${w} × ${h}`);
-    });
-    trays.forEach((o, i) => { o.visible = i < level.pieces.length && !solved; });
-    sizes.forEach((o, i) => { o.visible = i < level.pieces.length && !solved; });
-    rows.forEach((o, i) => o.setText(`${targets.rows[i]}`, counts.rows[i] === targets.rows[i] ? '#536a42' : '#a23f35'));
-    cols.forEach((o, i) => o.setText(`${targets.cols[i]}`, counts.cols[i] === targets.cols[i] ? '#536a42' : '#a23f35'));
-    title.setText(solved ? '菜地已收获' : `菜地 · ${round + 1} / 3`);
-    hint.setText(solved ? '番茄和黄瓜已经收入物品栏' : '点菜苗，再点左上角田格；红数是占格数'); reset.visible = !solved;
-  }; return root;
-}
-
-function makeThreads() {
-  const root = group('p5_constellation');
-  box(root, 'thread_board', [7, 5.6, 0.1], '#e9e6dc', [0, 2, 0], unlit('#e9e6dc'));
-  const dots = Array.from({ length: 9 }, (_, i) => {
-    const d = ball(root, `thread_dot_${i}`, 0.24, '#c8c5a8', [0, 2, 0.15]);
-    add(d, label('', 0.3, 0.28), 'degree_label', [0, 0, 0.25]);
-    const r = ring(d, 'thread_selected', 0.31, 0.018, '#a3423a', [0, 0, 0.03]); r.visible = false; return d;
-  });
-  const lines = group('thread_lines'); root.add(lines);
-  const title = add(root, label('', 4.5, 0.3), 'thread_title', [0, 4.45, 0.15]);
-  const reset = add(root, label('重新连线', 1.5, 0.25), 'thread_reset', [0, -0.48, 0.15]);
-  add(root, label('数字 = 连线数；连通所有点，重复连线可撤销', 6.2, 0.23), 'thread_hint', [0, -0.12, 0.15]);
-  root.userData = { dots, reset, lines };
-  root.setState = (level, edges, selected, round, solved = false) => {
-    clear(lines);
-    const counts = Array(level.dots.length).fill(0), target = Array(level.dots.length).fill(0);
-    level.edges.forEach(([a, b]) => { target[a]++; target[b]++; }); edges.forEach(([a, b]) => { counts[a]++; counts[b]++; });
-    dots.forEach((d, i) => { d.visible = i < level.dots.length; if (!d.visible) return; d.position.set(level.dots[i][0], 2.35 + level.dots[i][1], 0.16); d.material.color.set(counts[i] === target[i] ? '#87a27b' : '#d0c5a2'); d.children[0].setText(String(target[i])); d.children[1].visible = selected === i; });
-    edges.forEach(([a, b]) => line(lines, dots[a].position.clone().setZ(0.11), dots[b].position.clone().setZ(0.11)));
-    title.setText(solved ? '五组图案已解开' : `林间连线 · ${round + 1} / 5`); reset.visible = !solved;
-  }; return root;
 }
 
 function makeBucket(full = false) {
@@ -171,36 +49,6 @@ function makeBarrel() {
   root.setState = (filled, taken) => { milk.visible = filled; cheese.visible = filled && !taken; }; root.setState(false, false); return root;
 }
 
-function makeKnife() { const r = group('p5_knife'); box(r, 'knife_blade', [0.6, 0.025, 0.16], '#c9ccc7', [0, 0.03, 0]); box(r, 'knife_handle', [0.28, 0.07, 0.14], '#774c2d', [0.43, 0.03, 0]); return r; }
-function meat(cooked = false) {
-  const root = group('p5_meat'); ball(root, 'meat_body', 0.3, cooked ? '#77503a' : '#ba7270', [0, 0.09, 0], [1.3, cooked ? 0.28 : 0.45, 1]);
-  if (!cooked) for (const z of [-0.12, 0.03, 0.15]) box(root, 'meat_fat', [0.43, 0.015, 0.028], '#e2beb1', [0, 0.17, z]); return root;
-}
-function bun(top) {
-  const r = group('p5_bun');
-  if (top) { const b = add(r, new THREE.Mesh(new THREE.SphereGeometry(0.43, 24, 12, 0, 2 * PI, 0, PI / 2), toon('#cba160')), 'bun_top'); b.scale.y = 0.55; for (let i = 0; i < 9; i++) { const a = i * 2.4, d = 0.1 + (i % 3) * 0.09; ball(r, 'sesame', 0.025, '#ead6a2', [Math.cos(a) * d, 0.18, Math.sin(a) * d], [1, 0.3, 0.5]); } }
-  else cyl(r, 'bun_bottom', 0.43, 0.11, '#cba160', [0, 0.055, 0]); return r;
-}
-function slice(type) {
-  const r = group(`p5_${type}_slice`);
-  if (type === 'tomato') { cyl(r, 'tomato_slice', 0.34, 0.045, '#b74232', [0, 0.025, 0]); for (let i = 0; i < 5; i++) { const a = i * 2 * PI / 5; ball(r, 'tomato_seed', 0.038, '#dda16d', [Math.cos(a) * 0.2, 0.052, Math.sin(a) * 0.2], [1, 0.2, 1]); } }
-  else for (const x of [-0.15, 0.15]) { const d = cyl(r, 'cucumber_slice', 0.17, 0.035, '#477444', [x, 0.025, 0]); cyl(d, 'cucumber_middle', 0.13, 0.006, '#b4c185', [0, 0.021, 0]); } return r;
-}
-function burger({ layers = [] } = {}) {
-  const r = group('p5_burger'); r.setLayers = (values) => {
-    clear(r); values.forEach((type, i) => { let o; if (type.startsWith('bun_')) o = bun(type === 'bun_top'); else if (type === 'cooked_meat') o = meat(true); else if (type === 'cheese') { o = group('cheese'); box(o, 'cheese_slice', [0.72, 0.025, 0.62], '#dabb56'); } else if (type.endsWith('_slice')) o = slice(type.replace('_slice', '')); else o = vegetable(type); o.position.y = i * 0.1; r.add(o); }); r.userData.layers = [...values];
-  }; r.setLayers(layers); return r;
-}
-
-function makePot() {
-  const r = group('p5_pot'); cyl(r, 'stove', 0.58, 0.62, '#72726a', [0, 0.31, 0]);
-  for (const x of [-0.28, 0, 0.28]) { const log = cyl(r, 'log', 0.07, 0.9, '#61503b', [x, 0.68, 0]); log.rotation.x = PI / 2; }
-  for (const x of [-0.26, 0, 0.26]) add(r, new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 8), unlit('#dc702d')), 'flame', [x, 0.8, 0]);
-  const pan = add(r, new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.45, 0.1, 28), toon('#807a70')), 'pan', [0, 0.92, 0]); box(r, 'pan_handle', [0.65, 0.06, 0.12], '#6d6559', [0.7, 0.94, 0]);
-  const food = meat(false); food.position.y = 0.99; r.add(food); r.userData.pan = pan;
-  r.setState = (hasMeat, cooked, taken) => { food.visible = hasMeat && !taken; food.children[0].material.color.set(cooked ? '#77503a' : '#ba7270'); }; r.setState(false, false, false); return r;
-}
-function choppingBlock() { const r = group('p5_chopping_block'); cyl(r, 'chopping_top', 0.42, 0.4, '#9b7950', [0, 0.7, 0]); for (const [x, z] of [[-0.25, 0.15], [0.25, 0.15], [0, -0.25]]) cyl(r, 'block_leg', 0.045, 0.6, '#7c654b', [x, 0.3, z]); return r; }
 function diningRoom() {
   const r = group('p5_dining_room'); box(r, 'dining_wall', [7, 4.4, 0.1], '#d2cfc0', [0, 2.2, -2], flat('#d2cfc0')); box(r, 'dining_floor', [8, 0.08, 7], '#87857a', [0, -0.08, 0], flat('#87857a'));
   const cloth = cyl(r, 'tablecloth', 1.72, 0.87, '#dedbd0', [0, 0.44, 0]); cloth.scale.z = 0.66; const top = cyl(r, 'table_top', 1.75, 0.05, '#eeece3', [0, 0.9, 0]); top.scale.z = 0.67; return r;
@@ -261,15 +109,9 @@ function painting() {
 
 export const FACTORIES = {
   p5_cow: () => { const m = getModel('cow'); return m ? makeCowModel(m) : makeCow(); },   // 有网格牛就用网格，否则程序化牛
-  p5_skin: makeSkin, p5_field: makeField, p5_constellation: makeThreads,
+  ...GARDEN_FACTORIES, ...FOOD_FACTORIES,
   p5_barrel: makeBarrel, p5_empty_bucket: () => makeBucket(false), p5_milk_bucket: () => makeBucket(true),
-  p5_knife: makeKnife, p5_raw_meat: () => meat(false), p5_ground_meat: () => meat(false), p5_cooked_meat: () => meat(true),
-  p5_cheese: () => { const r = group('p5_cheese'); box(r, 'cheese', [0.6, 0.04, 0.5], '#dabb56'); return r; },
-  p5_lettuce: () => vegetable('lettuce'), p5_tomato: () => vegetable('tomato'), p5_cucumber: () => vegetable('cucumber'),
-  p5_tomato_slice: () => slice('tomato'), p5_cucumber_slice: () => slice('cucumber'),
-  p5_bun_bottom: () => bun(false), p5_bun_top: () => bun(true), p5_burger: burger,
-  p5_pot: makePot, p5_chopping_block: choppingBlock, p5_dining_room: diningRoom, p5_menu: makeMenu,
-  p5_plate: () => { const r = group('p5_plate'); cyl(r, 'plate', 0.62, 0.025, '#e7e3d6', [0, 0.015, 0]); const rim = ring(r, 'plate_rim', 0.58, 0.025, '#dad4c3', [0, 0.035, 0]); rim.rotation.x = PI / 2; return r; },
+  p5_dining_room: diningRoom, p5_menu: makeMenu,
   p5_latrine: latrine, p5_memory_disk: memoryDisk, p5_memory: makeMemory, p5_painting: painting,
-  p5_plant_pot: () => { const r = group('p5_plant_pot'); cyl(r, 'plant_pot', 0.22, 0.28, '#a98154', [0, 0.14, 0]); const v = vegetable('lettuce'); v.position.y = 0.3; r.add(v); return r; },
+  p5_plant_pot: () => { const r = group('p5_plant_pot'); cyl(r, 'plant_pot', 0.13, 0.18, '#a98154', [0, 0.09, 0]); const v = lettuce(); v.position.y = 0.17; r.add(v); return r; },
 };

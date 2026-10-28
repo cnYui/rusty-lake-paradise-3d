@@ -64,11 +64,16 @@
   });
 
   // ------------------------------------------------------------------ 启动进度
+  // 让出主线程：距离上次“等整帧”不到 80 ms 时只让一个宏任务（输入事件照样能处理，省下每次 ~16 ms 的等帧），
+  // 超过 80 ms 才等一次真正的 rAF（让页面合成出一帧）。桌面上启动要让出 90 多次，每次都等整帧就是 1.5 秒白白等待；
+  // 慢手机每一段活本来就超过 80 ms，行为和以前一样（每段之间等整帧，不会长时间不出帧）。
+  var lastFrame = performance.now();
   function tick() {
     return new Promise(function (resolve) {
       var done = false;
       function fin() { if (!done) { done = true; resolve(); } }
-      if (window.requestAnimationFrame) requestAnimationFrame(function () { setTimeout(fin, 0); });
+      if (performance.now() - lastFrame < 80) { setTimeout(fin, 0); return; }
+      if (window.requestAnimationFrame) requestAnimationFrame(function () { lastFrame = performance.now(); setTimeout(fin, 0); });
       setTimeout(fin, 100);   // 页面在后台时 rAF 不触发，不能因此卡住启动
     });
   }
@@ -78,42 +83,192 @@
     return tick();
   };
 
-  // ------------------------------------------------------------------ 分片预热着色器
+  // ------------------------------------------------------------------ 分片预热着色器（按 zone、按材质）
   // 第一次渲染要把场景里用到的几十个着色器程序同步编译、链接完，是启动里最长的一次卡顿：桌面上 1.6 秒，手机 GPU 上要好几秒，
   // 期间主线程和 GPU 都被占满，页面合成不出来，表现成“白屏和载入页快速交替闪”，严重时还会被容器 / 系统判定无响应而重载。
-  // 这里按材质把场景分成若干片，每次只让一片的物体可见、渲一帧（编译这一片用到的程序），累计超过 40 ms 就让出一帧；
-  // 最后把可见性恢复原样。engine / world 由 build.py 给 main.js 副本加的调用传进来。
+  //
+  // 程序缓存键里包含灯的数量，室内 zone 有自己的灯，所以不能把所有 zone 一起渲染（会编出真正游戏时用不到的变体）：
+  // 对每个 zone 临时只让它自己可见，收集 zone 子树里所有可渲染物体（用 traverse，不用 traverseVisible：暂时隐藏的物体以后也会出现），
+  // 按材质分组（多材质对象按 uuid 列表成键）。链接本身是异步的（gl.linkProgram 只是把命令发给 GPU 进程），真正卡主线程的是
+  // three 在程序第一次使用时做的同步查询（WebGLProgram 的 getUniforms / getAttributes → onFirstUse，要等 GPU 进程链接完）。
+  // 所以每组按三步走：
+  //   a. 先只对组里的每个物体调 renderer.compile(物体, camera, scene) 发起编译、链接，不渲染、不做同步查询；
+  //   b. 程序数增加了就用 fenceSync + setTimeout 轮询等 GPU 链接完（getSyncParameter 不阻塞，最多 20 秒），等待期间主线程空闲；
+  //   c. 再只显示这一组、engine.render() 一次——主程序已经链接好，同步查询很快；阴影深度 / 水面倒影的变体在这里新建，
+  //      render 后程序数又增加或 render 超过 25 ms，就再等一次 GPU，然后让出主线程。
+  // 没有 fenceSync（WebGL1 / 老设备）时 waitGpu 直接返回，退回原来的同步行为；engine.camera 不存在时跳过 a。
+  // 室外水面（name === 'lake'）在每一组都保持原可见性，倒影那遍的变体跟着当前组一起编出来，不会全堆到最后一次整体渲染。
+  // 等过 GPU 或编出新程序就让出主线程；没编出新程序时按 25 ms 累计让出一次，保证两次让出之间最多只有一组的编译。
+  // 全部结束后严格恢复每个物体原来的 visible / frustumCulled 和每个 zone 的 visible；出错也恢复。
+  // engine / world 由 build.py 给 main.js 副本加的调用传进来；engine 或 world.zones 不存在时直接 resolve。
   window.__RLP_WARM = function (engine, world) {
-    var ext = world && world.zones && world.zones.exterior;
-    if (!ext || !engine || typeof engine.render !== 'function') return Promise.resolve();
-    var entries = [];
-    ext.traverse(function (o) {
-      if (o.isMesh || o.isLine || o.isPoints || o.isSprite) entries.push({ m: o, v: o.visible, keep: o.name === 'lake' });
-    });
-    var byMat = {}, groups = [];
-    entries.forEach(function (e) {
-      var mats = Array.isArray(e.m.material) ? e.m.material : [e.m.material];
-      var key = mats.map(function (x) { return x ? x.uuid : '-'; }).join(',');
-      if (!byMat[key]) { byMat[key] = []; groups.push(byMat[key]); }
-      byMat[key].push(e);
-    });
-    var per = Math.max(6, Math.ceil(groups.length / 30));          // 最多约 30 片
-    var slices = [];
-    for (var g = 0; g < groups.length; g += per) slices.push(groups.slice(g, g + per));
-    // 水面每一片都保持可见：它的倒影是另一遍带裁剪面的渲染，每种材质都多一个着色器变体，不跟着分片的话会全堆到最后一次整体渲染里
-    function hideAll() { entries.forEach(function (e) { if (!e.keep) e.m.visible = false; }); }
-    function restore() { entries.forEach(function (e) { e.m.visible = e.v; }); }
-    var i = 0, lastYield = performance.now();
-    function step() {
-      if (i >= slices.length) return Promise.resolve();
-      hideAll();
-      slices[i].forEach(function (grp) { grp.forEach(function (e) { e.m.visible = e.v; }); });
-      engine.render();
-      i++;
-      if (performance.now() - lastYield < 40) return step();
-      return window.__RLP_STAGE('准备画面 ' + i + '/' + slices.length + '…').then(function () { lastYield = performance.now(); return step(); });
+    var zones = world && world.zones;
+    if (!zones || !engine || typeof engine.render !== 'function' || !engine.renderer) return Promise.resolve();
+    var stage = window.__RLP_STAGE || function () { return Promise.resolve(); };
+    var info = engine.renderer.info;
+    var programs = info && info.programs ? info.programs.length : 0;
+    var gl = null;
+    try { gl = engine.renderer.getContext ? engine.renderer.getContext() : null; } catch (e) { gl = null; }
+    var ids = Object.keys(zones);
+    // exterior 最先预热（标题菜单背后看到的就是它）；其余保持 Object.keys 的顺序
+    var order = ids.indexOf('exterior') >= 0 ? ['exterior'] : [];
+    for (var i = 0; i < ids.length; i++) if (ids[i] !== 'exterior') order.push(ids[i]);
+
+    // 先只收集和分组，不渲染：记录每个节点的原状态，最后一次性恢复
+    var plan = [];
+    for (var n = 0; n < order.length; n++) {
+      var id = order[n], zone = zones[id];
+      if (!zone || typeof zone.traverse !== 'function') continue;
+      var nodes = [], groups = [], byMat = Object.create(null);
+      zone.traverse(function (o) {
+        var rec = { o: o, vis: o.visible, fc: o.frustumCulled, render: !!(o.isMesh || o.isLine || o.isPoints || o.isSprite) };
+        nodes.push(rec);
+        if (!rec.render) return;
+        var mats = Array.isArray(o.material) ? o.material : [o.material];
+        var key = mats.map(function (x) { return x ? x.uuid : '-'; }).join(',');
+        var grp = byMat[key];
+        if (!grp) { grp = byMat[key] = []; groups.push(grp); }
+        grp.push(rec);
+      });
+      if (groups.length) plan.push({ id: id, zone: zone, vis: zone.visible, nodes: nodes, groups: groups });
     }
-    return step().then(restore, function (err) { restore(); throw err; });
+    if (!plan.length) return Promise.resolve();
+
+    var total = 0;
+    for (var t = 0; t < plan.length; t++) total += plan[t].groups.length;
+    var pi = 0, gi = 0, done = 0, lastYield = performance.now(), restored = false;
+
+    // 只显示这一组：本 zone 其它可渲染物体隐藏（室外水面除外），组和祖先可见、不剔出视锥
+    function showGroup(p, grp) {
+      for (var a = 0; a < p.nodes.length; a++) {
+        var rec = p.nodes[a];
+        if (!rec.render) continue;
+        rec.o.visible = (p.id === 'exterior' && rec.o.name === 'lake') ? rec.vis : false;
+      }
+      for (var b = 0; b < grp.length; b++) {
+        var e = grp[b];
+        e.o.visible = true;
+        e.o.frustumCulled = false;
+        var up = e.o.parent;
+        while (up && up !== p.zone) { up.visible = true; up = up.parent; }
+      }
+    }
+
+    // 只让一个 zone 可见：程序缓存键里的灯数和真正游戏时一致
+    function showZone(p) {
+      for (var z = 0; z < plan.length; z++) plan[z].zone.visible = plan[z] === p;
+    }
+
+    function restore() {
+      if (restored) return;
+      restored = true;
+      for (var z = 0; z < plan.length; z++) {
+        var p = plan[z];
+        for (var k = 0; k < p.nodes.length; k++) {
+          p.nodes[k].o.visible = p.nodes[k].vis;
+          p.nodes[k].o.frustumCulled = p.nodes[k].fc;
+        }
+        p.zone.visible = p.vis;
+      }
+    }
+
+    // 等 GPU 把刚发起的链接做完：WebGL2 插一个 fence，用 setTimeout 轮询 getSyncParameter（不阻塞主线程），
+    // 信号到了或累计超过 20 秒就删掉 fence 并 resolve；没有 fenceSync（WebGL1 / 老设备）或出错时直接 resolve，退回旧行为。
+    // 不用 clientWaitSync 的非 0 超时（会阻塞主线程）。
+    function waitGpu(gl) {
+      return new Promise(function (resolve) {
+        if (!gl || typeof gl.fenceSync !== 'function') { resolve(); return; }
+        var s = null;
+        try {
+          s = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+          if (!s) { resolve(); return; }
+          gl.flush();
+        } catch (e) {
+          if (s) { try { gl.deleteSync(s); } catch (e2) { /* 忽略 */ } }
+          resolve();
+          return;
+        }
+        var start = performance.now(), done = false;
+        function fin() {
+          if (done) return;
+          done = true;
+          try { gl.deleteSync(s); } catch (e) { /* 忽略 */ }
+          resolve();
+        }
+        function poll() {
+          if (done) return;
+          var signaled = false;
+          try { signaled = gl.getSyncParameter(s, gl.SYNC_STATUS) === gl.SIGNALED; } catch (e) { signaled = true; }
+          if (signaled || performance.now() - start > 20000) { fin(); return; }
+          setTimeout(poll, 16);
+        }
+        setTimeout(poll, 16);
+      });
+    }
+
+    // 渲染一组；返回下一步：'continue' = 同一段任务里接着下一组，'wait' = 先等 GPU 再让出，'yield' = 直接让出
+    function renderGroup(p, grp) {
+      var before = info && info.programs ? info.programs.length : 0;
+      showGroup(p, grp);
+      var renderStart = performance.now();
+      engine.render();
+      var renderMs = performance.now() - renderStart;
+      done++;
+      var after = info && info.programs ? info.programs.length : before;
+      if (after > before) programs = after;
+      gi++;
+      if (gi >= p.groups.length) { pi++; gi = 0; }
+      var now = performance.now();
+      if (after > before || renderMs > 25) return 'wait';
+      if (now - lastYield < 25) return 'continue';
+      return 'yield';
+    }
+
+    function yieldStep() {
+      var text = '准备画面 ' + done + '/' + total + '…';
+      if (programs) text = '准备画面 ' + done + '/' + total + '（已编译 ' + programs + ' 个程序）…';
+      return stage(text).then(function () { lastYield = performance.now(); return step(); });
+    }
+
+    // 等完编译链接后的这一组：照旧渲染，再按程序数 / 渲染耗时决定要不要再等一次 GPU
+    function afterCompileWait(p, grp) {
+      var next = renderGroup(p, grp);
+      if (next === 'wait') return waitGpu(gl).then(yieldStep);
+      if (next === 'continue') return step();
+      return yieldStep();
+    }
+
+    function step() {
+      // 同一段任务里连续处理“没有编出新程序”的组；一旦等过 GPU 或累计超过 25 ms 就让出
+      for (;;) {
+        if (pi >= plan.length) return Promise.resolve();
+        var p = plan[pi], grp = p.groups[gi];
+        if (gi === 0) showZone(p);
+        // a. 只发起编译、链接，不渲染（compile 只创建程序并 linkProgram，不做同步查询）
+        var before = info && info.programs ? info.programs.length : 0;
+        if (engine.camera) {
+          for (var c = 0; c < grp.length; c++) {
+            try { engine.renderer.compile(grp[c].o, engine.camera, engine.scene); } catch (e) { /* 单个物体编译失败就跳过 */ }
+          }
+        }
+        var afterCompile = info && info.programs ? info.programs.length : before;
+        if (afterCompile > before) programs = afterCompile;
+        // b. 发起了新的链接：用 setTimeout 轮询 fence 等 GPU，等待期间主线程空闲
+        if (afterCompile > before) return waitGpu(gl).then(function () { return afterCompileWait(p, grp); });
+        // c. 没有新程序：直接照旧渲染这一组
+        var next = renderGroup(p, grp);
+        if (next === 'continue') continue;
+        if (next === 'wait') return waitGpu(gl).then(yieldStep);
+        return yieldStep();
+      }
+    }
+
+    try {
+      return step().then(restore, function (err) { restore(); throw err; });
+    } catch (err) {
+      restore();
+      return Promise.reject(err);
+    }
   };
 
   // ------------------------------------------------------------------ 竖屏旋转

@@ -217,12 +217,15 @@ function grungeTexture({ w = 1024, h = 1024, base = '#dcdacb', seed = 1, density
     const r = rng(seed);
     const low = valueNoise(r, 8, 8), mid = valueNoise(r, 32, 32), hi = valueNoise(r, 400, 90), hi2 = valueNoise(r, 160, 40);
     const [br, bgc, bb] = hexRGB(base);
-    const img = g.createImageData(w, h);
+    // 逐像素的噪声只在半分辨率上算，再平滑放大铺满整张画布：贴图尺寸不变（斑点在 1–2 像素的尺度上本来就是糊的），
+    // 百万像素的双重循环省掉四分之三；房子 / 神殿内部的几张墙面贴图合计省约 0.3 秒，慢手机上按倍数放大。
+    const sw = w >> 1, sh = h >> 1;
+    const img = g.createImageData(sw, sh);
     const d = img.data;
-    for (let y = 0; y < h; y++) {
-      const v = y / h;
-      for (let x = 0; x < w; x++) {
-        const u = x / w;
+    for (let y = 0; y < sh; y++) {
+      const v = y / sh;
+      for (let x = 0; x < sw; x++) {
+        const u = x / sw;
         let m = density(u, v) * (0.3 + 1.0 * low(u * 8, v * 8)) * (0.55 + 0.7 * mid(u * 32, v * 32));
         m = m > 1 ? 1 : m;
         const n = 0.42 * hi(u * 400, v * 90) + 0.2 * hi2(u * 160, v * 40) + 0.38 * r();
@@ -230,11 +233,15 @@ function grungeTexture({ w = 1024, h = 1024, base = '#dcdacb', seed = 1, density
         k = k < 0 ? 0 : k > 1 ? 1 : k;
         const dark = (k * (0.2 + 0.25 * m) + m * 0.09) * amount + (r() - 0.5) * 0.03;
         const f = 1 - dark;
-        const i = (y * w + x) * 4;
+        const i = (y * sw + x) * 4;
         d[i] = br * f; d[i + 1] = bgc * f; d[i + 2] = bb * f; d[i + 3] = 255;
       }
     }
-    g.putImageData(img, 0, 0);
+    const half = document.createElement('canvas');
+    half.width = sw; half.height = sh;
+    half.getContext('2d').putImageData(img, 0, 0);
+    g.imageSmoothingEnabled = true;
+    g.drawImage(half, 0, 0, w, h);
     // large soft stains following the density
     for (let i = 0; i < 46; i++) {
       let x = r() * w, y = r() * h;

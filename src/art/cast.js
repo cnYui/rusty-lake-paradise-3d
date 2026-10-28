@@ -697,7 +697,8 @@ function buildGerardHuman() {
     const nod = P(bite, { head: [0.14, 0, 0] });
     await playKeys(rig, [[0.18, bite], [0.3, nod], [0.42, bite], [0.54, nod], [0.66, bite], [0.78, nod], [1, base]], 4200, {
       onFrame: (k) => {
-        if (burger) { burger.position.addVectors(hand('L'), hand('R')).multiplyScalar(0.5).add(V(0, 0.02, 0.03)); burger.scale.setScalar(Math.max(0.001, 1 - smooth(clamp((k - 0.2) / 0.7, 0, 1)))); burger.visible = k < 0.9; }
+        // 汉堡原点在底面、高约 15 cm：让双手托在汉堡腰上（y -0.07）
+        if (burger) { burger.position.addVectors(hand('L'), hand('R')).multiplyScalar(0.5).add(V(0, -0.07, 0.03)); burger.scale.setScalar(Math.max(0.001, 1 - smooth(clamp((k - 0.2) / 0.7, 0, 1)))); burger.visible = k < 0.9; }
         rig.setExpression(k > 0.15 && k < 0.85 ? (Math.floor(k * 18) % 2 ? 'talk' : 'neutral') : 'neutral');
       },
     });

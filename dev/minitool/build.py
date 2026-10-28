@@ -103,7 +103,7 @@ def main():
     ap = argparse.ArgumentParser(description='锈湖小红书小工具打包')
     ap.add_argument('--legacy', action='store_true', help='旧版（无声音线路补丁，ES2019，不转写 CSS），输出 dist/ + rusty-lake-minitool.zip')
     ap.add_argument('--release', action='store_true', help='声音版去掉屏幕上的声音调试状态条')
-    ap.add_argument('--ark', action='store_true', help='口袋方舟（233 乐园）H5 包：第一、二、三灾，原生横屏外壳（不旋转竖屏）+ 安全区，等同 --release；输出 dist-ark-ch123/ + upload/ark/rusty-lake-ark-ch123.zip')
+    ap.add_argument('--ark', action='store_true', help='口袋方舟（233 乐园）H5 包：第一到第四灾（2026-10-24 起；之前是第一到第三灾），原生横屏外壳（不旋转竖屏）+ 安全区，等同 --release；输出 dist-ark-ch1234/ + upload/ark/rusty-lake-ark-ch1234.zip')
     ap.add_argument('--no-minify', action='store_true', help='不压缩、保留函数名（只用来做 CPU 采样 / 排查，不要上传）')
     ap.add_argument('--out', help='输出目录（默认见上）')
     ap.add_argument('--zip', help='zip 路径（默认见上）')
@@ -116,7 +116,7 @@ def main():
     if a.legacy:
         name_dist, name_zip = 'dist', 'rusty-lake-minitool.zip'
     elif a.ark:
-        name_dist, name_zip = 'dist-ark-ch123', 'rusty-lake-ark-ch123.zip'
+        name_dist, name_zip = 'dist-ark-ch1234', 'rusty-lake-ark-ch1234.zip'
     elif a.release:
         name_dist, name_zip = 'dist-audio-release', 'rusty-lake-minitool-audio-release.zip'
     else:
@@ -156,7 +156,9 @@ def main():
     # 第三灾 David 的台词“我今天血糖非常低.”：小红书审核对“血”字敏感（V1.0.4 起第一灾一律写 x），打包副本里同样改成 x；口袋方舟包保持原文。
     if not a.ark:
         patch('src/chapters/plague3/text.js', [("david: '我今天血糖非常低.',", "david: '我今天x糖非常低.',")])
-    # 第四灾的“生与死的炼金术”书名已随书改视图翻页（29336f3）从 text.js 里去掉，而第四灾不进任何打包产物（load 在下面置空），这条补丁不再需要。
+    # 第四灾的“生与死的炼金术”书名已随书改视图翻页（29336f3）从 text.js 里去掉。第四灾进小红书包（2026-10-24 起）：书页里画在画布上的
+    # “将会有一个人遇见死亡”同样把“死”改成 S。
+    patch('src/art/props_flies_book.js', [("text(g, '遇见死亡', PW / 2, 206, 44);", "text(g, '遇见S亡', PW / 2, 206, 44);")])
 
     # ---- 补丁 3：分段启动。原来的启动（建世界 + 第一次渲染编译着色器）是一条几十秒不让出主线程的长任务：慢手机上页面
     #      整段没响应、load 事件迟迟不触发，容器 / 审核看到的就是“点不了”。改成每一步之间让出一帧（rotate.js 的 __RLP_STAGE
@@ -164,8 +166,26 @@ def main():
     patch('src/main.js', [
         ("async function boot() {\n  const canvas = document.getElementById('game');\n",
          "const __stage = (t) => (window.__RLP_STAGE ? window.__RLP_STAGE(t) : Promise.resolve());\n"
+         "let __earlyChoice = null;   // 提前出现的标题菜单的选择（下面 3c）\n"
          "async function boot() {\n  await __stage('初始化画面…');\n  const canvas = document.getElementById('game');\n"),
-        ("    mark('worldImport');\n    world = buildWorld(engine);\n",
+        # 3c 标题菜单提前出现：审核说“页面按钮无法点击”（V1.0.10 / V1.0.11 连续两次），模拟器里能点，但原来菜单要等建世界 + 编译着色器全部做完才出现
+        #    （桌面 6 秒，慢手机十几二十秒，期间满屏“载入中”，点什么都没反应）。核心（界面 / 存档 / 音频）初始化完就把标题菜单画出来，
+        #    世界在后台继续搭；提前点了开始 / 章节就排队，世界搭好再进（菜单上写“正在载入”）。载入提示缩成屏幕下方一行小字（minitool.css 的 .boot-early）。
+        ("  if (DEMO && q.get('world') !== '1') {\n    world = buildStubWorld(engine);\n",
+         "  if (!AUTOTEST && !DEMO && !SWITCH && !(q.has('view') || q.get('skipIntro') === '1' || q.has('chapter'))) {\n"
+         "    document.getElementById('stage').classList.add('boot-early');\n"
+         "    __earlyChoice = ui.menu.show(CHAPTERS);\n"
+         "    __earlyChoice.then(() => {\n"
+         "      const m = document.querySelector('.menu'), st = document.querySelector('.menu-status');\n"
+         "      if (m) m.style.pointerEvents = 'none';\n"
+         "      if (st) st.textContent = '正在载入，马上开始……';\n"
+         "    });\n"
+         "  }\n"
+         "  if (DEMO && q.get('world') !== '1') {\n    world = buildStubWorld(engine);\n"),
+        ("  const choice = await ui.menu.show(CHAPTERS);\n", "  const choice = await (__earlyChoice || ui.menu.show(CHAPTERS));\n"),
+        ("  engine.start();\n  document.getElementById('boot')?.remove();\n",
+         "  engine.start();\n  document.getElementById('boot')?.remove();\n  document.getElementById('stage').classList.remove('boot-early');\n"),
+        ("    mark('worldImport');\n    await preloadModels(['tower']);   // 岛上的石塔是网格模型，世界建好之前先加载（失败回退程序化塔）\n    world = buildWorld(engine);\n",
          "    mark('worldImport');\n    await __stage('搭建小岛…');\n    world = await buildWorld(engine);\n"),
         ("  await ensureChapter(bootChapterNumber());\n"
          "  mark('chapterSetup');\n  if (engine.renderEnabled) engine.render(); // compile shaders up front\n",
@@ -174,14 +194,8 @@ def main():
          "  mark('chapterSetup');\n"
          "  await __stage('准备画面（第一次会慢一点）…');\n"
          "  if (engine.renderEnabled) {\n"
-         "    try {\n"
-         "      await Promise.race([\n"
-         "        engine.renderer.compileAsync((world.zones && world.zones.exterior) || engine.scene, engine.camera, engine.scene),\n"
-         "        new Promise((r) => setTimeout(r, 20000)),\n"
-         "      ]);\n"
-         "    } catch { /* 退回同步编译 */ }\n"
          "    // 第一次渲染要把几十个着色器程序全部链接完，是启动里最长的一次卡顿（手机 GPU 上要好几秒，期间页面合成不出来，\n"
-         "    // 表现成白屏 ↔ 载入页闪烁）：先分片预热（每片只渲一部分物体，片间让出一帧），最后再整体渲一次\n"
+         "    // 表现成白屏 ↔ 载入页闪烁）：先分片预热（按 zone / 材质，每片只渲一组、片间让出一帧），最后再整体渲一次\n"
          "    try { if (window.__RLP_WARM) await window.__RLP_WARM(engine, world); } catch { /* 退回一次性编译 */ }\n"
          "    engine.render(); // compile shaders up front\n"
          "  }\n"),
@@ -210,13 +224,65 @@ def main():
         ("export function buildSky(scene) {\n  const group = new THREE.Group();\n",
          "export async function buildSky(scene) {\n" + STAGE_DEF + "  const group = new THREE.Group();\n"),
         ("  group.add(makeDome(shared));\n  const ring = makeRing(shared);\n  group.add(ring);\n  group.add(makeHills());\n",
-         "  group.add(await makeDome(shared));\n  await __stage();\n  const ring = makeRing(shared);\n  group.add(ring);\n  await __stage();\n  group.add(makeHills());\n  await __stage();\n"),
+         "  group.add(await makeDome(shared));\n  await __stage();\n  const ring = await makeRing(shared);\n  group.add(ring);\n  await __stage();\n  group.add(makeHills());\n  await __stage();\n"),
         # 云：136 次带渐变的画布绘制，浏览器攒到任务结束才光栅化；按批次让出一帧，把这一大块拆开
         ("function makeDome(shared) {\n  const clouds = paintClouds();\n", "async function makeDome(shared) {\n  const clouds = await paintClouds();\n"),
         ("function paintClouds() {\n", "async function paintClouds() {\n"),
         ("  for (let i = 0; i < 70; i++) {\n    const y = H * (0.18 + r() * 0.8);\n", "  for (let i = 0; i < 70; i++) {\n    if (i % 18 === 17) await __stage();\n    const y = H * (0.18 + r() * 0.8);\n"),
         ("  for (let i = 0; i < 40; i++) {\n    const y = H * (0.62 + r() * 0.34);\n", "  for (let i = 0; i < 40; i++) {\n    if (i % 14 === 13) await __stage();\n    const y = H * (0.62 + r() * 0.34);\n"),
         ("  for (let i = 0; i < 26; i++) {\n    const y = H * (0.25 + r() * 0.45);\n", "  for (let i = 0; i < 26; i++) {\n    if (i % 13 === 12) await __stage();\n    const y = H * (0.25 + r() * 0.45);\n"),
+    ])
+
+    # ---- 补丁 3b：2D 画布改 CPU 光栅化（willReadFrequently）+ 全景环分段。
+    #      无头 Chromium + SwiftShader（软件 GPU）+ CPU 降速 3× 实测：默认 getContext('2d') 建出来的是 GPU 加速画布，大量绘制会推迟到第一次
+    #      上传贴图时在 GPU 进程里光栅化——启动后 GPU 进程要忙约 16 s，期间页面点击要等好几秒；改成 willReadFrequently 走 CPU 光栅化后，
+    #      这段空转消失，RLP.ready 38 s → 27 s，点击延迟降到 0.3～0.6 s。sky.js 的 cpuCanvas() 一直这么建；这里把其余大量绘制的画布补齐。
+    #      两份包（小红书 / 口袋方舟）都打，网页版源码不动；每处都用带上下文的精确旧串，只命中明确命名的目标画布。
+    #      src/core 的 ui.js / items.js / engine.js / hotspots.js 不动；p5_kit.js / props_p5.js 里对 texture.image 再取上下文的不动（取到的是同一个上下文）。
+    patch('src/art/materials.js', [(
+        # materials.js:114 canvasTexture：所有程序化贴图共用的画布
+        "  const g = canvas.getContext('2d');",
+        "  const g = canvas.getContext('2d', { willReadFrequently: true });",
+    )])
+    patch('src/art/props_inner.js', [(
+        # props_inner.js:1863-1864 画框放大快照：把几张贴图画到一张大画布上
+        "    const g = c.getContext('2d');\n    g.drawImage(frontM.map.image, 0, 0, cw, ch);",
+        "    const g = c.getContext('2d', { willReadFrequently: true });\n    g.drawImage(frontM.map.image, 0, 0, cw, ch);",
+    )])
+    patch('src/art/props_lake.js', [(
+        # props_lake.js:1476 paintPlagueBase 的主画布（画女人时可能临时换成丢弃画布，见同一函数 1691 行）
+        "  let g = c.getContext('2d');   // 画女人时可能临时换成丢弃画布（见下）",
+        "  let g = c.getContext('2d', { willReadFrequently: true });   // 画女人时可能临时换成丢弃画布（见下）",
+    ), (
+        # props_lake.js:1691 丢弃画布（woman=false 时让随机数消耗不变，笔触不落在成品上）
+        "  if (!woman) { const scratch = document.createElement('canvas'); scratch.width = W; scratch.height = H; g = scratch.getContext('2d'); g.lineCap = 'round'; g.lineJoin = 'round'; }",
+        "  if (!woman) { const scratch = document.createElement('canvas'); scratch.width = W; scratch.height = H; g = scratch.getContext('2d', { willReadFrequently: true }); g.lineCap = 'round'; g.lineJoin = 'round'; }",
+    ), (
+        # props_lake.js:1768-1769 公共画作的成品画布（接下来把 paintPlagueBase 的底画上去）
+        "  const g = canvas.getContext('2d');\n  const base = paintPlagueBase(",
+        "  const g = canvas.getContext('2d', { willReadFrequently: true });\n  const base = paintPlagueBase(",
+    )])
+    patch('src/art/buildings.js', [(
+        # buildings.js:242 半分辨率画布先 putImageData 再放大，默认上下文会把上传推迟到 GPU
+        "    half.getContext('2d').putImageData(img, 0, 0);",
+        "    half.getContext('2d', { willReadFrequently: true }).putImageData(img, 0, 0);",
+    )])
+    patch('src/art/props_p3_grove.js', [(
+        # props_p3_grove.js:298 岩壁小画布（逐像素写 ImageData 后放大）
+        "    const sg = small.getContext('2d'), img = sg.createImageData(LW, LH), d = img.data;",
+        "    const sg = small.getContext('2d', { willReadFrequently: true }), img = sg.createImageData(LW, LH), d = img.data;",
+    ), (
+        # props_p3_grove.js:322 256² 噪点小画布（逐像素写 ImageData 后做 pattern）
+        "    const ng = nc.getContext('2d'), nimg = ng.createImageData(256, 256);",
+        "    const ng = nc.getContext('2d', { willReadFrequently: true }), nimg = ng.createImageData(256, 256);",
+    )])
+    # sky.js 的 makeRing() 在一个同步循环里画完 RING_SEGS（6）张 2048×1024 的全景画布，慢设备上是一段 3～4 s 不让出主线程的长任务：
+    #      改成 async，第 2 张起每张之前让出一帧。buildSky 里的调用处已在上面的补丁里改成 `const ring = await makeRing(shared);`；
+    #      __stage 由同一组补丁定义在 sky.js 副本顶部（module 级，makeRing 能直接读到）。makeHills() 只是低模几何 + 顶点色（没有画布绘制），不动。
+    patch('src/art/sky.js', [
+        ("function makeRing(shared) {\n", "async function makeRing(shared) {\n"),
+        ("  for (let k = 0; k < RING_SEGS; k++) {\n    const { canvas, g } = cpuCanvas(SEG_W, SEG_H);\n",
+         "  for (let k = 0; k < RING_SEGS; k++) {\n    if (k > 0) await __stage();\n    const { canvas, g } = cpuCanvas(SEG_W, SEG_H);\n"),
     ])
     patch('src/art/island.js', [
         # 地形：每隔若干行让出一帧（buildTerrain / paintGround 在副本里变成 async）
@@ -270,18 +336,23 @@ def main():
     patch('src/main.js', [
         ("  bootDone();\n  RLP.ready = true;\n", "  bootDone();\n  RLP.ready = true;\n  if (window.__RLP_BOOT_DONE) window.__RLP_BOOT_DONE();\n"),
     ])
+    # 第四灾的 setup 是 world.setup + story.setup 两大块：中间让出一帧
+    patch('src/chapters/plague4/index.js', [("await world.setup(ctx); story.setup(ctx); this.sync(ctx);",
+                                             "await world.setup(ctx); if (window.__RLP_STAGE) await window.__RLP_STAGE(); story.setup(ctx); this.sync(ctx);")])
     # 章节 setup：每个部分之间让出一帧（第一、二、三灾都是 `for (const part of PARTS) await part.setup(ctx);`）
     for chap in ('plague1', 'plague2', 'plague3'):
         patch(f'src/chapters/{chap}/index.js', [(
             "for (const part of PARTS) await part.setup(ctx);",
             "for (const part of PARTS) { await part.setup(ctx); if (window.__RLP_STAGE) await window.__RLP_STAGE(); }",
         )])
-    # 小工具和口袋方舟只开放第一、二、三灾：第四灾 / 第五灾在副本里不注册 load（菜单显示“敬请期待”，代码也不进包）。
-    # 解锁顺序在源码注册表里：前五灾严格按顺序（第二灾 requires 第一灾，第三灾 requires 第一、二灾，第四灾 requires 第一到第三灾，第五灾 requires 第一到第四灾；没通关前置章节菜单里就是“未解锁”），这里不用再补
-    patch('src/chapters/index.js', [
-        ("load: () => import('./plague4/index.js') }", "load: null }"),
-        ("load: () => import('./plague5/index.js') }", "load: null }"),
-    ])
+    # 解锁顺序在源码注册表里：前五灾严格按顺序（第二灾 requires 第一灾，第三灾 requires 第一、二灾，第四灾 requires 第一到第三灾，第五灾 requires 第一到第四灾；没通关前置章节菜单里就是“未解锁”），这里不用再补。
+    # 开放范围：口袋方舟包和小红书小工具都是第一到第四灾（2026-10-24 起；口袋方舟之前只有第一到第三灾）。第五灾的谜题正在重做成真 3D（牛身疫斑 / 菜地 / 连线 / 砧板），
+    # 两种包里都不注册它的 load（菜单显示“敬请期待”，代码也不进包）。
+    _reg = rd(os.path.join(WORK, 'src/chapters/index.js'))
+    assert "requires: ['plague1', 'plague2', 'plague3'], load: () => import('./plague4/index.js') }" in _reg, '源码注册表里第四灾的解锁条件变了（要先通关第一到第三灾）：更新 build.py'
+    assert "requires: ['plague1', 'plague2', 'plague3', 'plague4'], load: () => import('./plague5/index.js') }" in _reg, '源码注册表里第五灾的解锁条件变了（要先通关第一到第四灾，且不再是 wip）：更新 build.py'
+    cut = [("load: () => import('./plague5/index.js') }", "load: null }")]
+    patch('src/chapters/index.js', cut)
     assert "requires: ['plague1', 'plague2'], load: () => import('./plague3/index.js') }" in rd(os.path.join(WORK, 'src/chapters/index.js')), '源码注册表里第三灾的解锁条件变了（要先通关第一、二灾）：更新 build.py'
 
     # ---- 补丁 4（声音版）：音频输出线路。audio.js 是程序合成（振荡器 / 噪声 / 卷积混响），总线最后一级 comp 原来直连 ac.destination；
@@ -293,6 +364,74 @@ def main():
             "    // [小红书小工具] 输出线路交给 audio_out.js（iPhone：audioSession + MediaStream → <audio>，绕开静音拨片）；没有它就直连\n"
             "    if (window.__RLP_AUDIO_OUT) window.__RLP_AUDIO_OUT(ac, comp); else comp.connect(ac.destination);",
         )])
+
+    # ---- 补丁 4b（声音版、非口袋方舟）：小红书 Storage API 存档层（dev/minitool/storage_xhs.js，在 game.js 之前加载）。
+    #      只在副本里把 state.js / audio.js / main.js 的存储读写交给 window.__RLP_STORE；网页版源码不动。
+    #      口袋方舟包没有小红书 Storage API，不需要这个文件，也不打这些补丁。
+    if audio and not a.ark:
+        patch('src/core/state.js', [
+            ("  try { return window.localStorage.getItem(key); } catch { return null; }",
+             "  try { return (window.__RLP_STORE || window.localStorage).getItem(key); } catch { return null; }"),
+            ("  try { window.localStorage.setItem(key, val); storageBroken = false; return true; } catch { storageBroken = true; return false; }",
+             "  try { (window.__RLP_STORE || window.localStorage).setItem(key, val); storageBroken = false; return true; } catch { storageBroken = true; return false; }"),
+            ("  try { window.localStorage.removeItem(key); } catch { /* ignore */ }",
+             "  try { (window.__RLP_STORE || window.localStorage).removeItem(key); } catch { /* ignore */ }"),
+            ("  storageOk() {\n"
+             "    try { window.localStorage.setItem('rlp3d.probe', '1'); window.localStorage.removeItem('rlp3d.probe'); return true; } catch { return false; }\n"
+             "  },",
+             "  storageOk() {\n"
+             "    if (window.__RLP_STORE) { try { return window.__RLP_STORE.ok(); } catch { return false; } }\n"
+             "    try { (window.__RLP_STORE || window.localStorage).setItem('rlp3d.probe', '1'); (window.__RLP_STORE || window.localStorage).removeItem('rlp3d.probe'); return true; } catch { return false; }\n"
+             "  },"),
+            ("      for (let i = 0; i < window.localStorage.length; i++) {\n"
+             "        const k = window.localStorage.key(i);",
+             "      for (let i = 0; i < (window.__RLP_STORE || window.localStorage).length; i++) {\n"
+             "        const k = (window.__RLP_STORE || window.localStorage).key(i);"),
+            ("    for (let i = 0; i < window.localStorage.length; i++) {\n"
+             "      const k = window.localStorage.key(i);\n"
+             "      if (!k || !k.startsWith(SAVE_PREFIX)) continue;\n"
+             "      const id = k.slice(SAVE_PREFIX.length);\n"
+             "      const data = JSON.parse(window.localStorage.getItem(k));",
+             "    for (let i = 0; i < (window.__RLP_STORE || window.localStorage).length; i++) {\n"
+             "      const k = (window.__RLP_STORE || window.localStorage).key(i);\n"
+             "      if (!k || !k.startsWith(SAVE_PREFIX)) continue;\n"
+             "      const id = k.slice(SAVE_PREFIX.length);\n"
+             "      const data = JSON.parse((window.__RLP_STORE || window.localStorage).getItem(k));"),
+        ])
+        patch('src/core/audio.js', [(
+            "try {\n"
+            "  const s = JSON.parse(storage.get('rlp3d.settings') || '{}');\n"
+            "  if (typeof s.volume === 'number') volume = Math.max(0, Math.min(1, s.volume));\n"
+            "  if (typeof s.muted === 'boolean') muted = s.muted;\n"
+            "} catch { /* ignore */ }",
+            "function __loadSettings() {\n"
+            "  try {\n"
+            "    const s = JSON.parse(storage.get('rlp3d.settings') || '{}');\n"
+            "    if (typeof s.volume === 'number') volume = Math.max(0, Math.min(1, s.volume));\n"
+            "    if (typeof s.muted === 'boolean') muted = s.muted;\n"
+            "  } catch { /* ignore */ }\n"
+            "}\n"
+            "__loadSettings();\n"
+            "if (window.__RLP_STORE) window.__RLP_STORE.ready.then(__loadSettings);",
+        )])
+        patch('src/main.js', [(
+            "  mark('core');\n\n"
+            "  // 存档、成就历史和通关记录跨启动保留在本机（localStorage，见 src/core/state.js）；测试页和 ?fresh=1 每次从空白开始。",
+            "  mark('core');\n"
+            "  if (window.__RLP_STORE) await window.__RLP_STORE.ready;   // 存档层最多 1.5 秒（storage_xhs.js 自己限时），读档案 / 菜单之前\n\n"
+            "  // 存档、成就历史和通关记录跨启动保留在本机（localStorage，见 src/core/state.js）；测试页和 ?fresh=1 每次从空白开始。",
+        )])
+        # 设置面板的说明改成小红书里如实的话（网页版原文不动）
+        patch('src/core/ui.js', [(
+            "  h('p', 'set-note', p, '进度、通关记录和成就保存在这台设备的浏览器里，清除浏览器数据或换设备后不会带过去。');",
+            "  h('p', 'set-note', p, '进度、通关记录和成就保存在小红书里（不支持时保存在这台设备上），清除缓存或换设备后不会带过去。');",
+        )])
+
+    # ---- 补丁 3b 生效断言（打包前直接查副本源码）：全景环必须是 async makeRing，buildSky 必须 await 它，循环里要有让出点。
+    _sky = rd(os.path.join(WORK, 'src/art/sky.js'))
+    assert 'async function makeRing' in _sky, 'sky.js 副本里没有 async function makeRing（补丁 3b 没生效）'
+    assert 'await makeRing(shared)' in _sky, 'sky.js 副本里 buildSky 没有 await makeRing(shared)（补丁 3b 没生效）'
+    assert 'if (k > 0) await __stage();' in _sky, 'sky.js 副本的 makeRing 循环里没有分段让出（补丁 3b 没生效）'
 
     # ---- 打包。声音版编译到 ES2017（Chrome 61 / Android 8.1 WebView 的基线）：esbuild 会把 ?. ?? catch {} 类字段对象展开等降级；
     #      旧版是 ES2019，里面的 catch {}（Chrome 66+）在老安卓上会让整个 game.js 解析失败。
@@ -320,6 +459,10 @@ def main():
         index = INDEX_LEGACY
     else:
         index = INDEX_AUDIO.replace('{cfg}', '' if a.release else '<script src="./audio_cfg.js"></script>\n')
+        if not a.ark:   # 存档层在 compat.js 之后、rotate.js 之前；口袋方舟包不带它
+            index = index.replace('<script src="./rotate.js"></script>\n',
+                                  '<script src="./storage_xhs.js"></script>\n<script src="./rotate.js"></script>\n')
+            assert index.count('./storage_xhs.js') == 1, 'index.html 里没找到 storage_xhs.js 的位置'
         if a.ark:   # ark_cfg.js 要在 rotate.js 读它之前加载
             index = index.replace('<script src="./rotate.js"></script>\n', '<script src="./ark_cfg.js"></script>\n<script src="./rotate.js"></script>\n')
             assert index.count('./ark_cfg.js') == 1, 'index.html 里没找到 rotate.js 的位置'
@@ -347,6 +490,8 @@ def main():
         assert not [f for f in found if f[0] == '布局'], 'style.css 里还有 Chrome 61 会塌掉布局的写法，停止出包'
         shutil.copy(os.path.join(HERE, 'compat.js'), os.path.join(DIST, 'compat.js'))
         shutil.copy(os.path.join(HERE, 'audio_out.js'), os.path.join(DIST, 'audio_out.js'))
+        if not a.ark:
+            shutil.copy(os.path.join(HERE, 'storage_xhs.js'), os.path.join(DIST, 'storage_xhs.js'))
         if a.ark:
             wr(os.path.join(DIST, 'ark_cfg.js'), '// 口袋方舟版：rotate.js 读到它就不旋转竖屏、不改事件坐标和元素矩形读数（平台 WebView 本来就是横屏）。build.py --ark 生成。\nwindow.__RLP_NOROT = true;\n')
         if not a.release:
@@ -358,6 +503,12 @@ def main():
 
     # ---- 自检
     game = rd(os.path.join(DIST, 'game.js'))
+    # willReadFrequently（补丁 3b）：压缩后的 game.js 里应该 >= 9 处 = sky.js 的 cpuCanvas 1 处（改前就有）
+    #   + 本次新加的 8 处（materials.js 1、props_inner.js 1、props_lake.js 3、buildings.js 1、props_p3_grove.js 2）。
+    #   改前实测 1 处；2026-10-27 改后实测 9 处（esbuild 只压掉注释和空白，对象键名保留）。
+    _n_wrf = game.count('willReadFrequently')
+    print(f'game.js 里的 willReadFrequently：{_n_wrf} 处（改前 1 处，期望 >= 9）')
+    assert _n_wrf >= 9, f'game.js 里只有 {_n_wrf} 处 willReadFrequently（应 >= 9：CPU 画布补丁没进包）'
     print('game.js 里的禁用写法（只报告）：', {k: game.count(k) for k in BANNED if game.count(k)} or '无')
     own = rd(os.path.join(DIST, 'rotate.js')) + index
     assert not re.search(r'<script(?![^>]*\bsrc=)[^>]*>', index), 'index.html 里有内联脚本'
@@ -373,6 +524,19 @@ def main():
         assert not any(k in out_js for k in ('blob:', 'createObjectURL', 'data:')), 'audio_out.js 里有 data: / blob: 地址'
         assert out_js.count('new Audio(') == 1 and game.count('new Audio(') == 0, '<audio> 元素只应该在 audio_out.js 里创建一次'
         print('game.js 里的媒体地址相关写法（three.js 的加载器可能提到，游戏没调用，只报告）：', {k: game.count(k) for k in MEDIA_URL if game.count(k)} or '无')
+        if not a.ark:
+            # 存档层接管后，state.js 里不应再有直接读写 window.localStorage 的存档路径（例外键和 progress.js 的裸 localStorage 不受影响）
+            assert game.count('window.localStorage.getItem') == 0, 'game.js 里还残留 window.localStorage.getItem（state.js 的存储补丁没打全）'
+            assert game.count('window.localStorage.setItem') == 0, 'game.js 里还残留 window.localStorage.setItem（state.js 的存储补丁没打全）'
+            assert '__RLP_STORE' in game, 'game.js 里没有存档层补丁'
+            store_js = rd(os.path.join(DIST, 'storage_xhs.js'))
+            for bad in ('eval(', 'new Function', 'fetch(', 'XMLHttpRequest'):
+                assert bad not in store_js, f'storage_xhs.js 里有容器禁用 / 不安全的写法：{bad}'
+            assert './storage_xhs.js' in index and './rotate.js' in index and index.index('./storage_xhs.js') < index.index('./rotate.js'), \
+                'index.html 里 storage_xhs.js 必须在 rotate.js 之前'
+        else:
+            assert not os.path.exists(os.path.join(DIST, 'storage_xhs.js')), '口袋方舟包不应该带 storage_xhs.js'
+            assert './storage_xhs.js' not in index and '__RLP_STORE' not in game, '口袋方舟包不应该打小红书存储补丁'
         run_es2017_gate(DIST)
         # 不压缩副本上的接口提示（只报告：每一条人工判断有没有保护 / 垫片）
         node = shutil.which('node')
