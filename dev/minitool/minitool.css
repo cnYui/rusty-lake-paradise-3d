@@ -52,6 +52,19 @@ html.no-flexgap #boot::before { margin-bottom: 1.1em; }
 }
 #stage.boot-early #boot:not(.error)::before { width: 1.1em; height: 1.1em; border-width: 0.16em; border-color: rgba(30, 40, 44, 0.25); border-top-color: rgba(30, 40, 44, 0.8); }
 html.no-flexgap #stage.boot-early #boot:not(.error)::before { margin-bottom: 0; margin-right: 0.7em; }
+/* 玩家已经选了章节、世界还在后台搭：把载入提示放大成盖住整个画面框的深色遮罩，文字和转圈改成白色，
+   并吃掉这段时间里的点击，避免看起来“点了没反应”。#boot.error 仍走原来的报错样式，不受影响。 */
+#stage.boot-early.boot-queued #boot:not(.error) {
+  inset: 0; z-index: 50; height: auto; padding: 0;
+  background: rgba(20, 24, 26, 0.62); color: #fff;
+  flex-direction: column; gap: 1.1em; font-size: 1.7em; letter-spacing: 0.12em; text-align: center;
+  pointer-events: auto; text-shadow: 0 0.08em 0.5em rgba(0, 0, 0, 0.55);
+}
+#stage.boot-early.boot-queued #boot:not(.error)::before {
+  width: 3.2em; height: 3.2em; border-width: 0.24em;
+  border-color: rgba(255, 255, 255, 0.28); border-top-color: #fff;
+}
+html.no-flexgap #stage.boot-early.boot-queued #boot:not(.error)::before { margin-bottom: 1.1em; margin-right: 0; }
 
 
 /* 报错横幅 / 排查面板（rotate.js 建在 #rot 里，跟着游戏一起转） */

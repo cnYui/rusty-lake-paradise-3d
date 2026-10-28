@@ -1560,6 +1560,19 @@ export const ui = {
             audio.sfx('wrong');
             card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
             status.textContent = st === 'locked' && need ? `${c.label.zh} · ${c.title.zh} —— 通关${need.label.zh}后解锁` : `${c.label.zh} · ${c.title.zh} —— 敬请期待`;
+            // 锁卡不只有音效和抖一下：再弹一个菜单面板写清楚原因。先收掉旧面板，避免连点几张锁卡叠成两层。
+            m.querySelectorAll('.menu-panel').forEach((old) => old.remove());
+            if (st === 'locked') {
+              const p = panel(m, '未解锁');
+              h('p', '', p, need ? `${c.label.zh} · ${c.title.zh} 要先通关${need.label.zh}才能玩。` : '这一章暂时还不能玩。');
+              const row = h('div', 'btn-row', p);
+              h('button', 'btn', row, '知道了').addEventListener('click', () => p.parentNode.remove());
+            } else {
+              const p = panel(m, '敬请期待');
+              h('p', '', p, `${c.label.zh} 还在制作中，敬请期待。`);
+              const row = h('div', 'btn-row', p);
+              h('button', 'btn', row, '知道了').addEventListener('click', () => p.parentNode.remove());
+            }
             return;
           }
           if (liveSave(c)) chooseContinue(c);
@@ -1582,8 +1595,10 @@ export const ui = {
         h('button', 'btn', row, '重新开始').addEventListener('click', () => finish({ number: c.number, fresh: true }));
       };
       play.addEventListener('click', () => {
-        if (!resume) return;
-        finish({ number: resume.number, fresh: !resumeSave });
+        // ▶ 优先继续最近玩的那一章；没有可继续的章节时退回第一个可玩章节，别让点击完全没反应。
+        if (resume) { finish({ number: resume.number, fresh: !resumeSave }); return; }
+        if (!first) return;
+        finish({ number: first.number, fresh: !liveSave(first) });
       });
       newBtn.addEventListener('click', () => {
         audio.unlock();

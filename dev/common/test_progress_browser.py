@@ -80,6 +80,22 @@ def status(page):
     return page.evaluate("document.querySelector('.menu-status') ? document.querySelector('.menu-status').textContent : null")
 
 
+def locked_panel(page):
+    """锁卡弹出的菜单面板：{ title: h2 文字, text: 面板全文 }，没有面板时 None。"""
+    return page.evaluate("""() => {
+      const p = document.querySelector('.menu-panel');
+      if (!p) return null;
+      const h = p.querySelector('h2');
+      return { title: h ? h.textContent : '', text: p.textContent };
+    }""")
+
+
+def close_locked_panel(page):
+    """点锁卡面板里的“知道了”，等面板消失。"""
+    page.click('.menu-panel .btn-row .btn')
+    return poll(page, "!document.querySelector('.menu-panel')", 10)
+
+
 def profile(page):
     return page.evaluate("JSON.parse(localStorage.getItem('rlp3d.profile') || 'null')")
 
@@ -149,6 +165,9 @@ def run(env):
     page.click('.plague:nth-child(2)')
     check('A1 真实点锁着的第二灾：留在菜单、提示“通关第一灾后解锁”',
           page.evaluate('RLP.ctx.ui.menu.visible') is True and status(page) == '第二灾 · 蛙灾 —— 通关第一灾后解锁', status(page))
+    p = locked_panel(page)
+    check('A1 锁卡额外弹出“未解锁”面板，写明要先通关第一灾', p and p['title'] == '未解锁' and '要先通关' in p['text'], p)
+    check('A1 点“知道了”关掉锁卡面板', close_locked_panel(page))
     open_panel(page, 2)
     g = ach_groups(page)
     check('A2 成就面板按章节分组：第一灾 0 / 5，第二灾 0 / 3，第三灾 0 / 5', [x[:2] for x in g][:3] == [['第一灾 · x灾', '0 / 5'], ['第二灾 · 蛙灾', '0 / 3'], ['第三灾 · 蚊灾和虱灾', '0 / 5']], g)
@@ -313,6 +332,10 @@ def run(env):
     check('F1 触屏横屏启动首页', env.open(page))
     page.tap('.plague:nth-child(2)')
     check('F1 触屏轻点锁着的第二灾：提示“通关第一灾后解锁”，仍在菜单', status(page) == '第二灾 · 蛙灾 —— 通关第一灾后解锁' and page.evaluate('RLP.ctx.ui.menu.visible') is True, status(page))
+    p = locked_panel(page)
+    check('F1 触屏点锁卡额外弹出“未解锁”面板，写明要先通关第一灾', p and p['title'] == '未解锁' and '要先通关' in p['text'], p)
+    page.tap('.menu-panel .btn-row .btn')
+    check('F1 触屏点“知道了”关掉锁卡面板', poll(page, "!document.querySelector('.menu-panel')", 10))
     start_ch1(page)
     clear_ch1_and_ending(page, auto=False, time_scale=25)
     check('F2 触屏结尾卡出现两个按钮', wait_ending_buttons(page))
@@ -339,6 +362,9 @@ def run(env):
         if not third_open:
             page.click('.plague:nth-child(3)')
             check(f'G1 {label}：点第三灾留在菜单，提示“{msg.split("—— ")[1]}”', page.evaluate('RLP.ctx.ui.menu.visible') is True and status(page) == msg, status(page))
+            p = locked_panel(page)
+            check(f'G1 {label}：锁卡额外弹出“未解锁”面板，写明要先通关', p and p['title'] == '未解锁' and '要先通关' in p['text'], p)
+            check(f'G1 {label}：点“知道了”关掉锁卡面板', close_locked_panel(page))
             check(f'G1 {label}：▶ 不会指向第三灾', page.evaluate('RLP.chapter.number') != 3)
         else:
             check(f'G1 {label}：菜单提示“下一章：第三灾 · 蚊灾和虱灾”，启动直接装载第三灾', status(page) == '下一章：第三灾 · 蚊灾和虱灾' and page.evaluate('RLP.chapter.number') == 3, status(page))
