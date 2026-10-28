@@ -272,6 +272,32 @@ def run():
             results['book_real_clicks'] = True
             print('书视图真实翻页、边界禁用、返回合书与重进恢复通过', flush=True)
 
+            # 捕鸟陷阱的等待反馈：支好石板、放好虫子后鸟已经出现，但苍蝇人还没吃兔子时，
+            # 点鸟必须说“先让它吃掉兔子”，不能没反应或重复盘沿提示；吃完兔子后同一个点就能吃鸟。
+            page.evaluate('async () => await RLP.start(4,{skipIntro:true,fresh:true,view:"trap"})')
+            page.evaluate("""() => {
+              const c = RLP.ctx;
+              for (const [k, v] of Object.entries({ p4_fly_awake: true, p4_crab_eaten: true,
+                p4_rabbit_eaten: false, p4_trap_propped: true, p4_trap_baited: true })) c.setFlag(k, v);
+              RLP.chapter.sync(c);
+              c.ui.clearSay();
+              document.querySelector('.band-text').textContent = '';
+            }""")
+            assert page.evaluate('RLP.ctx.p4.world.bird.visible')
+            assert page.evaluate("RLP.ctx.hotspots.enabled('bird_wait')")
+            assert not page.evaluate("RLP.ctx.hotspots.enabled('bird_meal')")
+            real_click(page, 'bird_wait')
+            said = page.evaluate("document.querySelector('.band-text').textContent.trim()")
+            assert '先让它吃掉兔子' in said, said
+            assert not page.evaluate('RLP.state.flag("p4_bird_eaten")')
+            page.evaluate("""() => { RLP.ctx.setFlag('p4_rabbit_eaten', true); RLP.chapter.sync(RLP.ctx); }""")
+            assert not page.evaluate("RLP.ctx.hotspots.enabled('bird_wait')")
+            assert page.evaluate("RLP.ctx.hotspots.enabled('bird_meal')")
+            real_click(page, 'bird_meal')
+            assert page.evaluate('!!RLP.state.flag("p4_bird_eaten")')
+            results['trap_bird_wait_feedback'] = said
+            print('捕鸟陷阱等待提示与吃完兔子后进食通过', flush=True)
+
             page.evaluate('async () => await RLP.start(4,{skipIntro:true,fresh:true,view:"house_clearing"})')
             page.evaluate('RLP.roamTo([5,1.8,-3.5],[3,1.5,-11.2])')
             outside = page.evaluate('RLP.ctx.views.roamInfo().pos')

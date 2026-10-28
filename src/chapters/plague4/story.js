@@ -80,7 +80,14 @@ export function setup(ctx) {
   });
   // 陷阱的点击盒（整块翘起的石板、板下的空地和旁边的鸟）在 world.js 的 fatten 里挂
   hs('bird_trap', ['trap'], W.trap, {
-    when: () => !ctx.flag('p4_bird_eaten'), onClick: () => ctx.say(T.trap),
+    when: () => !ctx.flag('p4_bird_eaten'), onClick: () => {
+      const propped = !!ctx.flag('p4_trap_propped'), baited = !!ctx.flag('p4_trap_baited');
+      // 陷阱已经支好、虫子也放了：鸟在板下，提示和点鸟时一样，告诉玩家还差什么才能吃。
+      if (propped && baited) return ctx.say(T.preyWait('bird', !!ctx.flag('p4_fly_awake')));
+      if (propped) return ctx.say(T.trapPropped);
+      if (baited) return ctx.say(T.trapBaited);
+      return ctx.say(T.trap);
+    },
     onItem: {
       // 树枝有三根，take 之后树枝仍留在选中状态，再点虫子会变成“树枝 + 虫子”合成失败：用完立刻取消选中
       branch: async () => { if (ctx.flag('p4_trap_propped')) { noItem(ctx); return; } ctx.take('branch'); noItem(ctx); ctx.setFlag('p4_trap_propped'); refresh(ctx); },
@@ -96,6 +103,16 @@ export function setup(ctx) {
     const ready = () => ctx.flag('p4_fly_awake') && !ctx.flag(`p4_${id}_eaten`) && (
       id === 'crab' ? count(ctx, 'p4_crab_round') === 3 : id === 'rabbit' ? ctx.flag('p4_crab_eaten') && ctx.flag('p4_rabbit_lured')
         : ctx.flag('p4_rabbit_eaten') && ctx.flag('p4_trap_propped') && ctx.flag('p4_trap_baited'));
+    // 猎物已经出现在场景里（是否还活着另说）
+    const appeared = () => (id === 'crab' ? count(ctx, 'p4_crab_round') === 3
+      : id === 'rabbit' ? !!ctx.flag('p4_rabbit_lured')
+        : !!ctx.flag('p4_trap_propped') && !!ctx.flag('p4_trap_baited'));
+    // 同一对象挂多个热点时后者优先：先注册“还不能吃”，ready 后由 ${id}_meal 接手。
+    // 猎物出现了但苍蝇人还没孵化 / 还没轮到它，点上去必须说清楚，不能没有反应。
+    hs(`${id}_wait`, [view], prey, {
+      when: () => appeared() && !ctx.flag(`p4_${id}_eaten`) && !ready(),
+      onClick: () => ctx.say(T.preyWait(id, !!ctx.flag('p4_fly_awake'))),
+    });
     hs(`${id}_meal`, [view], prey, { when: ready, onClick: async () => {
       await ctx.cutscene(async () => {
         const start = W.fly.position.clone(), target = prey.position.clone(); target.y += 0.35;
