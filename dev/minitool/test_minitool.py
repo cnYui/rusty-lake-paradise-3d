@@ -202,6 +202,11 @@ with sync_playwright() as p:
     time.sleep(0.5)
     check('空档触摸锁着的“第二灾”：留在菜单，提示通关第一灾后解锁',
           page.evaluate("RLP.ctx.ui.menu.visible === true && document.querySelector('.menu-status').textContent") == '第二灾 · 蛙灾 —— 通关第一灾后解锁')
+    check('空档触摸锁卡：额外弹出“未解锁”面板，写明要先通关第一灾',
+          page.evaluate("(() => { const p = document.querySelector('.menu-panel'), h = p && p.querySelector('h2'); return !!p && !!h && h.textContent === '未解锁' && p.textContent.indexOf('要先通关') >= 0; })()"))
+    r = vrect(page, '.menu-panel .btn-row .btn')
+    tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+    check('空档触摸点“知道了”关掉锁卡面板', poll(page, "!document.querySelector('.menu-panel')", 10))
     ctx.close()
 
     cleared = "if (!localStorage.getItem('rlp3d.profile')) localStorage.setItem('rlp3d.profile', JSON.stringify({ v: 1, ach: {}, cleared: { plague1: { t: 1760000000000 } } }));"
@@ -278,6 +283,11 @@ with sync_playwright() as p:
             time.sleep(0.5)
             check(f'{label}：第三灾锁着，真实触摸点它留在菜单并提示“通关第二灾后解锁”',
                   'gated' in cls[2] and page.evaluate("RLP.ctx.ui.menu.visible === true && document.querySelector('.menu-status').textContent") == '第三灾 · 蚊灾和虱灾 —— 通关第二灾后解锁', cls)
+            check(f'{label}：第三灾锁卡额外弹出“未解锁”面板，写明要先通关',
+                  page.evaluate("(() => { const p = document.querySelector('.menu-panel'), h = p && p.querySelector('h2'); return !!p && !!h && h.textContent === '未解锁' && p.textContent.indexOf('要先通关') >= 0; })()"))
+            r = vrect(page, '.menu-panel .btn-row .btn')
+            tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+            check(f'{label}：真实触摸“知道了”关掉锁卡面板', poll(page, "!document.querySelector('.menu-panel')", 10))
         else:
             check(f'{label}：第三灾开放，页面启动时直接装载第三灾（▶ 指向它）', 'open' in cls[2] and 'gated' not in cls[2] and page.evaluate('RLP.chapter.number') == 3, cls)
 
@@ -504,8 +514,10 @@ with sync_playwright() as p:
     r = vrect(page, '.menu-play')
     tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
     check('世界没搭好时真实触摸 ▶：菜单提示“正在载入”', poll(page, "(document.querySelector('.menu-status') || {}).textContent && document.querySelector('.menu-status').textContent.indexOf('正在载入') >= 0", 10))
+    check('世界没搭好时点了 ▶：#stage 盖上 boot-queued 载入遮罩', page.evaluate("document.getElementById('stage').classList.contains('boot-queued')"))
     assert poll(page, 'window.RLP && RLP.ready === true', 300), '世界一直没搭好'
     assert page.evaluate('RLP.bootError') is None, page.evaluate('RLP.bootError')
+    check('世界搭好后去掉 boot-queued 载入遮罩', page.evaluate("!document.getElementById('stage').classList.contains('boot-queued')"))
     # 第一灾的开场过场要播很久，state.view 要等它播完才有：这里只看“菜单收起、章节已开始（开始写存档）”
     check('世界搭好后自动进入第一灾，菜单收起', poll(page, "!document.querySelector('.menu.show') && RLP.state.saving === true", 120), page.evaluate('[RLP.state.chapter, RLP.state.saving, !!document.querySelector(".menu.show")]'))
     check('进入游戏后画布显示出来（去掉提前菜单的 boot-early）', page.evaluate("!document.getElementById('stage').classList.contains('boot-early') && getComputedStyle(document.getElementById('game')).visibility === 'visible'"))

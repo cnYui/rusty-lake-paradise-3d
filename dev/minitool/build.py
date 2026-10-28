@@ -170,21 +170,23 @@ def main():
          "async function boot() {\n  await __stage('初始化画面…');\n  const canvas = document.getElementById('game');\n"),
         # 3c 标题菜单提前出现：审核说“页面按钮无法点击”（V1.0.10 / V1.0.11 连续两次），模拟器里能点，但原来菜单要等建世界 + 编译着色器全部做完才出现
         #    （桌面 6 秒，慢手机十几二十秒，期间满屏“载入中”，点什么都没反应）。核心（界面 / 存档 / 音频）初始化完就把标题菜单画出来，
-        #    世界在后台继续搭；提前点了开始 / 章节就排队，世界搭好再进（菜单上写“正在载入”）。载入提示缩成屏幕下方一行小字（minitool.css 的 .boot-early）。
+        #    世界在后台继续搭；提前点了开始 / 章节就排队，世界搭好再进（菜单上写“正在载入”，并盖上 minitool.css 的半透明载入遮罩，吃掉落点）。
         ("  if (DEMO && q.get('world') !== '1') {\n    world = buildStubWorld(engine);\n",
          "  if (!AUTOTEST && !DEMO && !SWITCH && !(q.has('view') || q.get('skipIntro') === '1' || q.has('chapter'))) {\n"
          "    document.getElementById('stage').classList.add('boot-early');\n"
          "    __earlyChoice = ui.menu.show(CHAPTERS);\n"
          "    __earlyChoice.then(() => {\n"
          "      const m = document.querySelector('.menu'), st = document.querySelector('.menu-status');\n"
+         "      const stage = document.getElementById('stage');\n"
          "      if (m) m.style.pointerEvents = 'none';\n"
          "      if (st) st.textContent = '正在载入，马上开始……';\n"
+         "      if (stage) stage.classList.add('boot-queued');\n"
          "    });\n"
          "  }\n"
          "  if (DEMO && q.get('world') !== '1') {\n    world = buildStubWorld(engine);\n"),
         ("  const choice = await ui.menu.show(CHAPTERS);\n", "  const choice = await (__earlyChoice || ui.menu.show(CHAPTERS));\n"),
         ("  engine.start();\n  document.getElementById('boot')?.remove();\n",
-         "  engine.start();\n  document.getElementById('boot')?.remove();\n  document.getElementById('stage').classList.remove('boot-early');\n"),
+         "  engine.start();\n  document.getElementById('boot')?.remove();\n  document.getElementById('stage').classList.remove('boot-early', 'boot-queued');\n"),
         ("    mark('worldImport');\n    await preloadModels(['tower']);   // 岛上的石塔是网格模型，世界建好之前先加载（失败回退程序化塔）\n    world = buildWorld(engine);\n",
          "    mark('worldImport');\n    await __stage('搭建小岛…');\n    world = await buildWorld(engine);\n"),
         ("  await ensureChapter(bootChapterNumber());\n"
