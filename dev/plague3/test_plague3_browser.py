@@ -34,6 +34,156 @@ def settle(page):
     page.evaluate('async () => { RLP.ctx.views.dropPointer(); await RLP.idle(); }')
 
 
+TARGET = """id => {
+  const c = RLP.ctx, spec = c.hotspots.get(id);
+  if (!spec || !c.hotspots.enabled(id)) throw new Error('热点不可用：' + id);
+  c.world.root.updateMatrixWorld(true); c.engine.camera.updateMatrixWorld(true);
+  const rect = c.engine.canvas.getBoundingClientRect(), points = [];
+  const addBox = o => {
+    const b = new c.THREE.Box3().setFromObject(o), p = new c.THREE.Vector3();
+    if (b.isEmpty()) return;
+    for (const x of [0.5,0.25,0.75,0.1,0.9]) for (const y of [0.5,0.25,0.75,0.1,0.9]) {
+      p.set(b.min.x+(b.max.x-b.min.x)*x,b.min.y+(b.max.y-b.min.y)*y,(b.min.z+b.max.z)/2);
+      points.push(p.clone());
+    }
+    b.getCenter(p); points.unshift(p.clone());
+  };
+  addBox(spec.object);
+  spec.object.traverse(o => { if (o.isMesh && o.visible) addBox(o); });
+  for (const p of points) {
+    p.project(c.engine.camera);
+    if (p.z > 1 || p.z < -1 || Math.abs(p.x)>.98 || Math.abs(p.y)>.96) continue;
+    const x = rect.left+(p.x+1)*rect.width/2, y=rect.top+(1-p.y)*rect.height/2;
+    if (c.hotspots.pickAt(x,y)?.spec.id === id && document.elementFromPoint(x,y) === c.engine.canvas) return {x,y};
+  }
+  throw new Error('画面中找不到可点击的射线：' + id + '，视图：' + c.state.view);
+}"""
+
+
+def detail(page):
+    try:
+        return page.evaluate("""() => ({ view: RLP.state.view, roam: RLP.ctx.views.roamInfo(),
+          errors: RLP.errors.slice(-2).map(String) })""")
+    except Exception as exc:
+        return f'页面不可用：{exc}'
+
+
+def grove_click(page, id, touch=False):
+    """真实鼠标 / 手指点一个热点：漫游时先转身面对它（和第四灾验收同一套做法）。"""
+    page.evaluate("""async id => {
+      const c = RLP.ctx;
+      await Promise.all(c.engine.canvas.getAnimations().map(a => a.finished)); await RLP.idle();
+      if (c.views.freeMode) {
+        c.world.root.updateMatrixWorld(true);
+        const target = new c.THREE.Box3().setFromObject(c.hotspots.get(id).object).getCenter(new c.THREE.Vector3());
+        RLP.roamTo(c.engine.camera.position.toArray(), target.toArray());
+        c.views.dropPointer(); await RLP.idle();
+      }
+    }""", id)
+    point = page.evaluate(TARGET, id)
+    if touch:
+        page.touchscreen.tap(point['x'], point['y'])
+    else:
+        page.mouse.click(point['x'], point['y'])
+    settle(page)
+    return point
+
+
+def test_grove_exit(browser, base):
+    """白桦林南面缺口：看得见的出口标记、点击出口、键盘后退 / 触屏摇杆走出去，且不会重复触发。"""
+    # ---------------- 桌面：真实鼠标进出，键盘后退自动离开
+    errors = []
+    page = browser.new_page(viewport={'width': 1280, 'height': 720})
+    page.on('pageerror', lambda e: errors.append('桌面：' + str(e)))
+    try:
+        boot(page, base)
+        page.evaluate("""async () => {
+          await RLP.start(3, { fresh: true, skipIntro: true, view: 'forest_clearing', flags: 'p3_xtree_felled' });
+        }""")
+        settle(page)
+        grove_click(page, 'p3_grove_entry')
+        check('真实鼠标点 p3_grove_entry 进入白桦林', page.evaluate('RLP.state.view') == 'p3_grove', detail(page))
+        grove_click(page, 'p3_grove_exit')
+        check('真实鼠标点 p3_grove_exit 回到森林空地', page.evaluate('RLP.state.view') == 'forest_clearing', detail(page))
+
+        grove_click(page, 'p3_grove_entry')
+        check('第二次点入口进入白桦林', page.evaluate('RLP.state.view') == 'p3_grove', detail(page))
+        page.keyboard.down('ArrowDown')
+        try:
+            page.wait_for_function("RLP.state.view === 'forest_clearing'", timeout=6000)
+            walked = True
+        except Exception:
+            walked = False
+        finally:
+            page.keyboard.up('ArrowDown')
+        check('按住 ArrowDown 后退，从南面缺口自动走出白桦林', walked, detail(page))
+        settle(page)
+        page.wait_for_timeout(500)
+        check('走出去只触发一次（0.5 秒后仍在森林空地，没有报错）',
+              page.evaluate('RLP.state.view') == 'forest_clearing' and not page.evaluate('RLP.errors'), detail(page))
+
+        grove_click(page, 'p3_grove_entry')
+        pos = page.evaluate('RLP.ctx.views.roamInfo().pos')
+        ok = page.evaluate('RLP.state.view') == 'p3_grove' and abs(pos[0] - 600) < 0.25 and abs(pos[2] - 6.4) < 0.35
+        check('再进一次出生点仍在入口（相对 z≈6.4）', ok, detail(page))
+    except Exception as exc:
+        check('白桦林出口（桌面）流程执行完毕', False, f'{exc}; {detail(page)}')
+    finally:
+        check('白桦林出口（桌面）没有未捕获的错误', not errors, '; '.join(errors[:3]))
+        page.close()
+
+    # ---------------- 竖屏触摸：轻点进出，CDP 摇杆走出去
+    errors = []
+    mobile = browser.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True)
+    phone = mobile.new_page()
+    phone.on('pageerror', lambda e: errors.append('竖屏：' + str(e)))
+    try:
+        boot(phone, base)
+        phone.evaluate("""async () => {
+          await RLP.start(3, { fresh: true, skipIntro: true, view: 'forest_clearing', flags: 'p3_xtree_felled' });
+        }""")
+        settle(phone)
+        # 竖屏的“请把手机横过来”提示层会挡住画布；它只是提示，测试里临时隐藏。
+        phone.evaluate("() => { const r = document.querySelector('.rotate-hint'); if (r) r.style.display = 'none'; }")
+        touch_mode = phone.evaluate('RLP.ctx.ui.touchMode')
+        if not touch_mode:
+            # 桌面内核的 Playwright 只有收到触摸后才切到触屏界面；真机 pointer: coarse 启动时已经是触屏。
+            phone.touchscreen.tap(4, 4)
+            touch_mode = phone.evaluate('RLP.ctx.ui.touchMode')
+        check('竖屏触屏：识别为触屏界面', touch_mode, detail(phone))
+
+        grove_click(phone, 'p3_grove_entry', touch=True)
+        check('竖屏轻点 p3_grove_entry 进入白桦林', phone.evaluate('RLP.state.view') == 'p3_grove', detail(phone))
+        grove_click(phone, 'p3_grove_exit', touch=True)
+        check('竖屏轻点 p3_grove_exit 回到森林空地', phone.evaluate('RLP.state.view') == 'forest_clearing', detail(phone))
+
+        grove_click(phone, 'p3_grove_entry', touch=True)
+        check('竖屏再次轻点入口进入白桦林', phone.evaluate('RLP.state.view') == 'p3_grove', detail(phone))
+        rect = phone.evaluate("""() => { const r = document.getElementById('game').getBoundingClientRect();
+          return { x: r.x, y: r.y, w: r.width, h: r.height }; }""")
+        x, y = rect['x'] + rect['w'] * 0.18, rect['y'] + rect['h'] * 0.62
+        cdp = phone.context.new_cdp_session(phone)
+        cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [
+            {'x': x, 'y': y, 'id': 1, 'radiusX': 6, 'radiusY': 6, 'force': 1}]})
+        for i in range(1, 6):
+            cdp.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [
+                {'x': x, 'y': y + 16 * i, 'id': 1, 'radiusX': 6, 'radiusY': 6, 'force': 1}]})
+            phone.wait_for_timeout(30)
+        try:
+            phone.wait_for_function("RLP.state.view === 'forest_clearing'", timeout=8000)
+            stick_walked = True
+        except Exception:
+            stick_walked = False
+        cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
+        check('竖屏摇杆向下拖，从南面缺口自动走出白桦林', stick_walked, detail(phone))
+        settle(phone)
+    except Exception as exc:
+        check('白桦林出口（竖屏触摸）流程执行完毕', False, f'{exc}; {detail(phone)}')
+    finally:
+        check('白桦林出口（竖屏触摸）没有未捕获的错误', not errors, '; '.join(errors[:3]))
+        mobile.close()
+
+
 def run_steps(page, steps):
     return page.evaluate("""async steps => {
       RLP.timeScale = 1000;
@@ -179,6 +329,7 @@ def main():
         test_art_constants(page)
         test_autoplay(page)
         test_grove_gate_and_roam(page)
+        test_grove_exit(browser, base)
         test_checkpoints(page)
         page2 = browser.new_page(viewport={'width': 1280, 'height': 720})
         page2.on('pageerror', lambda e: errors.append(str(e)))
