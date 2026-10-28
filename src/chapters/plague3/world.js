@@ -60,10 +60,15 @@ export const W = {
   shedDoor: null,         // shed_door（门板 / 锁 / 门闩已隐藏）
   grove: null,            // p3_grove_set
   groveArea: null,        // 白桦林的漫游区域
+  groveExitPortal: null,  // 白桦林南面缺口处的出口标记（p3_grove_portal）
   houseArea: null,        // house_int 的漫游区域
   spots: SPOTS,
   removedColliders: null, // 删掉的第一灾碰撞（调试用）
 };
+
+// 白桦林南面缺口的“走出去”触发：setup 可能被调用多次（新游戏 / 读档），订阅前先取消旧的。
+let groveExitOff = null;
+let groveLeaving = false;
 
 export const instant = { instant: true };
 export const numberFlag = (ctx, key, fallback = 0) => Number(ctx.flag(key) ?? fallback);
@@ -205,6 +210,13 @@ export async function setup(ctx) {
   W.grove = placeProp(grove, 'p3_grove_set', GROVE_ORIGIN, { props: { lights: true } });
   W.groveArea = groveRoamAt(GROVE_ORIGIN);
   ctx.views.defineRoamArea('p3_grove', W.groveArea);
+  // 南面缺口的出口标记：复用森林入口的缺口造型（白桦 + 亮雾），转 180° 让正面朝 −z 面对玩家。
+  // 树干都在 z≈12.05 之后；玩家走到 z>10.8 就会自动离开，不会撞进树干。
+  W.groveExitPortal = placeProp(grove, 'p3_grove_portal', [GROVE_ORIGIN[0], 0, GROVE_ORIGIN[2] + 12.4], { rotY: Math.PI });
+  // 布景的背景幕（半径 7.5）会挡住标记自带的雾面（默认在树干后 1.2 m，世界 z≈13.6）。
+  // 把雾面挪到树干之间（世界 z≈12.4，四角离布景中心约 7.3 m，仍在半径 7.5 的背景幕内），从空地就能看见亮雾；模型本身不变。
+  const grovePortalFog = W.groveExitPortal.getObjectByName('portal_fog');
+  if (grovePortalFog) grovePortalFog.position.z = 0;
 
   // ---- 视图：总览（固定远景）+ 室外开放视图（漫游的出生机位、脚本和测试的传送目标，箭头不显示，
   //      但 back/left/right/up 写全，供 autoplay 的 reachable() 判断可达性）
@@ -243,7 +255,7 @@ export async function setup(ctx) {
     cam: { pos: [TEMPLE[0], 2.2, TEMPLE[2] + 3.5], target: [TEMPLE[0], 1.45, TEMPLE[2] - 1.2], fov: 50 },
     onEnter: (c) => { W.templeEnter?.(c); },       // 窗台上放着花时，再进神殿鹦鹉会飞来（temple.js 设置）
   });
-  // ---- 白桦林：可走动。进来时站在入口、面朝圆桌和神龛。返回走入口缺口的热点（没有 ▼）
+  // ---- 白桦林：可走动。进来时站在入口、面朝圆桌和神龛；出口在南面缺口，可以点出口标记，也可以直接走出去（没有 ▼）
   const L = GROVE_LAYOUT;
   ctx.views.define({
     id: 'p3_grove', zone: 'p3_grove', roam: true, back: 'forest_clearing',
@@ -268,9 +280,23 @@ export async function setup(ctx) {
   ctx.hotspots.define({ id: 'house_exit', views: ['house_int'], object: houseExit, cursor: 'zoom', goto: 'house_clearing' });
   const templeEntry = ctx.hotspots.makeProxy(3, 3, 2, [30.5, 1.4, -35.7], ext);
   ctx.hotspots.define({ id: 'temple_entry', views: ['temple_door'], object: templeEntry, cursor: 'zoom', goto: 'temple_int' });
-  // 白桦林出口：入口缺口（南面）。站在林间空地里点那一片缺口，回到森林里进来前的位置
-  const groveExit = ctx.hotspots.makeProxy(3.4, 2.8, 0.5, [GROVE_ORIGIN[0] + L.entry.pos[0], 1.4, GROVE_ORIGIN[2] + L.entry.pos[2] + 1.1], grove);
+  // 白桦林出口：南面缺口（入口身后）。缺口里放着看得见的出口标记；热点代理盒放在标记前面，
+  // 玩家站在空地里点缺口就能回到森林里进来前的位置。也可以直接朝南走出去（见下面的 onUpdate）。
+  const groveExit = ctx.hotspots.makeProxy(3.4, 2.8, 0.5, [GROVE_ORIGIN[0], 1.4, GROVE_ORIGIN[2] + 11.6], grove);
   ctx.hotspots.define({ id: 'p3_grove_exit', views: ['p3_grove'], object: groveExit, cursor: 'zoom', goto: 'forest_clearing' });
+  // “走出去”触发：每帧看漫游位置（世界坐标换回布景相对坐标）。leaving 保证只触发一次，转场结束再复位；
+  // setup 重复调用时先取消旧订阅，避免新游戏 / 读档后叠加多个回调。
+  if (groveExitOff) { groveExitOff(); groveExitOff = null; }
+  groveLeaving = false;
+  groveExitOff = ctx.engine.onUpdate(() => {
+    if (groveLeaving || ctx.views.current?.id !== 'p3_grove' || !ctx.views.freeMode || ctx.views.transitioning || ctx.ui.locked) return;
+    const p = ctx.views.roamInfo().pos;
+    if (Math.abs(p[0] - GROVE_ORIGIN[0]) >= 1.6 || p[2] - GROVE_ORIGIN[2] <= 10.8) return;
+    groveLeaving = true;
+    ctx.go('forest_clearing', { fade: true })
+      .catch((err) => console.error('[p3] grove exit failed', err))
+      .finally(() => { groveLeaving = false; });
+  });
 }
 
 export function sync(ctx) {

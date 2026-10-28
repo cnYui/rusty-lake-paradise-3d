@@ -51,10 +51,12 @@ const SET_BIRCHES = [
 /** 给 views.defineRoamArea 用的可走范围（相对布景原点；布景放在 [600,0,0] 时用 groveRoamAt 换成世界坐标）。 */
 function buildRoam() {
   const circles = [];
-  // 沿空地外圈排一圈挡圆，把玩家限制在半径约 6.0 以内（岩壁 6.5、深色树干 7.0 之外）
-  for (let i = 0; i < 28; i++) {
+  // 沿空地外圈排一圈挡圆，把玩家限制在半径约 6.0 以内（岩壁 6.5、深色树干 7.0 之外）。
+  // 正南 i=0（相对 (0, 12.5)）是入口缺口，不放挡圆；相邻两颗往外挪 0.7 m，让走廊在 z≈10.8 附近有 3 m 多宽。
+  for (let i = 1; i < 28; i++) {
     const a = (i / 28) * TAU;
-    circles.push([C.x + Math.sin(a) * 7.1, C.z + Math.cos(a) * 7.1, 1.15]);
+    const ring = i === 1 || i === 27 ? 7.8 : 7.1;
+    circles.push([C.x + Math.sin(a) * ring, C.z + Math.cos(a) * ring, 1.15]);
   }
   for (const [x, z, , , r] of SET_BIRCHES) circles.push([x, z, Math.max(0.3, r * 2.2)]);
   circles.push([2.1, 3.3, 0.32]);                       // 浆果丛旁的白桦
