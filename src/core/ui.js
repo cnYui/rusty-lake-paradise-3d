@@ -1350,14 +1350,27 @@ export const ui = {
     // 游戏本来就会在每次变化后自动存档；这个按钮让玩家能手动存一次并看到结果（时间取存档里记下的 savedAt）
     const last = state.peekSave(state.chapter);
     const note = h('p', 'set-note', p, last && last.savedAt ? `上次保存：${fmtTime(last.savedAt)}（进度会自动保存）` : '进度会自动保存，也可以点“保存进度”立刻存一次。');
-    saveBtn.type = 'button';
-    saveBtn.addEventListener('click', () => {
-      audio.sfx('click');
-      if (this.locked) { note.textContent = '正在播放过场，结束后会自动保存。'; return; } // 半截状态不存（和自动存档一样）
-      if (state.save() && state.storageOk()) note.textContent = `已保存：${fmtTime(Date.now())}`;
-      else note.textContent = '这里不能保存进度，关掉后会从头开始。';
-    });
     const close = () => { el.modal.classList.remove('show'); el.modal.innerHTML = ''; modalCount = Math.max(0, modalCount - 1); views.refreshArrows(); };
+    saveBtn.type = 'button';
+    saveBtn.addEventListener('click', async () => {
+      audio.sfx('click');
+      // 暂停面板本身占着 el.modal，dialog 会被直接判成 null；先按 close() 收掉面板，弹完提示再重新打开。
+      let title = '';
+      let msg;
+      if (this.locked) {
+        msg = '正在播放过场，结束后会自动保存。'; // 半截状态不存（和自动存档一样）
+      } else if (state.save() && state.storageOk()) {
+        title = '已保存';
+        msg = `已保存：${fmtTime(Date.now())}`;
+      } else {
+        title = '无法保存';
+        msg = '当前环境无法保存进度，关掉后会从头开始。';
+      }
+      note.textContent = msg; // 旧行为：底部 note 也写一份，方便测试和回看
+      close();
+      await this.dialog({ title, lines: [msg], buttons: [{ label: '知道了', value: true }] });
+      this.openSettings(); // 包括 dialog 意外返回 null 的情况：不能让玩家停在没面板的状态
+    });
     resume.addEventListener('click', close);
     toMenu.addEventListener('click', () => { close(); state.save(); emit('menu'); });
     el.modal.classList.add('show');

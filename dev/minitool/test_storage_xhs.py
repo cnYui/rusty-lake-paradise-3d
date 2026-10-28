@@ -504,10 +504,34 @@ def run_game_tests(browser):
       const b = [...document.querySelectorAll('.panel .btn')].find(e => e.textContent === '保存进度');
       if (b) b.click();
     }""")
-    time.sleep(0.3)
-    note = page.evaluate("(document.querySelector('.panel .set-note') || {}).textContent || ''")
-    check('集成：setStorage 全部失败时，暂停面板“保存进度”提示不说“已保存”，而是不能保存',
-          '已保存' not in note and '不能保存' in note, note)
+    assert poll(page, "!!document.querySelector('.panel h2')", 10), '“保存进度”没有弹出提示框'
+    time.sleep(0.2)
+    box = page.evaluate("""() => {
+      const p = document.querySelector('.panel');
+      if (!p) return null;
+      const h2 = p.querySelector('h2');
+      return {
+        title: h2 ? h2.textContent : '',
+        body: [...p.querySelectorAll('p')].map(e => e.textContent).join('\\n'),
+        text: p.textContent || '',
+      };
+    }""")
+    check('集成：setStorage 全部失败时，点“保存进度”弹出“无法保存”提示框（不再只改底部小字）',
+          box and box['title'] == '无法保存' and '当前环境无法保存进度' in box['body']
+          and '已保存' not in box['text'], box)
+    page.evaluate("""() => {
+      const b = [...document.querySelectorAll('.panel .btn')].find(e => e.textContent === '知道了');
+      if (b) b.click();
+    }""")
+    assert poll(page, "!!document.querySelector('.panel h2')", 10), '点“知道了”后暂停面板没回来'
+    time.sleep(0.2)
+    box = page.evaluate("""() => {
+      const p = document.querySelector('.panel');
+      const h2 = p ? p.querySelector('h2') : null;
+      return { title: h2 ? h2.textContent : '', text: p ? p.textContent || '' : '' };
+    }""")
+    check('集成：点“知道了”关闭提示框后，暂停面板重新出现（标题“暂停”）',
+          box['title'] == '暂停', box['title'])
     check('集成：失败路径没有启动错误', page.evaluate('RLP.bootError') is None)
     clean(page, log, '集成（setStorage 全失败）')
     ctx.close()
