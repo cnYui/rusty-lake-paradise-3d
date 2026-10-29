@@ -290,7 +290,12 @@ def run():
             said = page.evaluate("document.querySelector('.band-text').textContent.trim()")
             assert '先让它吃掉兔子' in said, said
             assert not page.evaluate('RLP.state.flag("p4_bird_eaten")')
-            page.evaluate("""() => { RLP.ctx.setFlag('p4_rabbit_eaten', true); RLP.chapter.sync(RLP.ctx); }""")
+            # 按玩家反馈的顺序：兔子吃完、兔心已经拿去喂猫头鹰（压过一次），再回来处理鸟
+            page.evaluate("""() => { const c = RLP.ctx;
+              for (const [k, v] of Object.entries({ p4_rabbit_eaten: true, p4_crab_heart_taken: true,
+                p4_rabbit_heart_taken: true, p4_owl_count: 2, p4_owl_loaded: null })) c.setFlag(k, v);
+              RLP.chapter.sync(c); }""")
+            assert not page.evaluate("RLP.state.has('rabbit_heart')")
             assert not page.evaluate("RLP.ctx.hotspots.enabled('bird_wait')")
             assert page.evaluate("RLP.ctx.hotspots.enabled('bird_meal')")
             # 玩家反馈“兔子吃掉了还是吃不了鸟”：陷阱的大点击盒常挡在鸟前面，点到陷阱也必须直接进食
