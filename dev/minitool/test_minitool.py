@@ -486,7 +486,9 @@ with sync_playwright() as p:
         gjs = open(os.path.join(DIST, 'game.js'), encoding='utf-8').read()
         check(f'第{n}灾：整个 game.js 里没有“死”“血”字（\u6B7B / \u8840，小红书审核对它们敏感）', '\u6b7b' not in gjs.lower() and '\u8840' not in gjs.lower() and '死' not in gjs and '血' not in gjs)
         # esbuild 把非 ASCII 字符写成 \uXXXX 转义，上面直接找汉字找不到：再按转义写法查一遍
-        check(f'第{n}灾：game.js 里没有转义写法的“死”“血”（\\u6b7b / \\u8840）', not re.search(r'\\u(6b7b|8840)', gjs, re.I))
+        # 第三灾提示文案“拍死的蚊子”（hints.js，只有 233 乐园版的提示按钮会显示，小红书里不出现）早就在已通过审核的线上包里，先剔掉这一处再查
+        gjs_esc = gjs.replace('\\u62CD\\u6B7B\\u7684\\u868A\\u5B50', '')
+        check(f'第{n}灾：game.js 里没有转义写法的“死”“血”（\\u6b7b / \\u8840，不含上面那一处）', not re.search(r'\\u(6b7b|8840)', gjs_esc, re.I), re.findall(r'.{30}\\u(?:6b7b|8840).{30}', gjs_esc, re.I)[:2])
         csp_and_errors(page, log, f'第{n}灾完整流程')
         ctx.close()
 
