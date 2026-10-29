@@ -4,12 +4,14 @@ r"""验证小工具包（dev/minitool/dist）：按小红书容器的 CSP 起静
   2. 手机竖屏（390×844）：画面被转 90°，舞台是 16:9，按键和摇杆在屏幕上都看得见
   3. 转过来的画面里：真实触摸点标题菜单 → 开始游戏；轻点天堂门进入漫游；左侧拖动是摇杆（向前走）；右侧拖动转视角（方向对）
   4. 手机横屏（844×390）和电脑横向窗口不转；电脑上窄而高的窗口（小红书模拟器）照转
-  5. 完整流程 RLP.autoplay() 在竖屏转过来的画面里跑完
+  5. 完整流程 RLP.autoplay() 在竖屏转过来的画面里跑完（第一到第五灾；每章成就表里的成就都要拿到）
+  6. 第三灾的解锁顺序：没通关第一、二灾点不开；两章都通关后才开放，触摸点进去能玩
+  7. 第四、五灾的解锁顺序；通关第四灾的结尾卡出现“进入第五灾”，触摸点它进入第五灾；第五灾结尾卡后面没有可进入的章节
 
 用法：python dev/minitool/test_minitool.py [输出目录]
   环境变量 MINITOOL_DIST 指定要测的目录（默认 dev/minitool/dist，即旧版；声音版是 dev/minitool/dist-audio）
 """
-import functools, http.server, json, math, os, socketserver, sys, threading, time
+import functools, http.server, json, math, os, re, socketserver, sys, threading, time
 from playwright.sync_api import sync_playwright
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -155,8 +157,8 @@ with sync_playwright() as p:
 
     check('普通首页：没有启动错误，开始和三项菜单入口完整显示',
           page.evaluate("!RLP.bootError && !!document.querySelector('.menu.show .menu-play') && document.querySelectorAll('.menu-link').length === 3"))
-    check('章节菜单：第一、二灾开放，第四灾和开发中章节保持关闭',
-          page.evaluate("document.querySelectorAll('.plague').length === 10 && [...document.querySelectorAll('.plague.open .lbl')].map(e => e.textContent).join(',') === '第一灾,第二灾'"))
+    check('章节菜单（空档）：只有第一灾开放，第二到第五灾“未解锁”（要按顺序通关），第六灾及以后“敬请期待”',
+          page.evaluate("document.querySelectorAll('.plague').length === 10 && [...document.querySelectorAll('.plague.open .lbl')].map(e => e.textContent).join(',') === '第一灾' && [1, 2, 3, 4].every(i => document.querySelectorAll('.plague')[i].classList.contains('gated') && document.querySelectorAll('.plague')[i].textContent.indexOf('未解锁') >= 0) && [5, 6].every(i => !document.querySelectorAll('.plague')[i].classList.contains('open') && document.querySelectorAll('.plague')[i].textContent.indexOf('敬请期待') >= 0)"))
     for n, title in [(2, '成就'), (3, '设置')]:
         r = vrect(page, f'.menu-link:nth-child({n})')
         tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
@@ -188,13 +190,35 @@ with sync_playwright() as p:
     csp_and_errors(page, log, '竖屏标题')
     ctx.close()
 
-    # ------------------------------------------------------------------ 1b. 从标题菜单选第二灾：真实触摸点“II”，页面会重载一次（一个页面只能装一章）
-    # 小工具容器里这条路径之前没验证过：重载后要回到第二灾的片头，不能回到标题菜单，也不能反复重载。
+    # ------------------------------------------------------------------ 1b. 从标题菜单选第二灾：真实触摸点“II”
+    # 第二灾要先通关第一灾才解锁：先在空档下点一次“II”确认进不去，再用“已通关第一灾”的玩家档案点（档案跨启动保留在 localStorage）。
+    # 已通关第一灾的玩家启动时直接装载第二灾（main.js 的 bootChapterNumber 猜他会点 ▶），所以点“II”不需要重载页面。
     ctx, page, log = new_page(browser, 390, 844, dsf=2)
-    page.add_init_script("window.__loads = (+sessionStorage.getItem('__loads') || 0) + 1; sessionStorage.setItem('__loads', String(window.__loads));")
     page.goto(f'{BASE}/index.html')
     assert poll(page, "window.RLP && RLP.ready === true && document.querySelector('.menu.show')", 120)
     time.sleep(1.5)
+    f = Fingers(ctx.new_cdp_session(page))
+    r = vrect(page, '.plague:nth-child(2)')
+    tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+    time.sleep(0.5)
+    check('空档触摸锁着的“第二灾”：留在菜单，提示通关第一灾后解锁',
+          page.evaluate("RLP.ctx.ui.menu.visible === true && document.querySelector('.menu-status').textContent") == '第二灾 · 蛙灾 —— 通关第一灾后解锁')
+    check('空档触摸锁卡：额外弹出“未解锁”面板，写明要先通关第一灾',
+          page.evaluate("(() => { const p = document.querySelector('.menu-panel'), h = p && p.querySelector('h2'); return !!p && !!h && h.textContent === '未解锁' && p.textContent.indexOf('要先通关') >= 0; })()"))
+    r = vrect(page, '.menu-panel .btn-row .btn')
+    tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+    check('空档触摸点“知道了”关掉锁卡面板', poll(page, "!document.querySelector('.menu-panel')", 10))
+    ctx.close()
+
+    cleared = "if (!localStorage.getItem('rlp3d.profile')) localStorage.setItem('rlp3d.profile', JSON.stringify({ v: 1, ach: {}, cleared: { plague1: { t: 1760000000000 } } }));"
+    ctx, page, log = new_page(browser, 390, 844, dsf=2)
+    page.add_init_script("window.__loads = (+sessionStorage.getItem('__loads') || 0) + 1; sessionStorage.setItem('__loads', String(window.__loads));")
+    page.add_init_script(cleared)
+    page.goto(f'{BASE}/index.html')
+    assert poll(page, "window.RLP && RLP.ready === true && document.querySelector('.menu.show')", 120)
+    time.sleep(1.5)
+    check('已通关第一灾：第二灾开放，页面启动时直接装载第二灾（不用先装第一灾）',
+          page.evaluate("RLP.chapter.number === 2 && document.querySelectorAll('.plague')[1].classList.contains('open') && document.querySelectorAll('.plague')[0].classList.contains('done')"))
     f = Fingers(ctx.new_cdp_session(page))
     r = vrect(page, '.plague:nth-child(2)')
     tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
@@ -207,13 +231,128 @@ with sync_playwright() as p:
     t_end = time.time() + 150
     while time.time() < t_end and not chapter2_started():
         time.sleep(0.5)
-    check('菜单里触摸“第二灾”：页面重载后进入第二灾', chapter2_started())
+    check('菜单里触摸“第二灾”：进入第二灾', chapter2_started())
     time.sleep(2.0)
-    check('只重载了一次（没有重载循环），没有启动错误',
-          page.evaluate("[+sessionStorage.getItem('__loads'), !RLP.bootError]") == [2, True], page.evaluate("[sessionStorage.getItem('__loads'), String(RLP.bootError)]"))
+    check('没有重载页面（只加载了一次），没有启动错误',
+          page.evaluate("[+sessionStorage.getItem('__loads'), !RLP.bootError]") == [1, True], page.evaluate("[sessionStorage.getItem('__loads'), String(RLP.bootError)]"))
     check('第二灾的片头：停在总览，菜单已关闭', page.evaluate("RLP.state.view === 'overview' && RLP.ctx.ui.menu.visible === false"))
     page.screenshot(path=os.path.join(OUT, 'p02b_chapter2.png'))
     csp_and_errors(page, log, '菜单进第二灾')
+    ctx.close()
+
+    # 1c. 页面装载着第二灾时从菜单选第一灾：要记进 sessionStorage 重载一次（一个页面只能装一章），重载后直接开始第一灾
+    ctx, page, log = new_page(browser, 390, 844, dsf=2)
+    page.add_init_script("window.__loads = (+sessionStorage.getItem('__loads') || 0) + 1; sessionStorage.setItem('__loads', String(window.__loads));")
+    page.add_init_script(cleared)
+    page.goto(f'{BASE}/index.html')
+    assert poll(page, "window.RLP && RLP.ready === true && document.querySelector('.menu.show')", 120)
+    time.sleep(1.5)
+    f = Fingers(ctx.new_cdp_session(page))
+    r = vrect(page, '.plague:nth-child(1)')
+    tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+
+    def chapter1_started():
+        try:
+            # 第一灾的片头（旁白 + 小船）很长，片头期间 state.view 还是空：只要装载的是第一灾、菜单已关闭就算开始了
+            return page.evaluate("!!(window.RLP && RLP.ready === true && RLP.chapter && RLP.chapter.number === 1 && RLP.ctx.ui.menu.visible === false)")
+        except Exception:      # 页面正在重载，执行上下文被销毁
+            return False
+    t_end = time.time() + 150
+    while time.time() < t_end and not chapter1_started():
+        time.sleep(0.5)
+    check('页面装载第二灾时点“第一灾”：页面重载后进入第一灾（只重载一次，没有启动错误）',
+          chapter1_started() and page.evaluate("[+sessionStorage.getItem('__loads'), !RLP.bootError]") == [2, True], page.evaluate("[sessionStorage.getItem('__loads'), String(RLP.bootError)]"))
+    csp_and_errors(page, log, '菜单换章')
+    ctx.close()
+
+    # ------------------------------------------------------------------ 1d. 第三灾的解锁顺序：必须先通关第一、二灾（竖屏真实触摸）
+    def seeded(cleared):
+        return "if (!localStorage.getItem('rlp3d.profile')) localStorage.setItem('rlp3d.profile', JSON.stringify({ v: 1, ach: {}, cleared: %s }));" % json.dumps({c: {'t': 1760000000000} for c in cleared})
+
+    for label, done, opens in [('只通关第一灾', ['plague1'], False), ('第一、二灾都通关', ['plague1', 'plague2'], True)]:
+        ctx, page, log = new_page(browser, 390, 844, dsf=2)
+        page.add_init_script(seeded(done))
+        page.goto(f'{BASE}/index.html')
+        assert poll(page, "window.RLP && RLP.ready === true && document.querySelector('.menu.show')", 120)
+        time.sleep(1.5)
+        assert page.evaluate('RLP.bootError') is None, page.evaluate('RLP.bootError')
+        f = Fingers(ctx.new_cdp_session(page))
+        cls = page.evaluate("[...document.querySelectorAll('.plague')].slice(0, 3).map(c => c.className)")
+        r = vrect(page, '.plague:nth-child(3)')
+        tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+        if not opens:
+            time.sleep(0.5)
+            check(f'{label}：第三灾锁着，真实触摸点它留在菜单并提示“通关第二灾后解锁”',
+                  'gated' in cls[2] and page.evaluate("RLP.ctx.ui.menu.visible === true && document.querySelector('.menu-status').textContent") == '第三灾 · 蚊灾和虱灾 —— 通关第二灾后解锁', cls)
+            check(f'{label}：第三灾锁卡额外弹出“未解锁”面板，写明要先通关',
+                  page.evaluate("(() => { const p = document.querySelector('.menu-panel'), h = p && p.querySelector('h2'); return !!p && !!h && h.textContent === '未解锁' && p.textContent.indexOf('要先通关') >= 0; })()"))
+            r = vrect(page, '.menu-panel .btn-row .btn')
+            tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+            check(f'{label}：真实触摸“知道了”关掉锁卡面板', poll(page, "!document.querySelector('.menu-panel')", 10))
+        else:
+            check(f'{label}：第三灾开放，页面启动时直接装载第三灾（▶ 指向它）', 'open' in cls[2] and 'gated' not in cls[2] and page.evaluate('RLP.chapter.number') == 3, cls)
+
+            def chapter3_started():
+                try:
+                    return page.evaluate("!!(window.RLP && RLP.ready === true && RLP.chapter && RLP.chapter.number === 3 && RLP.state.view && RLP.ctx.ui.menu.visible === false)")
+                except Exception:
+                    return False
+            t_end = time.time() + 150
+            while time.time() < t_end and not chapter3_started():
+                time.sleep(0.5)
+            check(f'{label}：真实触摸“第三灾”：进入第三灾，没有启动错误', chapter3_started() and page.evaluate('!RLP.bootError'))
+        csp_and_errors(page, log, f'第三灾解锁（{label}）')
+        ctx.close()
+
+    # ------------------------------------------------------------------ 1e. 第四、五灾的解锁顺序：第四灾要先通关第一到第三灾，第五灾要先通关第一到第四灾（2026-10-29 起第五灾随小红书包发布）
+    for label, done, open4, open5 in [('只通关第一到第二灾', ['plague1', 'plague2'], False, False),
+                                      ('通关第一到第三灾', ['plague1', 'plague2', 'plague3'], True, False),
+                                      ('只通关第一、二、四灾（不合常理的残档）', ['plague1', 'plague2', 'plague4'], False, False),
+                                      ('通关第一到第四灾', ['plague1', 'plague2', 'plague3', 'plague4'], True, True)]:
+        ctx, page, log = new_page(browser, 390, 844, dsf=2)
+        page.add_init_script(seeded(done))
+        page.goto(f'{BASE}/index.html?norender=1')
+        assert poll(page, "window.RLP && RLP.ready === true && document.querySelector('.menu.show')", 120)
+        time.sleep(1.0)
+        assert page.evaluate('RLP.bootError') is None, page.evaluate('RLP.bootError')
+        cls = page.evaluate("[...document.querySelectorAll('.plague')].slice(3, 5).map(c => c.className)")
+        want = [('open' in cls[0].split() and 'gated' not in cls[0]) == open4, ('open' in cls[1].split() and 'gated' not in cls[1]) == open5]
+        check(f'{label}：第四灾{"开放" if open4 else "锁着"}、第五灾{"开放" if open5 else "锁着"}', all(want), cls)
+        csp_and_errors(page, log, f'第四、五灾解锁（{label}）')
+        ctx.close()
+
+    # ------------------------------------------------------------------ 1f. 通关第四灾的结尾卡出现“进入第五灾 · 疫灾”，真实触摸点它进入第五灾；第五灾通关后后面没有可进入的章节
+    ctx, page, log = new_page(browser, 390, 844, dsf=1)
+    page.add_init_script(seeded(['plague1', 'plague2', 'plague3']))
+    page.goto(f'{BASE}/index.html')
+    assert poll(page, "window.RLP && RLP.ready === true && document.querySelector('.menu.show')", 120)
+    time.sleep(1.5)
+    assert page.evaluate('RLP.bootError') is None, page.evaluate('RLP.bootError')
+    f = Fingers(ctx.new_cdp_session(page))
+    ending_btns = "[...document.querySelectorAll('.ending .ending-btn')].map(b => b.textContent)"
+    page.evaluate("async () => { RLP.ctx.ui.autoAdvance = false; await RLP.start(4, { fresh: true, skipIntro: true }); }")
+    assert poll(page, 'RLP.state.view && RLP.chapter.number === 4', 120)
+    # 和第四灾故事代码的顺序一样：先立通关旗标（记进通关记录），再弹结尾卡
+    page.evaluate("() => { RLP.timeScale = 25; RLP.ctx.setFlag('plague4_complete'); RLP.ctx.ui.ending({ zh: '第四灾 · 完', en: '' }); }")
+    assert poll(page, "document.querySelector('.ending .ending-next') && parseFloat(getComputedStyle(document.querySelector('.ending .ending-next')).opacity) > 0.95", 60)
+    check('第四灾结尾卡：有“进入第五灾 · 疫灾”和“返回主菜单”两个按钮（第五灾已开放）', page.evaluate(ending_btns) == ['进入第五灾 · 疫灾', '返回主菜单'], page.evaluate(ending_btns))
+    page.evaluate('window.__m = 1')
+    r = vrect(page, '.ending .ending-next')
+    tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+
+    def chapter5_started():
+        try:
+            return page.evaluate("!!(window.RLP && RLP.ready === true && !window.__m && RLP.chapter && RLP.chapter.number === 5 && RLP.state.view && RLP.ctx.ui.menu.visible === false)")
+        except Exception:
+            return False
+    t_end = time.time() + 180
+    while time.time() < t_end and not chapter5_started():
+        time.sleep(0.5)
+    check('第四灾结尾卡：真实触摸“进入第五灾”：页面重载并进入第五灾，没有启动错误', chapter5_started() and page.evaluate('!RLP.bootError'))
+    page.evaluate("() => { RLP.ctx.ui.autoAdvance = false; RLP.timeScale = 25; RLP.ctx.setFlag('plague5_complete'); RLP.ctx.ui.ending({ zh: '第五灾 · 完', en: '' }); }")
+    assert poll(page, "document.querySelector('.ending .ending-btn') && parseFloat(getComputedStyle(document.querySelector('.ending .ending-btn')).opacity) > 0.95", 60)
+    check('第五灾结尾卡：后面没有可进入的章节（第六灾“敬请期待”），只有“返回主菜单”', page.evaluate(ending_btns) == ['返回主菜单'], page.evaluate(ending_btns))
+    csp_and_errors(page, log, '第四灾 → 第五灾衔接')
     ctx.close()
 
     # ------------------------------------------------------------------ 2. 竖屏漫游：点天堂门、摇杆、转视角
@@ -295,6 +434,8 @@ with sync_playwright() as p:
     t0 = time.time()
     res = page.evaluate("(async () => { RLP.timeScale = 3; const r = await RLP.autoplay({ stepDelay: 0 }); return { ok: r.ok, steps: r.steps, total: r.total, error: r.error, failedStep: r.failedStep }; })()")
     check(f'完整流程 autoplay（{time.time() - t0:.0f}s）', res['ok'] and res['steps'] == res['total'], res)
+    ach = page.evaluate('[...RLP.state.achievements].sort()')
+    check('第一灾：成就表 5 个成就全部拿到', ach == ['its_me', 'save_the_goat', 'the_eilander_family', 'the_first_symbol', 'welcome_to_paradise'], ach)
     csp_and_errors(page, log, '完整流程')
     ctx.close()
 
@@ -307,8 +448,49 @@ with sync_playwright() as p:
     t0 = time.time()
     res = page.evaluate("(async () => { RLP.timeScale = 3; const r = await RLP.autoplay({ stepDelay: 0 }); return { ok: r.ok, steps: r.steps, total: r.total, error: r.error, failedStep: r.failedStep }; })()")
     check(f'第二灾完整流程 autoplay（{time.time() - t0:.0f}s）', res['ok'] and res['steps'] == res['total'], res)
+    ach = page.evaluate('[...RLP.state.achievements].sort()')
+    check('第二灾：成就表 3 个成就全部拿到', ach == ['a_rusty_key', 'reflection_in_the_water', 'the_first_frog'], ach)
     csp_and_errors(page, log, '第二灾完整流程')
     ctx.close()
+
+    # 第三灾完整流程（开发跳转 ?chapter=3：包里没有 wip，直接装载；通关后成就表 5 个全部拿到）
+    ctx, page, log = new_page(browser, 390, 844, dsf=1)
+    page.goto(f'{BASE}/index.html?autotest=1&chapter=3')
+    assert poll(page, 'window.RLP && RLP.ready === true', 120)
+    page.evaluate("RLP.start(3, { fresh: true, skipIntro: true })")
+    assert poll(page, 'RLP.state.view', 60)
+    t0 = time.time()
+    res = page.evaluate("(async () => { RLP.timeScale = 3; const r = await RLP.autoplay({ stepDelay: 0 }); return { ok: r.ok, steps: r.steps, total: r.total, error: r.error, failedStep: r.failedStep }; })()")
+    check(f'第三灾完整流程 autoplay（{time.time() - t0:.0f}s）', res['ok'] and res['steps'] == res['total'], res)
+    ach = page.evaluate('[...RLP.state.achievements].sort()')
+    check('第三灾：成就表 5 个成就全部拿到', ach == ['earcut', 'harvey', 'spitting_larva', 'the_butterfly', 'the_third_symbol'], ach)
+    gjs = open(os.path.join(DIST, 'game.js'), encoding='utf-8').read()
+    # esbuild 会把中文转成 \uXXXX：“血”就是 \u8840，“x糖”就是 x\u7CD6
+    check('第三灾：David 的台词里“血糖”在包里已改成 x 糖；整个 game.js 里没有“血”字（小红书审核对“血”字敏感）',
+          '血' not in gjs and '\\u8840' not in gjs.lower() and 'x\\u7cd6' in gjs.lower())
+    csp_and_errors(page, log, '第三灾完整流程')
+    ctx.close()
+
+    # 第四、五灾完整流程（开发跳转 ?chapter=N；通关后成就表全部拿到；包里不能有“死”字：第四灾书页里的“遇见死亡”已改成 S）
+    for n, want_ach in [(4, ['p4_card', 'p4_crab', 'p4_hearts', 'p4_memory']), (5, ['p5_harvest', 'perfect_constellation', 'sickly_cow'])]:
+        ctx, page, log = new_page(browser, 390, 844, dsf=1)
+        page.goto(f'{BASE}/index.html?autotest=1&chapter={n}')
+        assert poll(page, 'window.RLP && RLP.ready === true', 120)
+        page.evaluate(f"RLP.start({n}, {{ fresh: true, skipIntro: true }})")
+        assert poll(page, 'RLP.state.view', 60)
+        t0 = time.time()
+        res = page.evaluate("(async () => { RLP.timeScale = 3; const r = await RLP.autoplay({ stepDelay: 0, stepTimeout: 60000 }); return { ok: r.ok, steps: r.steps, total: r.total, error: r.error, failedStep: r.failedStep }; })()")
+        check(f'第{n}灾完整流程 autoplay（{time.time() - t0:.0f}s）', res['ok'] and res['steps'] == res['total'], res)
+        ach = page.evaluate('[...RLP.state.achievements].sort()')
+        check(f'第{n}灾：成就表 {len(want_ach)} 个成就全部拿到', ach == sorted(want_ach), ach)
+        gjs = open(os.path.join(DIST, 'game.js'), encoding='utf-8').read()
+        check(f'第{n}灾：整个 game.js 里没有“死”“血”字（\u6B7B / \u8840，小红书审核对它们敏感）', '\u6b7b' not in gjs.lower() and '\u8840' not in gjs.lower() and '死' not in gjs and '血' not in gjs)
+        # esbuild 把非 ASCII 字符写成 \uXXXX 转义，上面直接找汉字找不到：再按转义写法查一遍
+        # 第三灾提示文案“拍死的蚊子”（hints.js，只有 233 乐园版的提示按钮会显示，小红书里不出现）早就在已通过审核的线上包里，先剔掉这一处再查
+        gjs_esc = gjs.replace('\\u62CD\\u6B7B\\u7684\\u868A\\u5B50', '')
+        check(f'第{n}灾：game.js 里没有转义写法的“死”“血”（\\u6b7b / \\u8840，不含上面那一处）', not re.search(r'\\u(6b7b|8840)', gjs_esc, re.I), re.findall(r'.{30}\\u(?:6b7b|8840).{30}', gjs_esc, re.I)[:2])
+        csp_and_errors(page, log, f'第{n}灾完整流程')
+        ctx.close()
 
     # ------------------------------------------------------------------ 5. 慢手机上的启动 + 排查面板 + 报错横幅
     # 审核打回的原因是“功能缺陷 / 按钮点不了”：启动原来是一条不让出主线程的长任务，慢设备上页面整段没响应、load 事件迟迟不来
@@ -354,6 +536,32 @@ with sync_playwright() as p:
     page.evaluate("window.dispatchEvent(new ErrorEvent('error', { message: 'test boom' }))")
     check('没接住的报错会在画面顶上显示红色横幅',
           page.evaluate("(() => { const b = document.querySelector('.rlp-err'); return !!b && b.classList.contains('show') && /test boom/.test(b.textContent); })()"))
+    ctx.close()
+
+    # ------------------------------------------------------------------ 5b. 标题菜单提前出现：世界还没搭好按钮就能点
+    # 审核连续两次（V1.0.10 / V1.0.11）驳回“页面按钮无法点击”，模拟器里能点；原来菜单要等建世界 + 编译着色器做完才出现，慢设备上满屏“载入中”点什么都没反应。
+    ctx, page, log = new_page(browser, 390, 844, dsf=2)
+    cdp = ctx.new_cdp_session(page)
+    cdp.send('Emulation.setCPUThrottlingRate', {'rate': 3})
+    t0 = time.time()
+    page.goto(f'{BASE}/index.html', timeout=90000)
+    got = poll(page, "document.querySelector('.menu.show .menu-play') && document.querySelectorAll('.menu-link').length === 3", 60, 0.1)
+    t_menu = time.time() - t0
+    early = page.evaluate('!(window.RLP && RLP.ready)')
+    check(f'CPU 降速 3×：标题菜单 {t_menu:.1f}s 内出现，那时世界还没搭好', got and t_menu < 10 and early, [got, round(t_menu, 1), early])
+    check('世界没搭好时“载入中”缩成一行小字，没有盖住菜单', page.evaluate("(() => { const b = document.getElementById('boot'); return !!b && getComputedStyle(b).pointerEvents === 'none' && b.getBoundingClientRect().height < 100; })()"))
+    f = Fingers(cdp)
+    r = vrect(page, '.menu-play')
+    tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+    check('世界没搭好时真实触摸 ▶：菜单提示“正在载入”', poll(page, "(document.querySelector('.menu-status') || {}).textContent && document.querySelector('.menu-status').textContent.indexOf('正在载入') >= 0", 10))
+    check('世界没搭好时点了 ▶：#stage 盖上 boot-queued 载入遮罩', page.evaluate("document.getElementById('stage').classList.contains('boot-queued')"))
+    assert poll(page, 'window.RLP && RLP.ready === true', 300), '世界一直没搭好'
+    assert page.evaluate('RLP.bootError') is None, page.evaluate('RLP.bootError')
+    check('世界搭好后去掉 boot-queued 载入遮罩', page.evaluate("!document.getElementById('stage').classList.contains('boot-queued')"))
+    # 第一灾的开场过场要播很久，state.view 要等它播完才有：这里只看“菜单收起、章节已开始（开始写存档）”
+    check('世界搭好后自动进入第一灾，菜单收起', poll(page, "!document.querySelector('.menu.show') && RLP.state.saving === true", 120), page.evaluate('[RLP.state.chapter, RLP.state.saving, !!document.querySelector(".menu.show")]'))
+    check('进入游戏后画布显示出来（去掉提前菜单的 boot-early）', page.evaluate("!document.getElementById('stage').classList.contains('boot-early') && getComputedStyle(document.getElementById('game')).visibility === 'visible'"))
+    csp_and_errors(page, log, '提前点开始')
     ctx.close()
 
     # ------------------------------------------------------------------ 6. 反复重载保护：启动没走完就被重载两次，第三次进轻量模式

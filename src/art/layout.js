@@ -69,7 +69,7 @@ export const P = {
   rowboat:     { pos: [16.5, 0.08, 47.2], rotY: -0.5 },       // beached, bow towards the lake
 
   // ---------------- Landmarks ----------------
-  tower:       { pos: [-30, 2.2, 18] },                       // three-storey stone tower on rocks (closed in P1)
+  tower:       { pos: [-24, 2.2, 14], height: 38, radius: 6.9 },  // 网格石塔（38 m，高出约 25 m 的森林树冠）站在西边的岩石平台上；从南面远景可见
 
   // ---------------- Forest (inside the palisade) ----------------
   forestPath:  { pos: [0, GROUND_Y, 33] },                    // narrow gap between huge trunks
@@ -116,6 +116,24 @@ export const SETS = {
 
 export const v3 = (THREE, arr) => new THREE.Vector3(arr[0], arr[1], arr[2]);
 
+// 每条边的 [起点 x, z, 方向 dx, dz, 1/长度²]，按轮廓数组缓存：shoreDistance 在建世界时被调用上百万次（湖面距离图、地形、地面贴图、
+// 树的摆放），原来每次都重新算 dx / dz / 长度，还用 Math.hypot（比 sqrt 慢一个数量级）。
+const _edgeCache = new WeakMap();
+function edgesOf(outline) {
+  let e = _edgeCache.get(outline);
+  if (!e) {
+    const n = outline.length;
+    e = new Float64Array(n * 5);
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const [ax, az] = outline[j], [bx, bz] = outline[i];
+      const dx = bx - ax, dz = bz - az;
+      e[i * 5] = ax; e[i * 5 + 1] = az; e[i * 5 + 2] = dx; e[i * 5 + 3] = dz; e[i * 5 + 4] = 1 / (dx * dx + dz * dz);
+    }
+    _edgeCache.set(outline, e);
+  }
+  return e;
+}
+
 /** Point-in-polygon on the island outline (x, z). */
 export function onIsland(x, z, outline = ISLAND_OUTLINE) {
   let inside = false;
@@ -128,13 +146,18 @@ export function onIsland(x, z, outline = ISLAND_OUTLINE) {
 
 /** Distance from (x, z) to the island outline (positive outside, negative inside). */
 export function shoreDistance(x, z, outline = ISLAND_OUTLINE) {
-  let best = Infinity;
-  for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
-    const [ax, az] = outline[j], [bx, bz] = outline[i];
-    const dx = bx - ax, dz = bz - az;
-    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
-    const px = ax + dx * t, pz = az + dz * t;
-    best = Math.min(best, Math.hypot(x - px, z - pz));
+  const e = edgesOf(outline), n = outline.length;
+  let best = Infinity, inside = false;   // best：到各条边的最小平方距离，最后只开一次方
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const o = i * 5, ax = e[o], az = e[o + 1], dx = e[o + 2], dz = e[o + 3];
+    let t = ((x - ax) * dx + (z - az) * dz) * e[o + 4];
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const ex = x - ax - dx * t, ez = z - az - dz * t, d2 = ex * ex + ez * ez;
+    if (d2 < best) best = d2;
+    // 同一圈顺便做点在多边形内的判断（和 onIsland 一样的射线法，边是 outline[j] → outline[i]）
+    const bx = ax + dx, bz = az + dz;
+    if ((bz > z) !== (az > z) && x < ((ax - bx) * (z - bz)) / (az - bz) + bx) inside = !inside;
   }
-  return onIsland(x, z, outline) ? -best : best;
+  const d = Math.sqrt(best);
+  return inside ? -d : d;
 }

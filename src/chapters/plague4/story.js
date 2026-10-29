@@ -1,14 +1,31 @@
 // 所有谜题推进都经过公共热点和库存，模型状态由 sync 幂等恢复。
 import { W, SPOTS, sync as syncWorld } from './world.js';
-import { CRAB_LEVELS, initialShells, canPlaceShell, traceCrab, windowSolved } from './puzzles.js';
-import { label } from '../../art/props_flies.js';
-import { T, BOOK_PAGES } from './text.js';
+import { CRAB_LEVELS, initialShells, canPlaceShell, traceCrab, windowSolved, moveTab, WINDOW_SLOTS } from './puzzles.js';
+import { BOOK_SPREADS } from '../../art/props_flies.js';
+import { T } from './text.js';
 
 const count = (ctx, key) => Number(ctx.flag(key)) || 0;
 const refresh = (ctx) => { syncWorld(ctx); sync(ctx); };
 const noItem = (ctx) => ctx.state.select(null);
+/** 书页码只接受 0–3；旧档缺省或越界时回到第一页。 */
+const bookSpread = (ctx) => {
+  const n = Number(ctx.flag('p4_book_spread'));
+  return Number.isInteger(n) ? Math.min(BOOK_SPREADS.length - 1, Math.max(0, n)) : 0;
+};
+/** 窗锁四枚滑片的当前刻度；旧档的 p4_window 数组照常读取。 */
+const windowTabs = (ctx) => {
+  const v = ctx.flag('p4_window');
+  return Array.isArray(v) ? [...v] : [1, 1, 1, 1];
+};
+const selectedTab = (ctx) => {
+  const i = ctx.flag('p4_window_selected');
+  return Number.isInteger(i) && i >= 0 && i < 4 ? i : null;
+};
 
 export function sync(ctx) {
+  W.fly.setKneel(0);
+  if (ctx.state.view === 'book') { W.book.setOpen(true); W.book.setSpread(bookSpread(ctx)); }
+  else W.book.setOpen(false);
   const loaded = ctx.flag('p4_owl_loaded'), fed = count(ctx, 'p4_owl_count');
   W.owlHeart.visible = !!loaded; W.gem.visible = fed === 3 && !ctx.flag('p4_gem_taken');
   W.owl.setLevel(fed * 4 / 3, { instant: true });
@@ -61,13 +78,27 @@ export function setup(ctx) {
     when: () => !ctx.flag('p4_rabbit_lured'), onClick: () => ctx.say(T.rabbit),
     onItem: { carrot: async () => { ctx.take('carrot'); ctx.setFlag('p4_rabbit_lured'); refresh(ctx); ctx.sfx('rustle'); } },
   });
+  // 寄居蟹 / 兔子 / 鸟的进食：下面的循环里填，陷阱的大点击盒也要能直接触发鸟的进食
+  const meals = {};
+  // 陷阱的点击盒（整块翘起的石板、板下的空地和旁边的鸟）在 world.js 的 fatten 里挂
   hs('bird_trap', ['trap'], W.trap, {
-    when: () => !ctx.flag('p4_bird_eaten'), onClick: () => ctx.say(T.trap),
+    when: () => !ctx.flag('p4_bird_eaten'), onClick: () => {
+      const propped = !!ctx.flag('p4_trap_propped'), baited = !!ctx.flag('p4_trap_baited');
+      // 陷阱已经支好、虫子也放了：鸟在板下。陷阱点击盒比鸟大、常挡在鸟前面（手机屏幕上尤其明显），
+      // 轮到鸟时点到陷阱也要直接进食，否则玩家吃完兔子后点鸟仍只听到“先让它吃掉兔子”。
+      if (propped && baited) return meals.bird.ready() ? meals.bird.eat() : ctx.say(T.preyWait('bird', !!ctx.flag('p4_fly_awake')));
+      if (propped) return ctx.say(T.trapPropped);
+      if (baited) return ctx.say(T.trapBaited);
+      return ctx.say(T.trap);
+    },
     onItem: {
-      branch: async () => { if (ctx.flag('p4_trap_propped')) { noItem(ctx); return; } ctx.take('branch'); ctx.setFlag('p4_trap_propped'); refresh(ctx); },
-      worm: async () => { if (ctx.flag('p4_trap_baited')) { noItem(ctx); return; } ctx.take('worm'); ctx.setFlag('p4_trap_baited'); refresh(ctx); },
+      // 树枝有三根，take 之后树枝仍留在选中状态，再点虫子会变成“树枝 + 虫子”合成失败：用完立刻取消选中
+      branch: async () => { if (ctx.flag('p4_trap_propped')) { noItem(ctx); return; } ctx.take('branch'); noItem(ctx); ctx.setFlag('p4_trap_propped'); refresh(ctx); },
+      worm: async () => { if (ctx.flag('p4_trap_baited')) { noItem(ctx); return; } ctx.take('worm'); noItem(ctx); ctx.setFlag('p4_trap_baited'); refresh(ctx); },
     },
   });
+  // 陷阱旁的鸟本身也能点（漫游时玩家点的是鸟，不是石板）：和石板一样进陷阱特写
+  hs('bird_zoom', ['bird_clearing'], W.bird, { cursor: 'zoom', goto: 'trap', when: () => !!ctx.flag('p4_trap_propped') && !!ctx.flag('p4_trap_baited') && !ctx.flag('p4_bird_eaten') });
   hs('crab_feast_zoom', ['lake_shore'], W.freeCrab, { cursor: 'zoom', goto: 'crab_feast', when: () => count(ctx, 'p4_crab_round') === 3 && !ctx.flag('p4_crab_eaten') });
   for (const id of ['crab', 'rabbit', 'bird']) {
     const view = { crab: 'crab_feast', rabbit: 'rabbit', bird: 'trap' }[id];
@@ -75,15 +106,32 @@ export function setup(ctx) {
     const ready = () => ctx.flag('p4_fly_awake') && !ctx.flag(`p4_${id}_eaten`) && (
       id === 'crab' ? count(ctx, 'p4_crab_round') === 3 : id === 'rabbit' ? ctx.flag('p4_crab_eaten') && ctx.flag('p4_rabbit_lured')
         : ctx.flag('p4_rabbit_eaten') && ctx.flag('p4_trap_propped') && ctx.flag('p4_trap_baited'));
-    hs(`${id}_meal`, [view], prey, { when: ready, onClick: async () => {
+    // 猎物已经出现在场景里（是否还活着另说）
+    const appeared = () => (id === 'crab' ? count(ctx, 'p4_crab_round') === 3
+      : id === 'rabbit' ? !!ctx.flag('p4_rabbit_lured')
+        : !!ctx.flag('p4_trap_propped') && !!ctx.flag('p4_trap_baited'));
+    // 同一对象挂多个热点时后者优先：先注册“还不能吃”，ready 后由 ${id}_meal 接手。
+    // 猎物出现了但苍蝇人还没孵化 / 还没轮到它，点上去必须说清楚，不能没有反应。
+    hs(`${id}_wait`, [view], prey, {
+      when: () => appeared() && !ctx.flag(`p4_${id}_eaten`) && !ready(),
+      onClick: () => ctx.say(T.preyWait(id, !!ctx.flag('p4_fly_awake'))),
+    });
+    const eat = async () => {
       await ctx.cutscene(async () => {
         const start = W.fly.position.clone(), target = prey.position.clone(); target.y += 0.35;
+        // 面朝猎物，再俯身跪下进食（模型默认朝 +z）。
+        W.fly.rotation.y = Math.atan2(target.x - start.x, target.z - start.z);
         ctx.sfx('wing');
         await ctx.animate(1000, (k) => { W.fly.position.lerpVectors(start, target, k); });
+        await ctx.animate(500, (k) => W.fly.setKneel(k));
         ctx.sfx('squish'); await ctx.wait(450);
-        ctx.setFlag(`p4_${id}_eaten`); refresh(ctx);
+        ctx.setFlag(`p4_${id}_eaten`);
+        await ctx.animate(500, (k) => W.fly.setKneel(1 - k));
+        refresh(ctx);
       });
-    } });
+    };
+    meals[id] = { ready, eat };
+    hs(`${id}_meal`, [view], prey, { when: ready, onClick: eat });
     pickup(`${id}_heart`, [view, id === 'crab' ? 'lake_shore' : id === 'rabbit' ? 'pump_clearing' : 'bird_clearing'], W[`${id}Heart`], `${id}_heart`, `p4_${id}_heart_taken`, () => !!ctx.flag(`p4_${id}_eaten`));
   }
 
@@ -118,18 +166,35 @@ export function setup(ctx) {
   hs('father', ['temple_int'], W.father, { cursor: 'talk', when: () => !ctx.flag('p4_father_taken'), onClick: async () => {
     await ctx.say(ctx.flag('p4_father_spoken') ? T.fatherAgain : T.father); ctx.setFlag('p4_father_spoken');
   } });
-  hs('book', ['temple_int'], W.book, { onClick: async () => {
+  hs('book', ['temple_int'], W.book, { cursor: 'zoom', goto: 'book' });
+  const bookView = ctx.views.get('book');
+  if (bookView) {
+    const enter = bookView.onEnter, exit = bookView.onExit;
+    bookView.onEnter = async (c) => { if (enter) await enter(c); W.book.setOpen(true); W.book.setSpread(bookSpread(c)); };
+    bookView.onExit = async (c) => { if (exit) await exit(c); W.book.setOpen(false); };
+  }
+  const turnPage = (delta) => async () => {
+    const to = bookSpread(ctx) + delta;
+    if (to < 0 || to >= BOOK_SPREADS.length) return;
+    await W.book.flipTo(to);
+    ctx.setFlag('p4_book_spread', to);
     ctx.setFlag('p4_book_read');
-    await ctx.ui.doc({ envelope: false, hint: '点左右箭头翻页，记下四个纹章的次序。', pages: BOOK_PAGES.map((p) => ({ lines: [p.title, ...p.lines, p.marks] })) });
-  } });
+    ctx.sfx('click');
+    await ctx.say(BOOK_SPREADS[to].title);
+  };
+  hs('book_prev', ['book'], ctx.hotspots.makeProxy(0.30, 0.06, 0.40, [-0.16, 0.06, 0], W.book), {
+    when: () => bookSpread(ctx) > 0, onClick: turnPage(-1),
+  });
+  hs('book_next', ['book'], ctx.hotspots.makeProxy(0.30, 0.06, 0.40, [0.16, 0.06, 0], W.book), {
+    when: () => bookSpread(ctx) < BOOK_SPREADS.length - 1, onClick: turnPage(1),
+  });
   hs('window_zoom', ['temple_int'], W.window, { cursor: 'zoom', goto: 'window' });
-  W.window.dials.forEach((o, i) => hs(`window_dial_${i}`, ['window'], o, { when: () => !ctx.flag('p4_window_open'), onClick: () => {
-    const values = [...(ctx.flag('p4_window') || [1, 1, 1, 1])]; values[i] = values[i] % 12 + 1;
-    ctx.setFlag('p4_window', values); W.window.setState(values, false); ctx.sfx('click');
+  const windowOpen = () => !ctx.flag('p4_window_open');
+  W.window.tabs.forEach((tab, i) => hs(`window_tab_${i}`, ['window'], tab, { when: windowOpen, onClick: () => {
+    ctx.setFlag('p4_window_selected', selectedTab(ctx) === i ? null : i);
+    refresh(ctx);
   } }));
-  const confirm = label('打开窗闩', 0.85, 0.22); confirm.name = 'window_confirm'; confirm.position.set(0, -0.76, 0.11); W.window.add(confirm);
-  hs('window_confirm', ['window'], confirm, { when: () => !ctx.flag('p4_window_open'), onClick: async () => {
-    if (!windowSolved(ctx.flag('p4_window') || [1, 1, 1, 1])) { ctx.sfx('wrong'); await ctx.say(T.windowWrong); return; }
+  const openWindow = async () => {
     await ctx.cutscene(async () => {
       ctx.setFlag('p4_window_open'); refresh(ctx); ctx.sfx('door'); await ctx.go('temple_int');
       W.insideFly.visible = true; const start = W.insideFly.position.clone();
@@ -139,7 +204,24 @@ export function setup(ctx) {
       ctx.setFlag('p4_father_taken'); refresh(ctx);
     });
     await ctx.go('memory');
-  } });
+  };
+  for (let i = 1; i <= WINDOW_SLOTS; i++) {
+    const box = ctx.hotspots.makeProxy(W.window.slotSize[0], W.window.slotSize[1], W.window.slotSize[2], W.window.slotCenter(i - 1), W.window);
+    hs(`window_slot_${i}`, ['window'], box, {
+      when: () => windowOpen() && selectedTab(ctx) !== null,
+      onClick: async () => {
+        const tab = selectedTab(ctx);
+        if (tab === null) return;
+        const next = moveTab(windowTabs(ctx), tab, i);
+        if (!next) return;
+        ctx.setFlag('p4_window', next);
+        ctx.setFlag('p4_window_selected', null);
+        refresh(ctx);
+        ctx.sfx('click');
+        if (windowSolved(next)) await openWindow();
+      },
+    });
+  }
   hs('memory_revisit', ['temple_int'], W.chair, { cursor: 'zoom', when: () => !!ctx.flag('p4_father_taken'), goto: 'memory' });
   const memoryHit = ctx.hotspots.makeProxy(2.4, 2.2, 0.6, [500, 1.1, -0.4], ctx.world.zones.memory);
   hs('memory_scene', ['memory'], memoryHit, { onClick: async () => {

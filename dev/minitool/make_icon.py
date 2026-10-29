@@ -2,7 +2,7 @@
 
 2026-10-12：审核疑似“有血”，副标题里的“血灾”改成“x灾”，场景截图换成紫色版。
 用法：
-  python dev/shot.py "index.html?autotest=1" dev/shots/purple/icon_scene.png \
+  python dev/common/shot.py "index.html?autotest=1" dev/minitool/media/purple/icon_scene.png \
       --js "document.getElementById('ui').style.display='none'; await RLP.goto('memory'); return 'ok'" --wait 2
   python dev/minitool/make_icon.py [场景截图] [输出图标]
 """
@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-scene_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'dev', 'shots', 'purple', 'icon_scene.png')  # 红色对照版：dev/shots/red-x/icon_scene.png
+scene_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'media', 'purple', 'icon_scene.png')  # 红色对照版：dev/minitool/media/red-x/icon_scene.png
 out_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, 'icon.png')
 
 FONT_BOLD = r'C:\Windows\Fonts\msyhbd.ttc'
@@ -20,8 +20,9 @@ BG = (20, 24, 26)
 TITLE_COLOR = (233, 226, 212)
 # 副标题颜色：默认紫色（紫色版）；红色对照版用环境变量 ICON_SUB_COLOR=183,138,122（原来偏红的肉色）
 SUB_COLOR = tuple(int(x) for x in os.environ.get('ICON_SUB_COLOR', '178,142,222').split(','))
-TITLE = '锈湖：天堂岛'
-SUB = '第一灾 · x灾 · 3D'
+TITLE = os.environ.get('ICON_TITLE', '锈湖：天堂岛')
+# 副标题：默认“第一灾 · x灾 · 3D”；环境变量 ICON_SUB 设成空串就不画副标题（标题下移居中）
+SUB = os.environ.get('ICON_SUB', '第一灾 · x灾 · 3D')
 
 S = 512
 SCENE_H = 346
@@ -50,7 +51,10 @@ def centered(text, font, y_center, color):
     d.text((x, y), text, font=font, fill=color)
 
 
-centered(TITLE, ImageFont.truetype(FONT_BOLD, 62), 391, TITLE_COLOR)
-centered(SUB, ImageFont.truetype(FONT_REG, 27), 446, SUB_COLOR)
+if SUB:
+    centered(TITLE, ImageFont.truetype(FONT_BOLD, 62), 391, TITLE_COLOR)
+    centered(SUB, ImageFont.truetype(FONT_REG, 27), 446, SUB_COLOR)
+else:
+    centered(TITLE, ImageFont.truetype(FONT_BOLD, 62), 425, TITLE_COLOR)
 img.save(out_path)
 print('saved', out_path)

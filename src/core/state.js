@@ -1,19 +1,29 @@
 // Game state: flags, inventory, selection, current view, achievements + localStorage saves.
-// Events: 'inventory' 'flag' 'select' 'view' 'achievement' 'reset' 'load'.
-// Save key: rlp3d.save.<chapterId>. Achievements are also mirrored globally (rlp3d.achievements)
-// so the title menu can list everything ever unlocked.
+// Events: 'inventory' 'flag' 'select' 'view' 'achievement' 'cleared' 'reset' 'load'.
+//
+// 本机存档（localStorage，只在 try/catch 里读写；读写失败时游戏照常玩，只是不保留进度）：
+//   rlp3d.save.<chapterId>  每章一份存档（v: SAVE_VERSION，版本对不上就当没有）
+//   rlp3d.profile           跨章节的“玩家档案”：成就历史 { id: { t: 首次解锁时间, zh, en, ch } } 和通关记录 { chapterId: { t } }
+//   rlp3d.last              最近玩的章节（标题菜单“继续”和启动时选哪一章用）
+// 档案不跟章节存档走：“重新开始”只清这一章的存档，成就历史和通关记录保留；只有设置里的“重置进度”才全部清掉。
+// 旧版本留下的 rlp3d.achievements（成就 id 数组）和带 plagueN_complete 的旧存档，在第一次读档案时并进来。
 
 // 物品栏 12 格：前 6 格是右侧第一列；超过 6 件时展开第二列（原作也是这样，第二、三灾会同时持有 7 件以上）。
 export const MAX_SLOTS = 12;
 export const COLUMN_SLOTS = 6;
 const SAVE_PREFIX = 'rlp3d.save.';
-const GLOBAL_ACH = 'rlp3d.achievements';
+const SAVE_VERSION = 2;                   // 2：开放世界版（2026-10-19 起存档跨启动保留；v1 是启动即清档时代的存档，不再读）
+const PROFILE_KEY = 'rlp3d.profile';
+const LAST_KEY = 'rlp3d.last';
+const GLOBAL_ACH = 'rlp3d.achievements';  // 旧版的成就 id 数组，只用来迁移
 
 function lsGet(key) {
   try { return window.localStorage.getItem(key); } catch { return null; }
 }
+let storageBroken = false;   // 最近一次写入失败：档案改用内存里的这一份（本次游戏内仍然有效，只是不保留）
+let profileMem = null;
 function lsSet(key, val) {
-  try { window.localStorage.setItem(key, val); return true; } catch { return false; }
+  try { window.localStorage.setItem(key, val); storageBroken = false; return true; } catch { storageBroken = true; return false; }
 }
 function lsDel(key) {
   try { window.localStorage.removeItem(key); } catch { /* ignore */ }
@@ -80,15 +90,44 @@ export const state = {
   },
 
   // ------------------------------------------------------------ achievements
-  achieve(id) {
+  /** meta: { zh, en, ch }：解锁时的名字和所属章节，记进成就历史（这样没装载那一章时菜单里也能显示）。 */
+  achieve(id, meta = {}) {
     if (!id || this.achievements.includes(id)) return false;
     this.achievements.push(id);
-    const all = globalAchievements();
-    if (!all.includes(id)) { all.push(id); lsSet(GLOBAL_ACH, JSON.stringify(all)); }
+    const p = readProfile();
+    const old = p.ach[id];
+    p.ach[id] = {
+      t: (old && old.t) || Date.now(),
+      zh: meta.zh || (old && old.zh) || id, en: meta.en || (old && old.en) || '', ch: meta.ch || (old && old.ch) || null,
+    };
+    writeProfile(p);
     this.emit('achievement', id);
     return true;
   },
-  allAchievements() { return globalAchievements(); },
+  /** 历史上解锁过的成就 id（任何一份存档里解锁过都算）。 */
+  allAchievements() { return Object.keys(readProfile().ach); },
+  /** 成就历史：{ id: { t, zh, en, ch } }（t 是首次解锁的毫秒时间，旧版迁移来的是 0）。 */
+  achievementHistory() { return JSON.parse(JSON.stringify(readProfile().ach)); },
+
+  // ------------------------------------------------------------ 通关记录
+  /** 记一章通关（只记一次，保留第一次的时间）。新记录返回 true。 */
+  markCleared(chapterId) {
+    if (!chapterId) return false;
+    const p = readProfile();
+    if (p.cleared[chapterId]) return false;
+    p.cleared[chapterId] = { t: Date.now() };
+    writeProfile(p);
+    this.emit('cleared', { chapter: chapterId });
+    return true;
+  },
+  isCleared(chapterId) { return !!readProfile().cleared[chapterId]; },
+  clearedAt(chapterId) { const c = readProfile().cleared[chapterId]; return c ? c.t || 0 : null; },
+  /** 最近玩的章节 id（没有就 null）。 */
+  lastChapter() { return lsGet(LAST_KEY) || null; },
+  /** 这个环境能不能写本地存储（容器里可能被禁用）：试写一个键再删掉。 */
+  storageOk() {
+    try { window.localStorage.setItem('rlp3d.probe', '1'); window.localStorage.removeItem('rlp3d.probe'); return true; } catch { return false; }
+  },
 
   // ------------------------------------------------------------------ view
   setView(id) {
@@ -116,21 +155,27 @@ export const state = {
   save() {
     if (!this.chapter || !this.saving) return false;
     const data = {
-      v: 1, chapter: this.chapter, flags: this.flags, inventory: this.inventory,
+      v: SAVE_VERSION, chapter: this.chapter, flags: this.flags, inventory: this.inventory,
       view: this.view, achievements: this.achievements, savedAt: Date.now(),
     };
     let json;
     try { json = JSON.stringify(data); } catch (err) { console.error('[state] save failed', err); return false; }
-    lsSet('rlp3d.last', this.chapter);
+    lsSet(LAST_KEY, this.chapter);
     return lsSet(SAVE_PREFIX + this.chapter, json);
+  },
+  /** 读出某一章的存档内容（不改状态）；没有、坏了或版本对不上都返回 null。 */
+  peekSave(chapterId) {
+    const raw = chapterId ? lsGet(SAVE_PREFIX + chapterId) : null;
+    if (!raw) return null;
+    try {
+      const data = JSON.parse(raw);
+      return data && typeof data === 'object' && data.v === SAVE_VERSION ? data : null;
+    } catch { return null; }
   },
   load(chapterId = this.chapter) {
     if (!chapterId) return false;
-    const raw = lsGet(SAVE_PREFIX + chapterId);
-    if (!raw) return false;
-    let data;
-    try { data = JSON.parse(raw); } catch { return false; }
-    if (!data || typeof data !== 'object') return false;
+    const data = this.peekSave(chapterId);
+    if (!data) return false;
     this.chapter = chapterId;
     this.flags = data.flags && typeof data.flags === 'object' ? { ...data.flags } : {};
     this.inventory = Array.isArray(data.inventory) ? data.inventory.slice(0, MAX_SLOTS) : [];
@@ -142,7 +187,7 @@ export const state = {
     this.emit('select', null);
     return true;
   },
-  hasSave(chapterId) { return !!lsGet(SAVE_PREFIX + chapterId); },
+  hasSave(chapterId) { return !!this.peekSave(chapterId); },
   reset(chapterId = this.chapter) {
     if (chapterId) lsDel(SAVE_PREFIX + chapterId);
     this.chapter = chapterId || null;
@@ -155,16 +200,17 @@ export const state = {
     this.emit('inventory', { type: 'reset' });
     this.emit('select', null);
   },
-  // Wipes every save + global achievements (menu → 重置进度).
+  // Wipes every save + the profile (成就历史 / 通关记录) (menu → 重置进度).
   wipeAll() {
     try {
       const keys = [];
       for (let i = 0; i < window.localStorage.length; i++) {
         const k = window.localStorage.key(i);
-        if (k && (k.startsWith(SAVE_PREFIX) || k === GLOBAL_ACH || k === 'rlp3d.last')) keys.push(k);
+        if (k && (k.startsWith(SAVE_PREFIX) || k === GLOBAL_ACH || k === PROFILE_KEY || k === LAST_KEY)) keys.push(k);
       }
       keys.forEach(lsDel);
     } catch { /* ignore */ }
+    profileMem = null;
     this.reset(this.chapter);
   },
   snapshot() {
@@ -172,10 +218,41 @@ export const state = {
   },
 };
 
-function globalAchievements() {
-  const raw = lsGet(GLOBAL_ACH);
-  if (!raw) return [];
-  try { const a = JSON.parse(raw); return Array.isArray(a) ? a : []; } catch { return []; }
+// ----------------------------------------------------------------------- 玩家档案（成就历史 + 通关记录）
+function readProfile() {
+  let p = null;
+  const raw = lsGet(PROFILE_KEY);
+  if (raw) { try { p = JSON.parse(raw); } catch { p = null; } }
+  if (!p || typeof p !== 'object') {
+    p = (storageBroken && profileMem) || migrateLegacy();
+    // 迁移到了东西才落盘；空档案只留在内存里（读一下菜单不该在存储里凭空多出一个键）
+    if (Object.keys(p.ach).length || Object.keys(p.cleared).length) lsSet(PROFILE_KEY, JSON.stringify(p));
+  }
+  if (!p.ach || typeof p.ach !== 'object') p.ach = {};
+  if (!p.cleared || typeof p.cleared !== 'object') p.cleared = {};
+  profileMem = p;
+  return p;
+}
+
+function writeProfile(p) { profileMem = p; return lsSet(PROFILE_KEY, JSON.stringify(p)); }
+
+// 第一次读档案时把旧版的数据并进来：成就 id 数组（时间未知记 0）、带 plagueN_complete 的旧存档（算通关）
+function migrateLegacy() {
+  const p = { v: 1, ach: {}, cleared: {} };
+  try {
+    const old = JSON.parse(lsGet(GLOBAL_ACH) || '[]');
+    if (Array.isArray(old)) for (const id of old) if (typeof id === 'string') p.ach[id] = { t: 0, zh: id, en: '', ch: null };
+  } catch { /* 坏数据当没有 */ }
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (!k || !k.startsWith(SAVE_PREFIX)) continue;
+      const id = k.slice(SAVE_PREFIX.length);
+      const data = JSON.parse(window.localStorage.getItem(k));
+      if (data && data.flags && data.flags[`${id}_complete`]) p.cleared[id] = { t: data.savedAt || 0 };
+    }
+  } catch { /* 坏数据当没有 */ }
+  return p;
 }
 
 export const storage = { get: lsGet, set: lsSet, del: lsDel };

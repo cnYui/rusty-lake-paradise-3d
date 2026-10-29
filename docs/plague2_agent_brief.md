@@ -1,7 +1,7 @@
 # 第二灾并行开发简报（所有子代理先读这份）
 
 项目：`D:/CodeWorkSpace/rusty-lake-paradise-3d`，《锈湖：天堂岛》(Rusty Lake Paradise) 的 Three.js 3D 粉丝复刻
-（纯 ES module，无构建；Windows + Git Bash；截图用 `python dev/shot.py`）。第一灾（血灾）已完成并上线，
+（纯 ES module，无构建；Windows + Git Bash；截图用 `python dev/common/shot.py`）。第一灾（血灾）已完成并上线，
 现在做第二灾（蛙灾）。你是并行团队里的一员，只负责任务里写明的文件。
 
 ## 1. 必读 / 按需深读
@@ -9,17 +9,17 @@
 - `docs/plague2_design.md`：全章设计（流程、旗标、视图、物品）。**位置以 `src/chapters/plague2/world.js` 的 `SPOTS` 和 `src/art/layout.js` 当前内容为准**
   （layout.js 在 10-08 之后加了全岛栅栏 / 小屋围墙，设计文档里的个别坐标可能过时）。
 - `docs/plague2_api.md`：模块接口契约。你的实现必须符合里面写的 id、方法名、子物体名；确需偏差时在最终报告里写清楚。
-- `dev/ref/p2/analysis/*.md`：参考视频的逐帧分析（`core_engine_guide.md` 引擎接入、`chars-props_reuse.md` 角色 / 道具构建套路和 viewer 的坑、
+- `dev/common/ref/p2/analysis/*.md`：参考视频的逐帧分析（`core_engine_guide.md` 引擎接入、`chars-props_reuse.md` 角色 / 道具构建套路和 viewer 的坑、
   `world-env_reuse.md` 场景复用，`video_*.md` 各段逐帧）。
-- 参考视频单帧：`dev/ref/p2/frames/f_NNNN.jpg`（960x540，**f_NNNN = 视频第 NNNN−1 秒**；例：10:33 = 633 秒 → f_0634），
-  拼图 `dev/ref/p2/sheets/s_XX.jpg`（4x4，每格隔 2 秒，左上角黄字时间戳）。用 Read 直接看图。游戏画面约占帧的 x 30–830，右边是物品栏。
-- **原视频**：`dev/ref/P02_第二灾-蛙灾_BV1bo4y1y7fm.mp4`（1920x1080，30 fps，849 秒；`dev/ref/` 里还有第 1、3–10 灾的视频，第一灾的帧在 `dev/ref/p1/`）。
+- 参考视频单帧：`dev/common/ref/p2/frames/f_NNNN.jpg`（960x540，**f_NNNN = 视频第 NNNN−1 秒**；例：10:33 = 633 秒 → f_0634），
+  拼图 `dev/common/ref/p2/sheets/s_XX.jpg`（4x4，每格隔 2 秒，左上角黄字时间戳）。用 Read 直接看图。游戏画面约占帧的 x 30–830，右边是物品栏。
+- **原视频**：`dev/common/ref/P02_第二灾-蛙灾_BV1bo4y1y7fm.mp4`（1920x1080，30 fps，849 秒；`dev/common/ref/` 里还有第 1、3–10 灾的视频，第一灾的帧在 `dev/common/ref/p1/`）。
   1 fps 的单帧不够时（动作时序、动画细节、小物件细节），直接从原视频抽更密的帧或高清局部（`ffmpeg` 可用，抽 2 秒只要零点几秒）：
   ```
   # 从第 766 秒起 2 秒，每秒 5 帧，缩到 960 宽（动作快的用 fps=10）
-  ffmpeg -loglevel error -y -ss 766 -t 2 -i dev/ref/P02_*.mp4 -vf "fps=5,scale=960:-1" -q:v 3 <草稿目录>/<模块>/t_%03d.jpg
+  ffmpeg -loglevel error -y -ss 766 -t 2 -i dev/common/ref/P02_*.mp4 -vf "fps=5,scale=960:-1" -q:v 3 <草稿目录>/<模块>/t_%03d.jpg
   # 某一秒的高清局部（1920x1080 坐标，裁 w:h:x:y；帧坐标 ×2 就是原视频坐标）
-  ffmpeg -loglevel error -y -ss 766.4 -i dev/ref/P02_*.mp4 -frames:v 1 -vf "crop=700:600:500:200" <草稿目录>/<模块>/crop.png
+  ffmpeg -loglevel error -y -ss 766.4 -i dev/common/ref/P02_*.mp4 -frames:v 1 -vf "crop=700:600:500:200" <草稿目录>/<模块>/crop.png
   ```
   文件名里有中文，用 `P02_*.mp4` 通配符。抽出来的图放草稿目录，不要放进项目。
 - 第一灾同类代码是最好的风格样板：`src/art/props_*.js`、`src/art/characters.js`、`src/chapters/plague1/*.js`、`src/art/props_frogs.js`（青蛙和第二灾物品，已完成）、
@@ -48,10 +48,10 @@
 4. 忠于原作：外观（形状、比例、颜色 hex、描边风格）、动作和时序都对照参考帧。
 5. 每个模块用时间戳写一份中文记录：`date +%Y%m%d-%H%M%S` 取时间戳，新建
    `docs/ai/context/<时间戳>-plague2-<模块>.md`（做了什么、实际接口、验证、遗留问题）。不要覆盖已有记录。
-6. 临时文件放会话草稿目录 `C:/Users/yui/AppData/Local/Temp/claude/D--CodeWorkSpace-rusty-lake-paradise-3d/b3cce8f9-1cae-4740-86c7-5ef158725ba9/scratchpad/<你的模块>/`。截图放 `dev/shots/p2/<你的模块>/`。
+6. 临时文件放会话草稿目录 `C:/Users/yui/AppData/Local/Temp/claude/D--CodeWorkSpace-rusty-lake-paradise-3d/b3cce8f9-1cae-4740-86c7-5ef158725ba9/scratchpad/<你的模块>/`。截图放 `dev/plague2/media/<你的模块>/`。
 
 ## 3. 视觉验证流程（必须做，至少迭代 2–3 轮）
-- 预览：`python dev/shot.py "dev/viewer.html?prop=<id>&hud=0&cam=px,py,pz,tx,ty,tz&fov=40&bg=%23cfc8b8" dev/shots/p2/<模块>/x.png`
+- 预览：`python dev/common/shot.py "dev/common/viewer.html?prop=<id>&hud=0&cam=px,py,pz,tx,ty,tz&fov=40&bg=%23cfc8b8" dev/plague2/media/<模块>/x.png`
   （`?char=<id>` 会自动加载 characters_p2.js；`&call=method:arg;method2`；`&anim=talk`；`&freeze=1`；`--js "异步函数体"`，里面可以用
   `window.VIEW = { THREE, scene, camera, renderer, obj, rig, advance(sec), call(name, ...), render() }`）。
   多段 await 的方法用 `&freeze=1` + `--js` 手动 `VIEW.advance(0.1)` 循环推进（见 `chars-props_reuse.md` 第 5 节）。

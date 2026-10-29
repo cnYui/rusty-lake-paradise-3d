@@ -1,11 +1,12 @@
-# 参考视频（B 站录屏，2.5 GB）、宣传片、截图：体积大，只放本地
-dev/ref/
-dev/promo/
-dev/shots/
+# 参考视频（B 站录屏，2.5 GB）、各章的录像 / 预告 / 宣传片 / 截图（dev/<章节>/media/、dev/plague1/promo/）：体积大，只放本地
+dev/common/ref/
+dev/*/media/
+dev/plague1/promo/
+.playwright-mcp/
 
 # 含私有主机信息（Tailscale 地址、SSH 用户名、密钥路径）的部署脚本和部署记录，只放本地。
-# 仓库里提供去掉私有信息的 dev/deploy_mac.example.sh。
-dev/deploy_mac.sh
+# 仓库里提供去掉私有信息的 dev/common/deploy_mac.example.sh。
+dev/common/deploy_mac.sh
 docs/ai/context/20261008-115228-public-deploy-aaccx.md
 
 # Python / 系统

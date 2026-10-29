@@ -157,6 +157,7 @@ function zoneAmbience(spec, pose) {
     case 'house_int': return 'interior';
     case 'temple_int': return 'temple';
     case 'memory': return 'memory';
+    case 'p3_grove': return 'forest';      // 第三灾的白桦林（独立 zone）
     case 'exterior': return ambienceAt(pose.pos.z);
     default: return null;
   }

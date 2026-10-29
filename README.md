@@ -45,10 +45,10 @@ Then open `http://localhost:8080` in your browser.
 线上地址：**https://aaccx.pw/rusty-lake/**（www.aaccx.pw 同样可用）。更新线上版本只需在项目根目录运行：
 
 ```bash
-bash dev/deploy_mac.sh
+bash dev/common/deploy_mac.sh
 ```
 
-- 脚本经 SSH 把文件传到部署用的 MacBook，最后自动检查线上页面（主机、用户名和密钥路径是私有信息，只写在本地的 `dev/deploy_mac.sh` 里，不进公开仓库）。仓库里的 `dev/deploy_mac.example.sh` 是去掉私有信息的示例，用 `DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_KEY`、`DEPLOY_DIR` 环境变量指定部署目标。
+- 脚本经 SSH 把文件传到部署用的 MacBook，最后自动检查线上页面（主机、用户名和密钥路径是私有信息，只写在本地的 `dev/common/deploy_mac.sh` 里，不进公开仓库）。仓库里的 `dev/common/deploy_mac.example.sh` 是去掉私有信息的示例，用 `DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_KEY`、`DEPLOY_DIR` 环境变量指定部署目标。
 - 链路：Cloudflare → Mac 上的 cloudflared 隧道（`~/.cloudflared/config.yml` 里 `^/rusty-lake(/.*)?$` 规则）→ nginx `127.0.0.1:8081`（`/opt/homebrew/etc/nginx/servers/yui-web-extras.conf`）。同域名下的主页和 Sub2API 走各自的规则，部署游戏不会影响它们。
 - 每次部署生成一个新的 `v<时间戳>/` 资源目录（长期缓存），最后才替换入口 `index.html`（不缓存），所以不用手动清 Cloudflare 缓存；旧版本目录不会自动删除。
 - Cloudflare 的 WAF 会拦截路径里带 `/vendor/` 的请求，所以线上 three.js 放在 `lib/three/`（脚本自动改写 importmap）。
@@ -57,10 +57,10 @@ bash dev/deploy_mac.sh
 
 ```bash
 # View individual props and characters
-open http://localhost:8080/dev/viewer.html?prop=owl_totem
+open http://localhost:8080/dev/common/viewer.html?prop=owl_totem
 
 # Headless screenshot capture (requires Python + Playwright)
-python dev/shot.py "index.html?chapter=1&view=beach_mid" screenshot.png
+python dev/common/shot.py "index.html?chapter=1&view=beach_mid" screenshot.png
 
 # Auto-play test (runs the complete walkthrough)
 open http://localhost:8080?autotest=1
