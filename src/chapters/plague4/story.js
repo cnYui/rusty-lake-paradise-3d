@@ -78,12 +78,15 @@ export function setup(ctx) {
     when: () => !ctx.flag('p4_rabbit_lured'), onClick: () => ctx.say(T.rabbit),
     onItem: { carrot: async () => { ctx.take('carrot'); ctx.setFlag('p4_rabbit_lured'); refresh(ctx); ctx.sfx('rustle'); } },
   });
+  // 寄居蟹 / 兔子 / 鸟的进食：下面的循环里填，陷阱的大点击盒也要能直接触发鸟的进食
+  const meals = {};
   // 陷阱的点击盒（整块翘起的石板、板下的空地和旁边的鸟）在 world.js 的 fatten 里挂
   hs('bird_trap', ['trap'], W.trap, {
     when: () => !ctx.flag('p4_bird_eaten'), onClick: () => {
       const propped = !!ctx.flag('p4_trap_propped'), baited = !!ctx.flag('p4_trap_baited');
-      // 陷阱已经支好、虫子也放了：鸟在板下，提示和点鸟时一样，告诉玩家还差什么才能吃。
-      if (propped && baited) return ctx.say(T.preyWait('bird', !!ctx.flag('p4_fly_awake')));
+      // 陷阱已经支好、虫子也放了：鸟在板下。陷阱点击盒比鸟大、常挡在鸟前面（手机屏幕上尤其明显），
+      // 轮到鸟时点到陷阱也要直接进食，否则玩家吃完兔子后点鸟仍只听到“先让它吃掉兔子”。
+      if (propped && baited) return meals.bird.ready() ? meals.bird.eat() : ctx.say(T.preyWait('bird', !!ctx.flag('p4_fly_awake')));
       if (propped) return ctx.say(T.trapPropped);
       if (baited) return ctx.say(T.trapBaited);
       return ctx.say(T.trap);
@@ -113,7 +116,7 @@ export function setup(ctx) {
       when: () => appeared() && !ctx.flag(`p4_${id}_eaten`) && !ready(),
       onClick: () => ctx.say(T.preyWait(id, !!ctx.flag('p4_fly_awake'))),
     });
-    hs(`${id}_meal`, [view], prey, { when: ready, onClick: async () => {
+    const eat = async () => {
       await ctx.cutscene(async () => {
         const start = W.fly.position.clone(), target = prey.position.clone(); target.y += 0.35;
         // 面朝猎物，再俯身跪下进食（模型默认朝 +z）。
@@ -126,7 +129,9 @@ export function setup(ctx) {
         await ctx.animate(500, (k) => W.fly.setKneel(1 - k));
         refresh(ctx);
       });
-    } });
+    };
+    meals[id] = { ready, eat };
+    hs(`${id}_meal`, [view], prey, { when: ready, onClick: eat });
     pickup(`${id}_heart`, [view, id === 'crab' ? 'lake_shore' : id === 'rabbit' ? 'pump_clearing' : 'bird_clearing'], W[`${id}Heart`], `${id}_heart`, `p4_${id}_heart_taken`, () => !!ctx.flag(`p4_${id}_eaten`));
   }
 
