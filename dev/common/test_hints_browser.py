@@ -147,7 +147,7 @@ def run_ui(ctx, base):
 
 
 def main():
-    want = [int(a) for a in sys.argv[1:]] or [1, 2, 3, 4, 5]
+    want = [int(a) for a in sys.argv[1:]] or [1, 2, 3, 4, 5, 6, 7]
     httpd, port = serve()
     base = f'http://127.0.0.1:{port}/'
     with sync_playwright() as p:
