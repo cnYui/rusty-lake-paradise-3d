@@ -348,13 +348,16 @@ def main():
             "for (const part of PARTS) { await part.setup(ctx); if (window.__RLP_STAGE) await window.__RLP_STAGE(); }",
         )])
     # 解锁顺序在源码注册表里：前五灾严格按顺序（第二灾 requires 第一灾，第三灾 requires 第一、二灾，第四灾 requires 第一到第三灾，第五灾 requires 第一到第四灾；没通关前置章节菜单里就是“未解锁”），这里不用再补。
-    # 开放范围：口袋方舟包和小红书小工具都是第一到第四灾（2026-10-24 起；口袋方舟之前只有第一到第三灾）。第五灾的谜题正在重做成真 3D（牛身疫斑 / 菜地 / 连线 / 砧板），
-    # 两种包里都不注册它的 load（菜单显示“敬请期待”，代码也不进包）。
+    # 第五灾的 setup 是 world.setup + puzzles.setup 两大块（牛、菜地、连线、厨房一次建完）：中间让出一帧
+    patch('src/chapters/plague5/index.js', [("await world.setup(ctx);\n    await puzzles.setup(ctx);",
+                                             "await world.setup(ctx);\n    if (window.__RLP_STAGE) await window.__RLP_STAGE();\n    await puzzles.setup(ctx);")])
+    # 开放范围：小红书小工具是第一到第五灾（第五灾 2026-10-29 起，解锁顺序同网页版：要先通关第一到第四灾；第五灾真 3D 重做完成、去掉 wip 之后）；
+    # 口袋方舟（233 乐园）包仍是第一到第四灾——第五灾只在小红书包里放开，--ark 这里还是把它的 load 置空（菜单显示“敬请期待”，代码也不进包）。
     _reg = rd(os.path.join(WORK, 'src/chapters/index.js'))
     assert "requires: ['plague1', 'plague2', 'plague3'], load: () => import('./plague4/index.js') }" in _reg, '源码注册表里第四灾的解锁条件变了（要先通关第一到第三灾）：更新 build.py'
     assert "requires: ['plague1', 'plague2', 'plague3', 'plague4'], load: () => import('./plague5/index.js') }" in _reg, '源码注册表里第五灾的解锁条件变了（要先通关第一到第四灾，且不再是 wip）：更新 build.py'
-    cut = [("load: () => import('./plague5/index.js') }", "load: null }")]
-    patch('src/chapters/index.js', cut)
+    if a.ark:
+        patch('src/chapters/index.js', [("load: () => import('./plague5/index.js') }", "load: null }")])
     assert "requires: ['plague1', 'plague2'], load: () => import('./plague3/index.js') }" in rd(os.path.join(WORK, 'src/chapters/index.js')), '源码注册表里第三灾的解锁条件变了（要先通关第一、二灾）：更新 build.py'
 
     # ---- 补丁 4（声音版）：音频输出线路。audio.js 是程序合成（振荡器 / 噪声 / 卷积混响），总线最后一级 comp 原来直连 ac.destination；
