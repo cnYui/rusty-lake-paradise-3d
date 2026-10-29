@@ -1,6 +1,6 @@
 // 占位人物（mock）：第六、七灾的人物先用简单几何体代替，等正式网格模型做好再换（见 docs/plague6_7_design.md §人物）。
 // makeMockPerson(id) → rig：root（脚底 y = 0、面朝 +Z，按真实身高建，scale 一律为 1）、parts（命名部件）、
-//   setPose('stand' | 'sit' | 'lie')、setHeld(Object3D | null)（挂在右手）、bob(on)、update(dt, t)、placeholder = true。
+//   setPose('stand' | 'sit' | 'lie'：躺时头朝 -Z、脸朝上)、setHeld(Object3D | null)（挂在右手）、bob(on)、update(dt, t)、placeholder = true。
 // 不带骨骼动画：章节要“动作”就直接 tween parts 里的部件（例如 parts.armR.rotation）。
 import * as THREE from 'three';
 import { toon } from './materials.js';
@@ -108,8 +108,8 @@ export function makeMockPerson(id, overrides = {}) {
         body.position.y = 0.45 - legH;
         if (parts.skirt) { parts.skirt.scale.y = 0.55; parts.skirt.position.y = legH - legH * 0.275; }
       } else if (p === 'lie') {
-        // 平躺：整个人绕脚底转 90°，头朝 -X
-        body.rotation.z = Math.PI / 2; body.position.y = H * 0.1;
+        // 平躺（脸朝上）：整个人绕脚底的 X 轴转 90°，头朝 -Z，左右手仍在身体两侧
+        body.rotation.x = -Math.PI / 2; body.position.y = H * 0.1;
       } else if (parts.skirt) { parts.skirt.scale.y = 1; parts.skirt.position.y = legH / 2; }
     },
     setHeld(obj) { holder.clear(); if (obj) holder.add(obj); },
