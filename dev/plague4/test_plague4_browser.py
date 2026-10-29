@@ -293,6 +293,13 @@ def run():
             page.evaluate("""() => { RLP.ctx.setFlag('p4_rabbit_eaten', true); RLP.chapter.sync(RLP.ctx); }""")
             assert not page.evaluate("RLP.ctx.hotspots.enabled('bird_wait')")
             assert page.evaluate("RLP.ctx.hotspots.enabled('bird_meal')")
+            # 玩家反馈“兔子吃掉了还是吃不了鸟”：陷阱的大点击盒常挡在鸟前面，点到陷阱也必须直接进食
+            page.evaluate("() => { RLP.ctx.ui.clearSay(); document.querySelector('.band-text').textContent = ''; }")
+            real_click(page, 'bird_trap')
+            said_trap = page.evaluate("document.querySelector('.band-text').textContent.trim()")
+            assert page.evaluate('!!RLP.state.flag("p4_bird_eaten")'), said_trap
+            assert '先让它吃掉兔子' not in said_trap, said_trap
+            page.evaluate("""() => { RLP.ctx.setFlag('p4_bird_eaten', false); RLP.chapter.sync(RLP.ctx); }""")
             real_click(page, 'bird_meal')
             assert page.evaluate('!!RLP.state.flag("p4_bird_eaten")')
             results['trap_bird_wait_feedback'] = said
