@@ -4,13 +4,14 @@ r"""验证小工具包（dev/minitool/dist）：按小红书容器的 CSP 起静
   2. 手机竖屏（390×844）：画面被转 90°，舞台是 16:9，按键和摇杆在屏幕上都看得见
   3. 转过来的画面里：真实触摸点标题菜单 → 开始游戏；轻点天堂门进入漫游；左侧拖动是摇杆（向前走）；右侧拖动转视角（方向对）
   4. 手机横屏（844×390）和电脑横向窗口不转；电脑上窄而高的窗口（小红书模拟器）照转
-  5. 完整流程 RLP.autoplay() 在竖屏转过来的画面里跑完（第一、二、三灾；每章成就表里的成就都要拿到）
+  5. 完整流程 RLP.autoplay() 在竖屏转过来的画面里跑完（第一到第五灾；每章成就表里的成就都要拿到）
   6. 第三灾的解锁顺序：没通关第一、二灾点不开；两章都通关后才开放，触摸点进去能玩
+  7. 第四、五灾的解锁顺序；通关第四灾的结尾卡出现“进入第五灾”，触摸点它进入第五灾；第五灾结尾卡后面没有可进入的章节
 
 用法：python dev/minitool/test_minitool.py [输出目录]
   环境变量 MINITOOL_DIST 指定要测的目录（默认 dev/minitool/dist，即旧版；声音版是 dev/minitool/dist-audio）
 """
-import functools, http.server, json, math, os, socketserver, sys, threading, time
+import functools, http.server, json, math, os, re, socketserver, sys, threading, time
 from playwright.sync_api import sync_playwright
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -156,8 +157,8 @@ with sync_playwright() as p:
 
     check('普通首页：没有启动错误，开始和三项菜单入口完整显示',
           page.evaluate("!RLP.bootError && !!document.querySelector('.menu.show .menu-play') && document.querySelectorAll('.menu-link').length === 3"))
-    check('章节菜单（空档）：只有第一灾开放，第二到第四灾“未解锁”（要按顺序通关），第五灾及以后“敬请期待”（第五灾重做成 3D 前先不发布）',
-          page.evaluate("document.querySelectorAll('.plague').length === 10 && [...document.querySelectorAll('.plague.open .lbl')].map(e => e.textContent).join(',') === '第一灾' && [1, 2, 3].every(i => document.querySelectorAll('.plague')[i].classList.contains('gated') && document.querySelectorAll('.plague')[i].textContent.indexOf('未解锁') >= 0) && [4, 5, 6].every(i => !document.querySelectorAll('.plague')[i].classList.contains('open') && document.querySelectorAll('.plague')[i].textContent.indexOf('敬请期待') >= 0)"))
+    check('章节菜单（空档）：只有第一灾开放，第二到第五灾“未解锁”（要按顺序通关），第六灾及以后“敬请期待”',
+          page.evaluate("document.querySelectorAll('.plague').length === 10 && [...document.querySelectorAll('.plague.open .lbl')].map(e => e.textContent).join(',') === '第一灾' && [1, 2, 3, 4].every(i => document.querySelectorAll('.plague')[i].classList.contains('gated') && document.querySelectorAll('.plague')[i].textContent.indexOf('未解锁') >= 0) && [5, 6].every(i => !document.querySelectorAll('.plague')[i].classList.contains('open') && document.querySelectorAll('.plague')[i].textContent.indexOf('敬请期待') >= 0)"))
     for n, title in [(2, '成就'), (3, '设置')]:
         r = vrect(page, f'.menu-link:nth-child({n})')
         tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
@@ -303,10 +304,11 @@ with sync_playwright() as p:
         csp_and_errors(page, log, f'第三灾解锁（{label}）')
         ctx.close()
 
-    # ------------------------------------------------------------------ 1e. 第四灾的解锁顺序：要先通关第一到第三灾；第五灾不发布（包里不注册），通关第四灾后它也是“敬请期待”
+    # ------------------------------------------------------------------ 1e. 第四、五灾的解锁顺序：第四灾要先通关第一到第三灾，第五灾要先通关第一到第四灾（2026-10-29 起第五灾随小红书包发布）
     for label, done, open4, open5 in [('只通关第一到第二灾', ['plague1', 'plague2'], False, False),
                                       ('通关第一到第三灾', ['plague1', 'plague2', 'plague3'], True, False),
-                                      ('通关第一到第四灾', ['plague1', 'plague2', 'plague3', 'plague4'], True, False)]:
+                                      ('只通关第一、二、四灾（不合常理的残档）', ['plague1', 'plague2', 'plague4'], False, False),
+                                      ('通关第一到第四灾', ['plague1', 'plague2', 'plague3', 'plague4'], True, True)]:
         ctx, page, log = new_page(browser, 390, 844, dsf=2)
         page.add_init_script(seeded(done))
         page.goto(f'{BASE}/index.html?norender=1')
@@ -318,6 +320,40 @@ with sync_playwright() as p:
         check(f'{label}：第四灾{"开放" if open4 else "锁着"}、第五灾{"开放" if open5 else "锁着"}', all(want), cls)
         csp_and_errors(page, log, f'第四、五灾解锁（{label}）')
         ctx.close()
+
+    # ------------------------------------------------------------------ 1f. 通关第四灾的结尾卡出现“进入第五灾 · 疫灾”，真实触摸点它进入第五灾；第五灾通关后后面没有可进入的章节
+    ctx, page, log = new_page(browser, 390, 844, dsf=1)
+    page.add_init_script(seeded(['plague1', 'plague2', 'plague3']))
+    page.goto(f'{BASE}/index.html')
+    assert poll(page, "window.RLP && RLP.ready === true && document.querySelector('.menu.show')", 120)
+    time.sleep(1.5)
+    assert page.evaluate('RLP.bootError') is None, page.evaluate('RLP.bootError')
+    f = Fingers(ctx.new_cdp_session(page))
+    ending_btns = "[...document.querySelectorAll('.ending .ending-btn')].map(b => b.textContent)"
+    page.evaluate("async () => { RLP.ctx.ui.autoAdvance = false; await RLP.start(4, { fresh: true, skipIntro: true }); }")
+    assert poll(page, 'RLP.state.view && RLP.chapter.number === 4', 120)
+    # 和第四灾故事代码的顺序一样：先立通关旗标（记进通关记录），再弹结尾卡
+    page.evaluate("() => { RLP.timeScale = 25; RLP.ctx.setFlag('plague4_complete'); RLP.ctx.ui.ending({ zh: '第四灾 · 完', en: '' }); }")
+    assert poll(page, "document.querySelector('.ending .ending-next') && parseFloat(getComputedStyle(document.querySelector('.ending .ending-next')).opacity) > 0.95", 60)
+    check('第四灾结尾卡：有“进入第五灾 · 疫灾”和“返回主菜单”两个按钮（第五灾已开放）', page.evaluate(ending_btns) == ['进入第五灾 · 疫灾', '返回主菜单'], page.evaluate(ending_btns))
+    page.evaluate('window.__m = 1')
+    r = vrect(page, '.ending .ending-next')
+    tap_virtual(page, f, r['x'] + r['w'] / 2, r['y'] + r['h'] / 2)
+
+    def chapter5_started():
+        try:
+            return page.evaluate("!!(window.RLP && RLP.ready === true && !window.__m && RLP.chapter && RLP.chapter.number === 5 && RLP.state.view && RLP.ctx.ui.menu.visible === false)")
+        except Exception:
+            return False
+    t_end = time.time() + 180
+    while time.time() < t_end and not chapter5_started():
+        time.sleep(0.5)
+    check('第四灾结尾卡：真实触摸“进入第五灾”：页面重载并进入第五灾，没有启动错误', chapter5_started() and page.evaluate('!RLP.bootError'))
+    page.evaluate("() => { RLP.ctx.ui.autoAdvance = false; RLP.timeScale = 25; RLP.ctx.setFlag('plague5_complete'); RLP.ctx.ui.ending({ zh: '第五灾 · 完', en: '' }); }")
+    assert poll(page, "document.querySelector('.ending .ending-btn') && parseFloat(getComputedStyle(document.querySelector('.ending .ending-btn')).opacity) > 0.95", 60)
+    check('第五灾结尾卡：后面没有可进入的章节（第六灾“敬请期待”），只有“返回主菜单”', page.evaluate(ending_btns) == ['返回主菜单'], page.evaluate(ending_btns))
+    csp_and_errors(page, log, '第四灾 → 第五灾衔接')
+    ctx.close()
 
     # ------------------------------------------------------------------ 2. 竖屏漫游：点天堂门、摇杆、转视角
     ctx, page, log = new_page(browser, 390, 844, dsf=2)
@@ -435,8 +471,8 @@ with sync_playwright() as p:
     csp_and_errors(page, log, '第三灾完整流程')
     ctx.close()
 
-    # 第四灾完整流程（开发跳转 ?chapter=4；通关后成就表全部拿到；包里不能有“死”字：第四灾书页里的“遇见死亡”已改成 S）
-    for n, want_ach in [(4, ['p4_card', 'p4_crab', 'p4_hearts', 'p4_memory'])]:
+    # 第四、五灾完整流程（开发跳转 ?chapter=N；通关后成就表全部拿到；包里不能有“死”字：第四灾书页里的“遇见死亡”已改成 S）
+    for n, want_ach in [(4, ['p4_card', 'p4_crab', 'p4_hearts', 'p4_memory']), (5, ['p5_harvest', 'perfect_constellation', 'sickly_cow'])]:
         ctx, page, log = new_page(browser, 390, 844, dsf=1)
         page.goto(f'{BASE}/index.html?autotest=1&chapter={n}')
         assert poll(page, 'window.RLP && RLP.ready === true', 120)
@@ -449,6 +485,8 @@ with sync_playwright() as p:
         check(f'第{n}灾：成就表 {len(want_ach)} 个成就全部拿到', ach == sorted(want_ach), ach)
         gjs = open(os.path.join(DIST, 'game.js'), encoding='utf-8').read()
         check(f'第{n}灾：整个 game.js 里没有“死”“血”字（\u6B7B / \u8840，小红书审核对它们敏感）', '\u6b7b' not in gjs.lower() and '\u8840' not in gjs.lower() and '死' not in gjs and '血' not in gjs)
+        # esbuild 把非 ASCII 字符写成 \uXXXX 转义，上面直接找汉字找不到：再按转义写法查一遍
+        check(f'第{n}灾：game.js 里没有转义写法的“死”“血”（\\u6b7b / \\u8840）', not re.search(r'\\u(6b7b|8840)', gjs, re.I))
         csp_and_errors(page, log, f'第{n}灾完整流程')
         ctx.close()
 
