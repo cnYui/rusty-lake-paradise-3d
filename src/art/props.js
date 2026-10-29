@@ -7,6 +7,9 @@ import { FACTORIES as P2_LAKE } from './props_p2_lake.js';
 import { FACTORIES as P2_HOUSE } from './props_p2_house.js';
 import { FACTORIES as P2_TEMPLE } from './props_p2_temple.js';
 import { FACTORIES as P5 } from './props_p5.js';
+// 第六、七灾（设计见 docs/plague6_7_design.md）
+import { FACTORIES as P6 } from './props_p6.js';
+import { FACTORIES as P7 } from './props_p7.js';
 // 第三灾：物品、海滩 / 湖岸、森林、小屋、白桦林（接口见 docs/plague3_api.md）
 import { FACTORIES as P3_ITEMS } from './props_p3_items.js';
 import { FACTORIES as P3_BEACH } from './props_p3_beach.js';
@@ -15,7 +18,7 @@ import { FACTORIES as P3_HOUSE } from './props_p3_house.js';
 import { FACTORIES as P3_GROVE } from './props_p3_grove.js';
 import { PLACEHOLDERS as P3_PLACEHOLDERS } from './props_p3_placeholders.js';
 
-const MODULES = { BEACH, INNER, LAKE, FROGS, P2_LAKE, P2_HOUSE, P2_TEMPLE, P5, P3_ITEMS, P3_BEACH, P3_FOREST, P3_HOUSE, P3_GROVE };
+const MODULES = { BEACH, INNER, LAKE, FROGS, P2_LAKE, P2_HOUSE, P2_TEMPLE, P5, P6, P7, P3_ITEMS, P3_BEACH, P3_FOREST, P3_HOUSE, P3_GROVE };
 const FACTORIES = {};
 for (const [name, m] of Object.entries(MODULES)) {
   for (const id of Object.keys(m)) {

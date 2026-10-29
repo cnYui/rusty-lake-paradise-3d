@@ -9,7 +9,7 @@ import { nextHint, pendingHints, isDone } from '../../src/core/hints.js';
 import { isMockMode, normalizeAdResult } from '../../src/core/rewardad.js';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
-const CHAPTERS = ['plague1', 'plague2', 'plague3', 'plague4', 'plague5'];
+const CHAPTERS = ['plague1', 'plague2', 'plague3', 'plague4', 'plague5', 'plague6', 'plague7'];
 
 /** 状态替身：记录被读过的旗标 / 物品；flags 里没有的旗标读出 undefined。 */
 function fakeState(flags = {}, inv = []) {
