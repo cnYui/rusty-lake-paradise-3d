@@ -1,4 +1,4 @@
-// 占位人物（mock）：第六、七灾的人物先用简单几何体代替，等正式网格模型做好再换（见 docs/plague6_7_design.md §人物）。
+// 占位人物（mock）：第六到八灾的人物先用简单几何体代替，等正式网格模型做好再换（见 docs/plague6_7_design.md §人物）。
 // makeMockPerson(id) → rig：root（脚底 y = 0、面朝 +Z，按真实身高建，scale 一律为 1）、parts（命名部件）、
 //   setPose('stand' | 'sit' | 'lie'：躺时头朝 -Z、脸朝上)、setHeld(Object3D | null)（挂在右手）、bob(on)、update(dt, t)、placeholder = true。
 // 不带骨骼动画：章节要“动作”就直接 tween parts 里的部件（例如 parts.armR.rotation）。
@@ -18,6 +18,13 @@ export const MOCK_PEOPLE = {
   jakob_child: { height: 1.31, coat: '#e9e4da', legs: '#8a7b68', hair: '#7a4b2a' },
   nicholas_deer: { height: 1.88, coat: '#ecebe4', legs: '#ecebe4', hair: null, robe: true, deer: true },
   ida_snow: { height: 1.58, coat: '#f4f4f2', legs: '#f4f4f2', hair: '#d9d6cf', hat: 'bonnet', robe: true },
+  // 第八灾（docs/plague8_design.md §人物）：门外三个乐手、木屋里的红发女人、雾里的黑影、回忆里的母亲
+  musician_fat: { height: 1.8, coat: '#3d3a52', legs: '#2c2a33', hair: '#4a3324', hat: 'top', mustache: true, fat: true },
+  musician_feather: { height: 1.76, coat: '#5a6b3d', legs: '#3a3528', hair: '#8a5a2c', hat: 'fedora', feather: true },
+  musician_old: { height: 1.84, coat: '#6b5a48', legs: '#3d342c', hair: '#ecebe6', thin: true },
+  seer: { height: 1.64, coat: '#2f4a46', legs: '#2f4a46', hair: '#b4361f', robe: true, eyes: '#f4f4ef', longHair: true },
+  shadow: { height: 1.9, coat: '#101012', legs: '#101012', skin: '#141416', eyes: '#f4f4ef', robe: true },
+  mother: { height: 1.62, coat: '#3c4a66', legs: '#3c4a66', apron: '#e8e2d2', hair: '#6e4a2c', robe: true, longHair: true },
 };
 
 const mesh = (geo, color, name, opts) => { const m = new THREE.Mesh(geo, toon(color, opts)); m.name = name; m.castShadow = true; return m; };
@@ -45,7 +52,7 @@ function hat(kind, headR) {
 
 export function makeMockPerson(id, overrides = {}) {
   const spec = { ...(MOCK_PEOPLE[id] || MOCK_PEOPLE.gerard_p7), ...overrides };
-  const H = spec.height, headR = H * 0.072;
+  const H = spec.height, headR = H * 0.072, skin = spec.skin || SKIN;
   const root = new THREE.Group(); root.name = `mock_${id}`;
   const body = new THREE.Group(); body.name = 'body'; root.add(body);
   const parts = { body };
@@ -62,26 +69,29 @@ export function makeMockPerson(id, overrides = {}) {
     }
   }
   // 躯干
-  const torso = mesh(new THREE.CylinderGeometry(H * 0.085, H * 0.1, torsoH, 16), spec.coat, 'torso'); torso.position.y = legH + torsoH / 2; body.add(torso); parts.torso = torso;
+  const girth = spec.fat ? 1.5 : spec.thin ? 0.8 : 1;
+  const torso = mesh(new THREE.CylinderGeometry(H * 0.085 * girth, H * 0.1 * girth, torsoH, 16), spec.coat, 'torso'); torso.position.y = legH + torsoH / 2; body.add(torso); parts.torso = torso;
+  if (spec.fat) { const belly = mesh(new THREE.SphereGeometry(H * 0.15, 16, 12), spec.coat, 'belly'); belly.position.set(0, legH + torsoH * 0.3, H * 0.06); body.add(belly); }
   if (spec.vest) { const v = mesh(new THREE.CylinderGeometry(H * 0.088, H * 0.102, torsoH * 0.8, 16, 1, true), spec.vest, 'vest', { side: THREE.DoubleSide }); v.position.y = legH + torsoH * 0.45; body.add(v); }
   if (spec.apron) { const a = mesh(new THREE.BoxGeometry(H * 0.15, legH * 0.9, 0.01), spec.apron, 'apron'); a.position.set(0, legH * 0.55, H * 0.13); body.add(a); }
   // 手臂（肩部是枢轴，章节可以转 parts.armL / armR）
   for (const side of [-1, 1]) {
     const arm = new THREE.Group(); arm.name = side < 0 ? 'armL' : 'armR';
     arm.position.set(side * H * 0.11, legH + torsoH * 0.92, 0);
-    const sleeve = mesh(new THREE.CylinderGeometry(H * 0.026, H * 0.022, H * 0.3, 10), spec.shirtless ? SKIN : spec.coat, 'arm_mesh'); sleeve.position.y = -H * 0.15; arm.add(sleeve);
-    const hand = mesh(new THREE.SphereGeometry(H * 0.024, 10, 8), spec.deer ? '#ecebe4' : SKIN, 'hand'); hand.position.y = -H * 0.31; arm.add(hand);
+    const sleeve = mesh(new THREE.CylinderGeometry(H * 0.026, H * 0.022, H * 0.3, 10), spec.shirtless ? skin : spec.coat, 'arm_mesh'); sleeve.position.y = -H * 0.15; arm.add(sleeve);
+    const hand = mesh(new THREE.SphereGeometry(H * 0.024, 10, 8), spec.deer ? '#ecebe4' : skin, 'hand'); hand.position.y = -H * 0.31; arm.add(hand);
     arm.rotation.z = side * 0.08;
     body.add(arm); parts[arm.name] = arm;
   }
   const holder = new THREE.Group(); holder.name = 'held'; holder.position.y = -H * 0.32; parts.armR.add(holder); parts.held = holder;
   // 头
   const head = new THREE.Group(); head.name = 'head'; head.position.y = H - headR; body.add(head); parts.head = head;
-  const skull = mesh(new THREE.SphereGeometry(headR, 20, 14), spec.deer ? '#a7855c' : SKIN, 'skull'); head.add(skull);
-  const neck = mesh(new THREE.CylinderGeometry(headR * 0.4, headR * 0.45, H - headR * 1.6 - legH - torsoH, 10), SKIN, 'neck');
+  const skull = mesh(new THREE.SphereGeometry(headR, 20, 14), spec.deer ? '#a7855c' : skin, 'skull'); head.add(skull);
+  const neck = mesh(new THREE.CylinderGeometry(headR * 0.4, headR * 0.45, H - headR * 1.6 - legH - torsoH, 10), skin, 'neck');
   neck.position.y = legH + torsoH + (H - headR * 1.6 - legH - torsoH) / 2; body.add(neck);
-  for (const side of [-1, 1]) { const eye = mesh(new THREE.SphereGeometry(headR * 0.12, 8, 6), '#1c1a1c', 'eye'); eye.position.set(side * headR * 0.36, headR * 0.12, headR * 0.9); head.add(eye); }
+  for (const side of [-1, 1]) { const eye = mesh(new THREE.SphereGeometry(headR * 0.12, 8, 6), spec.eyes || '#1c1a1c', 'eye'); eye.position.set(side * headR * 0.36, headR * 0.12, headR * 0.9); head.add(eye); }
   if (spec.hair) { const hair = mesh(new THREE.SphereGeometry(headR * 1.04, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), spec.hair, 'hair'); hair.rotation.x = -0.25; head.add(hair); }
+  if (spec.longHair) { const lh = mesh(new THREE.CylinderGeometry(headR * 0.95, headR * 1.15, headR * 2.4, 16, 1, true, Math.PI * 0.35, Math.PI * 1.3), spec.hair, 'hair_long', { side: THREE.DoubleSide }); lh.position.set(0, -headR * 0.75, -headR * 0.15); head.add(lh); }
   if (spec.mustache) { const m = mesh(new THREE.BoxGeometry(headR * 0.9, headR * 0.12, headR * 0.12), spec.hair || '#5a3a22', 'mustache'); m.position.set(0, -headR * 0.3, headR * 0.92); head.add(m); }
   if (spec.beak) {
     const beak = mesh(new THREE.ConeGeometry(headR * 0.42, headR * 2.2, 14), '#efe8da', 'beak');
@@ -96,6 +106,10 @@ export function makeMockPerson(id, overrides = {}) {
     const snout = mesh(new THREE.BoxGeometry(headR * 0.7, headR * 0.6, headR * 1.2), '#a7855c', 'snout'); snout.position.set(0, -headR * 0.35, headR * 0.9); head.add(snout);
   }
   if (spec.hat) head.add(hat(spec.hat, headR));
+  if (spec.feather) {
+    const f = mesh(new THREE.SphereGeometry(headR * 0.2, 10, 6), '#efe6cf', 'feather'); f.scale.set(0.45, 3.4, 0.2);
+    f.position.set(headR * 0.85, headR * 0.45, -headR * 0.2); f.rotation.z = -0.55; head.getObjectByName('hat').add(f);
+  }
 
   const rig = {
     id, root, parts, placeholder: true, pose: 'stand', bobbing: true,

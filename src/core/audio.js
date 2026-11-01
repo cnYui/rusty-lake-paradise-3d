@@ -634,6 +634,31 @@ const SFX = {
     for (let i = 0; i < 6; i++) g.gain.setValueAtTime(0.008 + Math.random() * 0.03, t + 0.02 + i * 0.05);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.38);
   },
+  // 第八灾：树上蝗虫的叫声。音高按蝗虫趴的高度（1 最低 … 5 最高，C 大调五声音阶），一串短促的摩擦音 + 一个三角波的音。
+  ...Object.fromEntries([0, 2, 4, 7, 9].map((semi, i) => [`locust_${i + 1}`, (t) => {
+    const f = 523.25 * Math.pow(2, semi / 12);
+    for (let k = 0; k < 4; k++) tone(t + k * 0.055, { type: 'sawtooth', f0: f * 2, f1: f * 2.1, dur: 0.04, attack: 0.004, peak: 0.018, filter: ['bandpass', f * 4, 3] });
+    tone(t, { type: 'triangle', f0: f, dur: 0.4, attack: 0.01, peak: 0.08, rev: 0.3 });
+  }])),
+  // 巨型螳螂：低沉的吱嘎声 + 一串咔哒（关节）
+  mantis(t) {
+    creak(t, { dur: 0.9, f0: 300, f1: 520, base: 18, peak: 0.12 });
+    for (let i = 0; i < 6; i++) hiss(t + 0.1 + i * 0.09, { type: 'bandpass', f0: 1800 + Math.random() * 600, Q: 4, dur: 0.035, attack: 0.002, peak: 0.06 });
+    tone(t, { type: 'sawtooth', f0: 70, f1: 50, dur: 0.8, attack: 0.05, peak: 0.05, filter: ['lowpass', 400] });
+  },
+  // 雾之号角：两声长长的低音
+  fog_horn(t) {
+    for (const d of [0, 1.4]) [[110, 0.09, 'sawtooth'], [165, 0.04, 'sawtooth'], [220, 0.02, 'triangle']].forEach(([f, a, type]) => tone(t + d, { type, f0: f, f1: f * 0.97, dur: 1.2, attack: 0.25, peak: a, filter: ['lowpass', 600], rev: 0.6 }));
+  },
+  // 猫头鹰：“呼——呼呼”
+  owl(t) {
+    tone(t, { f0: 410, f1: 360, dur: 0.35, attack: 0.05, peak: 0.08, rev: 0.4 });
+    tone(t + 0.55, { f0: 420, f1: 350, dur: 0.5, attack: 0.06, peak: 0.08, rev: 0.45 });
+  },
+  // 曼陀林的颤音和弦
+  mandolin(t) {
+    [392, 494, 587].forEach((f, i) => { for (let k = 0; k < 6; k++) tone(t + i * 0.03 + k * 0.07, { type: 'triangle', f0: f, dur: 0.12, attack: 0.002, peak: 0.03, p: (i - 1) * 0.3 }); });
+  },
 };
 
 // ------------------------------------------------------------------------ ambiences
