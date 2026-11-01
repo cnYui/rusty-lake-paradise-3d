@@ -42,6 +42,14 @@
 - 第五灾的谜题全是真 3D 摆设（2026-10-24 重做，不是平面题板）：牛皮斑点是贴在真实牛网格侧面的 10 颗彩色疫斑（点牛身侧面推近镜头 `p5_skin`，同色两两配对）；菜地是垄土 + 木框 + 木牌红色刻痕 + 巨型蔬菜（点苗或点盘子里的备用苗选中，再点田格；已选中一株时苗的热点关闭，避免前排苗挡住后排田格）；连线是石灰板上的铜钉（钉面小圆点数 = 要连几根线）和红绳。食材、盘子、汉堡、刀、炉灶、砧板按真实大小建（汉堡直径约 13 cm、盘子 26 cm），切菜是奶奶剁三刀、砧板上的食材每刀换一个样子；盘子和面包在 `p5_table` 桌面特写里。对照原作抽帧的结论见 `docs/ai/context/20261024-130000-plague5-3d-rework.md`。
 - 第五灾验收入口为 `node --test dev/plague5/test_plague5.mjs` 和 `python dev/plague5/test_plague5_browser.py`，覆盖自动通关、真实鼠标/数字键、触屏、存档与漫游；首次可玩实现及验收见 `docs/ai/context/20261014-184500-plague5-implementation-verification.md`。
 
+## 第六、七灾（2026-10-29 起，wip）
+
+- 设计文档 `docs/plague6_7_design.md`：原作流程（参考 `dev/common/ref/P06_第六灾-疹灾_*`、`P07_第七灾-雹灾_*` 抽帧，带时间码）+ 重制版契约（视图、物品、谜题规则、旗标、成就、与原作的差异）。改谜题先改这份文档。
+- 第六灾 `src/chapters/plague6/`（道具 `src/art/props_p6.js`，`p6_` 前缀）：天堂门接血开门 → 四体液（血 / 泪 / 涕 / 唾，奶奶给洋葱 / 胡椒 / 蘑菇用空瓶接）按 CURE 书配药 → 疹子（第一颗橙色、沿静脉、颜色橙绿灰轮换）→ 刀切 × 取病心 → 喂药 → 牙齿咬合（下排第 5 颗 ×、上排第 8 颗 ∶）→ 落地钟 ×V ∶VIII 取发条心 → 放入胸口、针线缝合 → 字母箱 BOAR → 回忆里把病心交给鹿头人 → 黑方块 → 神殿。第七灾 `src/chapters/plague7/`（道具 `props_p7.js`，`p7_` 前缀；雪景——地面泛白、湖面冰层、飘雪粒子——在章节 `world.js` 的 `snowScene`）：滑冰（滑到撞上树桩 / 边缘才停）、冰池（立冰压相邻平冰）、牛角敲冰锥做草莓 / 开心果冰淇淋换 Gerard 的帽子、雪人五件套、冰中青年、雪景球机器三颗钻石 → 圣水盆过场 → 黑方块 → 神殿。纯规则都在各章 `rules.js`，接受所有合法解。
+- 人物还是占位模型：`src/art/cast_mock.js` 的 `makeMockPerson(id)`（几何体拼的人，按真实身高，`setPose('stand'|'sit'|'lie')`、`setHeld`，没有骨骼动画）。所以注册表里两章都标 `wip: true`（正常菜单“敬请期待”，`?wip=1` 才能选，wip 同时跳过解锁顺序）；`requires` 已写好（第六灾要通关前五灾，第七灾要通关前六灾）。正式模型做好后把 `makeMockPerson(...)` 换成 `makeCharacter(...)`、在 `rlpm.js` 的 `CHAPTER_MODELS` 加两章，再去掉 `wip`。
+- 小红书 / 口袋方舟打包：`build.py` 在打包副本里把第六、七灾的 `load` 置空（章节代码不进包；`props_p6/p7` 因为 `props.js` 静态引入仍在包里，约 +13 KB，不含“死 / 血”字）。放开前要去掉那两行并过一遍审核敏感字（第六灾文案有“血液”“死亡”）。
+- 验收入口：`node --test dev/plague6/test_plague6.mjs dev/plague7/test_plague7.mjs`、`python dev/plague6/test_plague6_browser.py`、`python dev/plague7/test_plague7_browser.py`（自动通关、真实鼠标 / 数字键完整通关、中途读档、门禁、菜单 wip、触屏），提示表 `python dev/common/test_hints_browser.py 6 7`。记录见 `docs/ai/context/20261029-140000-plague6-7-implementation.md`。
+
 ## 第二灾与人物复用
 
 - 第二灾逻辑集中在 `src/chapters/plague2/`，专属道具在 `src/art/props_p2_*.js`（人物统一在 `src/art/cast.js`），参考为 `dev/common/ref/P02_第二灾-蛙灾_BV1bo4y1y7fm.mp4`。参考视频及抽帧仅本地保存。

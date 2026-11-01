@@ -358,6 +358,10 @@ def main():
     assert "requires: ['plague1', 'plague2', 'plague3', 'plague4'], load: () => import('./plague5/index.js') }" in _reg, '源码注册表里第五灾的解锁条件变了（要先通关第一到第四灾，且不再是 wip）：更新 build.py'
     if a.ark:
         patch('src/chapters/index.js', [("load: () => import('./plague5/index.js') }", "load: null }")])
+    # 第六、七灾（2026-10-29 起在源码里，人物还是占位模型、注册表标 wip）：小红书 / 口袋方舟包都不带，load 置空（菜单照旧“敬请期待”，代码也不进包）。
+    # 要放开时去掉这两行，并把文案过一遍审核敏感字（第六灾有“血液”“死亡”）。
+    patch('src/chapters/index.js', [("wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5'], load: () => import('./plague6/index.js') }", "load: null }"),
+                                    ("wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5', 'plague6'], load: () => import('./plague7/index.js') }", "load: null }")])
     assert "requires: ['plague1', 'plague2'], load: () => import('./plague3/index.js') }" in rd(os.path.join(WORK, 'src/chapters/index.js')), '源码注册表里第三灾的解锁条件变了（要先通关第一、二灾）：更新 build.py'
 
     # ---- 补丁 4（声音版）：音频输出线路。audio.js 是程序合成（振荡器 / 噪声 / 卷积混响），总线最后一级 comp 原来直连 ac.destination；
