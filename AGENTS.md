@@ -50,6 +50,14 @@
 - 小红书 / 口袋方舟打包：`build.py` 在打包副本里把第六、七灾的 `load` 置空（章节代码不进包；`props_p6/p7` 因为 `props.js` 静态引入仍在包里，约 +13 KB，不含“死 / 血”字）。放开前要去掉那两行并过一遍审核敏感字（第六灾文案有“血液”“死亡”）。
 - 验收入口：`node --test dev/plague6/test_plague6.mjs dev/plague7/test_plague7.mjs`、`python dev/plague6/test_plague6_browser.py`、`python dev/plague7/test_plague7_browser.py`（自动通关、真实鼠标 / 数字键完整通关、中途读档、门禁、菜单 wip、触屏），提示表 `python dev/common/test_hints_browser.py 6 7`。记录见 `docs/ai/context/20261029-140000-plague6-7-implementation.md`。
 
+## 第八灾（2026-11-01 起，wip）
+
+- 设计文档 `docs/plague8_design.md`：原作流程（参考 `dev/common/ref/P08_第八灾-蝗灾_*` 抽帧，带时间码，台词和歌词只写大意）+ 重制版契约。改谜题先改这份文档。章节逻辑 `src/chapters/plague8/`，道具 `src/art/props_p8.js`（`p8_` 前缀），音效在 `src/core/audio.js`（`locust_1…5`、`mantis`、`fog_horn`、`owl`、`mandolin`）。
+- 流程：门外三个乐手唱谜歌 → 木盒三个滑块按属性对上三人（帽子 / 胡子 / 白发 / 大肚子，横杠有、圆点没有）→ 斧子劈开钉死天堂门的木板 → 雾林里照门外乐谱的高低点五只蝗虫 → 卵鞘孵出巨型螳螂 → 发光的蛾子引螳螂吃掉山羊得羊眼睛 → 交给木屋里的红发女人（能看穿雾）→ 点刻眼睛的树让雾散开：屋前多出萤火虫、羊骨旁露出地上的圈 → 萤火虫引螳螂叼走猫头鹰得钥匙 → 铲子挖出箱子、钥匙开箱得雾之号角 → 号角给船上的老奶奶，螳螂把她提走 → 点空船上的黑方块进回忆、拿黑方块 → 神殿。纯规则在 `rules.js`，接受所有合法解（木盒按属性判定、摆的顺序随意；合唱点错从头来）。
+- 浓雾：章节 `world.js` 的 `fogController` 注册成每帧更新的道具（`main.js` 里排在 `world.update` 之后），按相机位置调 `world.setFog`（门外 0.6 薄雾，进门 1）；白雾最浓时的近 / 远距离用 `sky.js` 新加的可选项 `fogState.whiteNear / whiteFar`（不设就是原来的 0 / 42，别的章不受影响）。第一灾林间小路缺口里不吃雾的黑卡片 `forest_path_dark` 这一章藏起来，湖水颜色压暗一点。螳螂在雾里待的位置由旗标推导（`sync` 里按进度换），过场从雾里走出来出手再退回去。
+- 人物是占位模型（`makeMockPerson`：`musician_fat / musician_feather / musician_old / seer / shadow / mother`，加上已有的 `margaret`、`jakob_child`），山羊用网格模型（`rlpm.js` 的 `CHAPTER_MODELS.plague8`）。注册表 `wip: true`、`requires` 第一到第七灾；`build.py` 打包副本里把第八灾 `load` 置空。
+- 验收入口：`node --test dev/plague8/test_plague8.mjs`、`python dev/plague8/test_plague8_browser.py`（自动通关、真实鼠标 / 数字键完整通关、中途读档、合唱点错重来、浓雾、门禁、菜单 wip、触屏），提示表 `python dev/common/test_hints_browser.py 8`。记录见 `docs/ai/context/20261101-150000-plague8-implementation.md`。
+
 ## 第二灾与人物复用
 
 - 第二灾逻辑集中在 `src/chapters/plague2/`，专属道具在 `src/art/props_p2_*.js`（人物统一在 `src/art/cast.js`），参考为 `dev/common/ref/P02_第二灾-蛙灾_BV1bo4y1y7fm.mp4`。参考视频及抽帧仅本地保存。
