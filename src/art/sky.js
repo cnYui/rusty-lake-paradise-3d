@@ -127,8 +127,9 @@ export function buildSky(scene) {
     const a = fogState.amount, k = fogState.forestK;
     // outdoor fog (no forest) – also used by the lake shader
     fogState.outColor.copy(HAZE).lerp(WHITE, Math.min(1, a * 1.15));
-    fogState.outNear = lerp(FOG_OUT.near, FOG_WHITE.near, Math.pow(a, 0.35));
-    fogState.outFar = lerp(FOG_OUT.far, FOG_WHITE.far, Math.pow(a, 0.35));
+    // 白雾最浓时的近 / 远距离：章节可以改 fogState.whiteNear / whiteFar（第八灾的浓雾岛），不设就用默认
+    fogState.outNear = lerp(FOG_OUT.near, fogState.whiteNear ?? FOG_WHITE.near, Math.pow(a, 0.35));
+    fogState.outFar = lerp(FOG_OUT.far, fogState.whiteFar ?? FOG_WHITE.far, Math.pow(a, 0.35));
     if (!fogState.enabled) { fog.near = FOG_OFF.near; fog.far = FOG_OFF.far; return; }
     const kk = k * (1 - a);
     fog.color.copy(fogState.outColor).lerp(FOREST, kk);

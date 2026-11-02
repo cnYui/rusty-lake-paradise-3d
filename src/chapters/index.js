@@ -19,7 +19,8 @@ export const CHAPTERS = [
   // 第六、七灾：人物还是占位模型（src/art/cast_mock.js），先标 wip；设计见 docs/plague6_7_design.md
   { number: 6, id: 'plague6', label: { zh: '第六灾', en: 'Plague VI' }, title: { zh: '疹灾', en: 'Boils' }, wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5'], load: () => import('./plague6/index.js') },
   { number: 7, id: 'plague7', label: { zh: '第七灾', en: 'Plague VII' }, title: { zh: '雹灾', en: 'Hail' }, wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5', 'plague6'], load: () => import('./plague7/index.js') },
-  { number: 8, id: 'plague8', label: { zh: '第八灾', en: 'Plague VIII' }, title: { zh: '蝗灾', en: 'Locusts' }, load: null },
+  // 第八灾：人物同样是占位模型，先标 wip；设计见 docs/plague8_design.md
+  { number: 8, id: 'plague8', label: { zh: '第八灾', en: 'Plague VIII' }, title: { zh: '蝗灾', en: 'Locusts' }, wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5', 'plague6', 'plague7'], load: () => import('./plague8/index.js') },
   { number: 9, id: 'plague9', label: { zh: '第九灾', en: 'Plague IX' }, title: { zh: '夜灾', en: 'Darkness' }, load: null },
   { number: 10, id: 'plague10', label: { zh: '第十灾', en: 'Plague X' }, title: { zh: '长子之死', en: 'Death of the Firstborn' }, load: null },
 ];

@@ -35,6 +35,7 @@ export const CHAPTER_MODELS = {
   plague3: ['david', 'gerard', 'nicholas', 'margaret', 'ida', 'jakob_child'],
   plague4: ['nicholas', 'gerard', 'margaret', 'jakob_child', 'fly'],
   plague5: ['gerard', 'nicholas', 'margaret', 'cow'],
+  plague8: ['goat'],   // 第八灾：白桦林里被螳螂叼走的山羊（人物还是占位模型）
 };
 
 function parse(buf) {
