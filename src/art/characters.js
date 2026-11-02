@@ -287,6 +287,11 @@ function buildMask(id, rig) {
 }
 setMaskFactory(buildMask);
 
+/** 单独一个面具（物品栏、摆在神龛上的），和人物 rig.setMask() 戴的是同一套建模；原点在头部关节，按米建。 */
+export function makeMaskModel(id) {
+  return buildMask(id, { id: `mask_${id}`, mats: matSet() });
+}
+
 // ===========================================================================
 // GOAT
 // ===========================================================================

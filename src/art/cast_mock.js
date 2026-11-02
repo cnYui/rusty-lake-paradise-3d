@@ -192,6 +192,14 @@ const REAL = {
   gerard_p9: () => withIdle(gerardBody('gerard_p9')),
   david_p9: () => withIdle(davidBody('david_p9')),
   nicholas_p9: () => withIdle(nicholasBody('nicholas_p9').rig),
+  // 第十灾：猎人 Gerard、白桦树前的 David、敲鼓的 Nicholas（Ida、奶奶、黑影沿用上面的）；
+  // 戴上面具以后换成记忆里的动物头模型（野猪 / 兔子 / 鸽子 / 鹿），Ida 没有野鸡头模型，章节里给她 setMask('pheasant')
+  gerard_p10: () => withIdle(gerardBody('gerard_p10')),
+  david_p10: () => withIdle(davidBody('david_p10')),
+  nicholas_p10: () => withIdle(nicholasBody('nicholas_p10').rig),
+  gerard_boar: () => makeCharacter('gerard_boar'),
+  david_rabbit: () => makeCharacter('david_rabbit'),
+  margaret_pigeon: () => makeCharacter('margaret_pigeon'),
 };
 const OWN_POSE = new Set(['shadow']);   // 保留构建函数自己的站姿（灵魂是驼着背的黑影）
 

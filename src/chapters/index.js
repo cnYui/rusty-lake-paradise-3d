@@ -23,5 +23,6 @@ export const CHAPTERS = [
   { number: 8, id: 'plague8', label: { zh: '第八灾', en: 'Plague VIII' }, title: { zh: '蝗灾', en: 'Locusts' }, wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5', 'plague6', 'plague7'], load: () => import('./plague8/index.js') },
   // 第九灾：人物用正式模型（篝火边五个人），先标 wip；设计见 docs/plague9_10_design.md
   { number: 9, id: 'plague9', label: { zh: '第九灾', en: 'Plague IX' }, title: { zh: '夜灾', en: 'Darkness' }, wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5', 'plague6', 'plague7', 'plague8'], load: () => import('./plague9/index.js') },
-  { number: 10, id: 'plague10', label: { zh: '第十灾', en: 'Plague X' }, title: { zh: '长子之死', en: 'Death of the Firstborn' }, load: null },
+  // 第十灾（最后一章）：人物用正式模型，戴上面具后换成动物头模型；先标 wip；设计见 docs/plague9_10_design.md
+  { number: 10, id: 'plague10', label: { zh: '第十灾', en: 'Plague X' }, title: { zh: '长子之死', en: 'Death of the Firstborn' }, wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5', 'plague6', 'plague7', 'plague8', 'plague9'], load: () => import('./plague10/index.js') },
 ];
