@@ -71,7 +71,7 @@ def real_click(page, id, touch=False):
       }
       c.views.dropPointer(); await RLP.idle();
     }""", id)
-    before = page.evaluate('id=>({view:RLP.state.view,goto:RLP.ctx.hotspots.get(id)?.goto,modal:RLP.ctx.ui.modalOpen})', id)
+    before = page.evaluate('id=>({view:RLP.state.view,goto:RLP.ctx.hotspots.get(id)?.goto,modal:RLP.ctx.ui.modalOpen,selected:RLP.state.selected})', id)
     try:
         assert not before['modal'], before
         point = page.evaluate(TARGET, id)
@@ -80,7 +80,8 @@ def real_click(page, id, touch=False):
         else:
             page.mouse.click(point['x'], point['y'])
         settle(page)
-        if before.get('goto'):
+        # 拿着物品点的是物品处理（比如给错面具被拒），不会推近镜头
+        if before.get('goto') and not before.get('selected'):
             assert page.evaluate('RLP.state.view') == before['goto'], before
     except Exception:
         print('点击失败：', id, before, page.evaluate('RLP.info()'), flush=True)

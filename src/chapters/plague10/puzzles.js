@@ -46,7 +46,7 @@ function giveMask(ctx, who, item) {
 async function awaken(ctx) {
   ctx.setFlag('all_masked'); ctx.achieve('p10_its_time');
   await ctx.say(T.allMasked);
-  await ctx.go('p10_temple');
+  await ctx.go('p10_temple', { teleport: true });   // 最后一副面具可能在木屋里 / 特写里给：不回到记住的漫游位置，直接站到猫头鹰门前
   ctx.sfx('owl');
   await W.owl.lightEyes();
   ctx.sfx('fire_light');
@@ -168,14 +168,16 @@ function setupClearing(ctx) {
     ctx.setFlag('hen_fed'); refresh(ctx);
     await ctx.say(T.henFed);
   });
-  define(ctx, 'p10_hen', ['p10_hen', 'p10_clearing'], W.hen.userData.hen, {
+  const henWrong = () => { ctx.state.select(null); return ctx.say(T.henNotThis); };
+  // 空地上点母鸡推近到母鸡特写；拿着虫子直接在空地上点它也能喂（同一个物体上只能有一个热点，否则后定义的那个把点击抢走）
+  define(ctx, 'p10_hen_zoom', ['p10_clearing'], W.hen.userData.hen, { cursor: 'zoom', goto: 'p10_hen', onItem: { worm: feedHen }, onWrongItem: henWrong });
+  define(ctx, 'p10_hen', ['p10_hen'], W.hen.userData.hen, {
     cursor: 'talk', when: () => !ctx.flag('hen_fed') || ctx.flag('egg_taken'),
     onClick: () => { ctx.sfx('hen'); return ctx.say(ctx.flag('hen_fed') ? T.henAfter : T.hen); },
-    onItem: { worm: feedHen }, onWrongItem: () => { ctx.state.select(null); return ctx.say(T.henNotThis); },
+    onItem: { worm: feedHen }, onWrongItem: henWrong,
   });
   define(ctx, 'p10_bowl', ['p10_hen'], W.hen.userData.bowl, {
-    when: () => !ctx.flag('hen_fed'), onClick: () => ctx.say(T.hen), onItem: { worm: feedHen },
-    onWrongItem: () => { ctx.state.select(null); return ctx.say(T.henNotThis); },
+    when: () => !ctx.flag('hen_fed'), onClick: () => ctx.say(T.hen), onItem: { worm: feedHen }, onWrongItem: henWrong,
   });
   pickup(ctx, 'p10_egg', ['p10_hen', 'p10_clearing'], W.hen.userData.egg, 'egg', 'egg_taken', () => !!ctx.flag('hen_fed'));
   ctx.hotspots.define({ id: 'p10_well_look', views: ['p10_hen'], object: W.well.userData.hit, cursor: 'zoom', onClick: () => ctx.say(T.well) });

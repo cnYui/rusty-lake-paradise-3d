@@ -41,8 +41,11 @@ export const ROOM = { stove: [-1.72, -1.12], margaret: [-0.95, -0.82], table: [1
 // Ida 的眼睛（头骨骼局部坐标，第八灾按 ida.rlpm 量的）和脸上五道竖条的范围
 const IDA_EYES = [[-0.0427, -0.034, 0.1356], [0.0421, -0.0326, 0.1342]];
 export const FACE_AREA = { x: 0.068, top: 0.035, bottom: -0.118 };
-// 戴上面具的五个人最后站到木头猫头鹰栅栏里面（相对猫头鹰正面的角度，弧度；半径 5.2 m）
-const OWL_SPOTS = { gerard: -0.78, david: -0.5, ida: -0.26, margaret: 0.3, nicholas: 0.58 };
+// 戴上面具的五个人最后站到木头猫头鹰栅栏里面、门的左边（门右边紧挨着湖边的大石头，站不下人）。
+// 猫头鹰局部坐标 [x, z]：正面朝 +z，门在 x = 0；身体半径 4.6 m，栅栏半径 6 m
+const OWL_SPOTS = { ida: [-2.45, 4.85], margaret: [-3.0, 4.55], david: [-3.5, 4.1], gerard: [-4.0, 3.6], nicholas: [-4.45, 3.0] };
+// 门前两根火炬柱：在栅门外面两边；右边那根贴着大石头脚
+const GATE_TORCHES = [[-1.4, 6.75], [1.1, 6.7]];
 
 function place(ctx, id, model, parent, pos, { scale = 1, rotY = 0, opts } = {}) {
   const object = typeof model === 'string' ? makeProp(model, opts) : model;
@@ -98,15 +101,17 @@ function woodOwl(ctx, ext) {
   W.owlCenter = [c[0], c[2]]; W.owlRot = rotY;
   place(ctx, 'owl', 'p10_wood_owl', ext, [c[0], groundHeight(c[0], c[2]) - 0.05, c[2]], { rotY });
   // 门前两根火炬柱（带灯）
-  W.gateTorches = [-1, 1].map((s, i) => {
-    const [x, z] = owlPoint(s * 0.3, WOOD_OWL.gateR + 0.6);
-    return place(ctx, `gateTorch${i}`, makeProp('p10_torch', { light: true, height: 1.9 }), ext, at(x, z), { rotY });
-  });
+  W.gateTorches = GATE_TORCHES.map(([lx, lz], i) => place(ctx, `gateTorch${i}`, makeProp('p10_torch', { light: true, height: 1.9 }), ext, at(...owlLocal(lx, lz)), { rotY }));
 }
 /** 木头猫头鹰正面偏 a 弧度、离中心 r 米的地面点（世界 x, z）。 */
 export function owlPoint(a, r) {
   const t = W.owlRot + a;
   return [W.owlCenter[0] + Math.sin(t) * r, W.owlCenter[1] + Math.cos(t) * r];
+}
+/** 猫头鹰局部坐标（正面 +z，门在 x = 0）→ 世界 x, z。 */
+export function owlLocal(lx, lz) {
+  const t = W.owlRot;
+  return [W.owlCenter[0] + lx * Math.cos(t) + lz * Math.sin(t), W.owlCenter[1] - lx * Math.sin(t) + lz * Math.cos(t)];
 }
 
 // ---- Ida 脸上的五道竖条：从脸前面往头骨骼方向打射线，贴着网格脸做五条小网格（挂在头骨骼上）----
@@ -156,7 +161,7 @@ function setupTower(ctx, ext) {
   // 门洞上方伸出一根横木，挂着一串骨头（在 Nicholas 右手边）
   const string = place(ctx, 'boneString', 'p10_bone_string', W.towerDoor, [-0.62, 2.55, 0.72]);
   const pole = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.78), toon('#4a3424')); pole.position.set(-0.62, 2.55, 0.33); W.towerDoor.add(pole);
-  string.userData.ground = [0.05, -2.47, 0.12];   // 直直掉在骨头串正下方（门洞左边的门槛前）
+  string.userData.ground = [0.25, -2.52, 0.15];   // 掉下来滚到门洞前、鼓腿左边的地上（正下方是开着的门板，会被挡住）
   // 鼓的左右按玩家看过去的左右算（鼓面左半边 = Nicholas 的右手）
   place(ctx, 'drum', 'p10_drum', ext, at(...SPOT.drum), { rotY: P9.doorRotY });
   const nick = person(ctx, 'nicholas', 'nicholas_p10', ext, at(...SPOT.nicholas), P9.doorRotY);
@@ -325,8 +330,8 @@ function defineViews(ctx) {
   view('p10_tower', cam([-1.5, 2.0, 21.0], [-10.0, 1.4, 13.5], 52), { back: 'p10_forest', right: 'p10_clearing' });
   view('p10_clearing', cam([11.5, 1.9, 10.5], [17.5, 1.2, 4.5], 52), { back: 'p10_forest', left: 'p10_tower', up: 'p10_house' });
   view('p10_house', cam([4.5, 2.2, -3.0], [3, 1.5, -11]), { back: 'p10_clearing', right: 'p10_temple' });
-  const [ox, oz] = owlPoint(-0.4, 15.5), [tx, tz] = owlPoint(0, 0);   // 往左绕一点，避开猫头鹰右前方的大石头
-  view('p10_temple', cam([ox, 2.6, oz], [tx, 4.0, tz], 56), { back: 'p10_house' });
+  const [ox, oz] = owlPoint(-0.12, 14), [tx, tz] = owlPoint(0, 0);   // 稍微偏左，门右边的大石头只占画面右边
+  view('p10_temple', cam([ox, 2.4, oz], [tx, 5.2, tz], 58), { back: 'p10_house' });   // 漫游镜头：只用来定位置和朝向（抬头看到猫头鹰的眼睛）
 
   const st = W.stump.position;
   close('p10_owl', cam([st.x + 0.6, st.y + 1.3, st.z + 1.9], [st.x, st.y + 0.45, st.z + 0.15], 48), 'p10_forest');   // 树桩底下的羽毛也在画面里
@@ -429,6 +434,8 @@ export async function setup(ctx) {
     const dx = x - W.owlCenter[0], dz = z - W.owlCenter[1], d = Math.hypot(dx, dz);
     if (d > WOOD_OWL.gateR + 0.35) return false;
     if (d < WOOD_OWL.bodyR + 0.15) return true;
+    // 栅门开了以后栅栏里站着戴面具的五个人
+    if (ctx.flag('owl_gate_open') && Object.values(OWL_SPOTS).some(([lx, lz]) => { const [px, pz] = owlLocal(lx, lz); return Math.hypot(x - px, z - pz) < 0.35; })) return true;
     let a = Math.atan2(dx, dz) - W.owlRot; a = Math.atan2(Math.sin(a), Math.cos(a));
     if (Math.abs(a) > 1.02) return false;
     if (!ctx.flag('owl_gate_open')) return true;
@@ -442,7 +449,6 @@ export async function setup(ctx) {
   hs('p10_pellet_zoom', ['p10_owl'], proxy([0.5, 0.12, 0.4], [SPOT.stump[0], W.stump.position.y + 0.6, SPOT.stump[1] + 0.05], ext), { when: () => !!ctx.flag('owl_fed'), goto: 'p10_pellet' });
   hs('p10_drum_zoom', ['p10_tower'], W.drum, { goto: 'p10_drum' });
   hs('p10_tell_zoom', ['p10_tower'], W.birch, { goto: 'p10_tell' });
-  hs('p10_hen_zoom', ['p10_clearing'], W.hen.userData.hen, { goto: 'p10_hen' });
   hs('p10_well', ['p10_clearing'], W.well.userData.hit, { cursor: 'pointer', goto: 'p10_under' });
   hs('p10_house_entry', ['p10_house'], proxy([2.0, 2.3, 0.45], [3, 1.65, -11.35], ext), { goto: 'p10_room' });
   hs('p10_room_exit', ['p10_room'], proxy([1.2, 2.25, 0.3], [K, 1.15, 2.85], house), { goto: 'p10_house' });
@@ -470,9 +476,9 @@ function syncFamily(ctx) {
     if (p === 'ida') plain.setMask(on ? 'pheasant' : null);
     const home = W.home[p];
     if (gateOpen) {
-      const [x, z] = owlPoint(OWL_SPOTS[p], 5.2);
+      const [lx, lz] = OWL_SPOTS[p];
       if (show.root.parent !== ext) ext.add(show.root);
-      show.root.position.fromArray(at(x, z)); show.root.rotation.y = W.owlRot + OWL_SPOTS[p] * 0.4;
+      show.root.position.fromArray(at(...owlLocal(lx, lz))); show.root.rotation.y = W.owlRot + Math.atan2(lx, lz) * 0.5;
       if (p === 'margaret') show.setPose('stand');
     } else {
       if (show.root.parent !== home.parent) home.parent.add(show.root);
