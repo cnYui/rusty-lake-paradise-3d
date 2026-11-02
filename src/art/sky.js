@@ -130,6 +130,14 @@ export function buildSky(scene) {
     // 白雾最浓时的近 / 远距离：章节可以改 fogState.whiteNear / whiteFar（第八灾的浓雾岛），不设就用默认
     fogState.outNear = lerp(FOG_OUT.near, fogState.whiteNear ?? FOG_WHITE.near, Math.pow(a, 0.35));
     fogState.outFar = lerp(FOG_OUT.far, fogState.whiteFar ?? FOG_WHITE.far, Math.pow(a, 0.35));
+    // 章节可以给天空、远山和室外的雾整体染色（第九灾的夜、第十灾的黄昏）：
+    // fogState.tint = { color: THREE.Color, sky: 0..1（天空 / 远山混进多少）, fog: 0..1（雾色混进多少）, near?, far?（室外雾的距离）}；不设就是原来的样子
+    const tint = fogState.tint;
+    if (tint) {
+      fogState.outColor.lerp(tint.color, tint.fog ?? tint.sky);
+      if (tint.near !== undefined) fogState.outNear = tint.near;
+      if (tint.far !== undefined) fogState.outFar = tint.far;
+    }
     if (!fogState.enabled) { fog.near = FOG_OFF.near; fog.far = FOG_OFF.far; return; }
     const kk = k * (1 - a);
     fog.color.copy(fogState.outColor).lerp(FOREST, kk);
@@ -137,6 +145,7 @@ export function buildSky(scene) {
     fog.far = lerp(fogState.outFar, FOG_FOREST.far, kk);
     shared.uFog.value = Math.min(1, a * 1.02) * 0.97;
     shared.uFogColor.value.copy(WHITE);
+    if (tint) { shared.uFogColor.value.copy(tint.color); shared.uFog.value = Math.max(shared.uFog.value, tint.sky); }
   }
   applyFog();
 
