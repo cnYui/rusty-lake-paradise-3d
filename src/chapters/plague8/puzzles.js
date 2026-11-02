@@ -1,7 +1,7 @@
 // 点击、物品使用和自动通关共用规则；任何进度都先存进 flags，再由 sync 刷新模型。
 import * as THREE from 'three';
 import { makeProp } from '../../art/props.js';
-import { W, sync as refresh, MANTIS, mantisPos } from './world.js';
+import { W, sync as refresh, MANTIS, mantisPos, grandmaHorn } from './world.js';
 import { T } from './text.js';
 import { BOX_START, moveSlider, boxSolved, boxAnswer, SCORE, chorusPress, chorusDone, treeOfLevel } from './rules.js';
 
@@ -243,8 +243,7 @@ function setupLake(ctx) {
     onClick: async () => { await ctx.ui.thought(head, null, { draw: hornBubble }); ctx.say(T.boat); },
     onItem: { fog_horn: () => ctx.cutscene(async () => {
       ctx.take('fog_horn');
-      const horn = makeProp('p8_fog_horn'); horn.rotation.set(0, 0, Math.PI / 2); W.grandmaRig.setHeld(horn);
-      W.grandmaRig.parts.armR.rotation.set(-1.9, 0, 0.3);
+      grandmaHorn(true);
       await ctx.say(T.boatHorn);
       ctx.sfx('fog_horn'); await ctx.wait(2400);
       const target = W.boat.localToWorld(new THREE.Vector3(0, 0.8, -0.62));

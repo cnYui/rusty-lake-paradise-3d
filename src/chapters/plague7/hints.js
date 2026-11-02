@@ -3,7 +3,7 @@
 export const HINTS = [
   // ---- 开局就能做的事 ----
   { id: 'skate', after: [], done: (s) => s.flag('skate_done'),
-    text: '点一下画面里的小岛走进去。天堂门前的湖结冰了，点 Caroline，帮她在冰上滑到裂纹那里，一共三次。' },
+    text: '点一下画面里的小岛走进去。天堂门前的湖结冰了，点 Ida，帮她在冰上滑到裂纹那里，一共三次。' },
   { id: 'carrot', after: ['skate'], done: (s) => s.flag('carrot_taken'),
     text: '冰面裂开了，在滑冰的冰面上拿起冻在裂纹下的胡萝卜。' },
   { id: 'scarf', after: [], done: (s) => s.flag('scarf_taken'),

@@ -2,7 +2,7 @@
 // 布局沿用第五到七灾；模型显示始终由存档状态推导。
 import * as THREE from 'three';
 import { makeProp } from '../../art/props.js';
-import { makeMockPerson } from '../../art/cast_mock.js';
+import { makePerson } from '../../art/cast_mock.js';
 import { makeAnimal } from '../../art/characters.js';
 import { P, SETS, PALISADE, LAKE_Y } from '../../art/layout.js';
 import { BUILDING_DIMS } from '../../art/buildings.js';
@@ -39,7 +39,7 @@ export const MANTIS = {
   boat: { from: [15.0, -43.5], strike: [20.0, -42.4], water: true },
 };
 export const mantisPos = ([x, z], water = false) => (water ? [x, LAKE_Y, z] : at(x, z));
-const MUSICIANS_MOCK = ['musician_fat', 'musician_feather', 'musician_old'];
+const MUSICIANS_MOCK = ['musician_fat', 'musician_feather', 'musician_old'];   // I / II / III：Gerard、David、Nicholas（网格模型）
 
 // 屋里的布置（相对 house_int 原点；后墙 z = -1.6，前墙门洞 z = 3.0）
 export const ROOM = { seer: [0.9, -0.75], wall: [-0.6, 1.55, -1.585], shovel: [-1.9, -1.42] };
@@ -53,7 +53,7 @@ function place(ctx, id, model, parent, pos, { scale = 1, rotY = 0 } = {}) {
 }
 
 function person(ctx, id, mockId, parent, pos, rotY = 0) {
-  const rig = makeMockPerson(mockId);
+  const rig = makePerson(mockId);
   rig.root.position.fromArray(pos); rig.root.rotation.y = rotY; parent.add(rig.root);
   ctx.register('char', `p8_${id}`, rig);
   W[id] = rig.root; W[`${id}Rig`] = rig;
@@ -196,13 +196,9 @@ export async function setup(ctx) {
   ctx.views.addRoamGate((x, z) => !ctx.flag('gate_open') && z < PALISADE.z + 0.6);
   W.musicianRigs = MUSICIANS_MOCK.map((id, i) => {
     const rig = person(ctx, `musician${i}`, id, ext, at(...SPOT.musicians[i]), 0.12 - i * 0.12);
-    // 抱着曼陀林：琴斜挂在胸前，琴颈朝左上；一只手按琴颈，另一只手在琴身上拨弦
-    const m = makeProp('p8_mandolin'); m.position.set(0.04, rig.parts.torso.position.y - 0.04, id === 'musician_fat' ? 0.42 : 0.2); m.rotation.set(0.15, 0, -0.9);
-    rig.parts.body.add(m);
-    rig.parts.armR.rotation.set(-1.2, 0, 0.3); rig.parts.armL.rotation.set(-0.6, 0, 0.56);
+    holdMandolin(rig, i);
     return rig;
   });
-  ctx.register('prop', 'p8_band', { update: (dt, t) => W.musicianRigs.forEach((rig, i) => { rig.parts.armL.rotation.x = -0.6 + Math.sin(t * 11 + i * 1.3) * 0.07; }) });
   place(ctx, 'score', 'p8_score', ext, at(...SPOT.score), { rotY: 0.15 });
   place(ctx, 'box', 'p8_box', ext, at(...SPOT.box));
 
@@ -230,7 +226,6 @@ export async function setup(ctx) {
   place(ctx, 'eyeTree1', 'p8_eye_tree', ext, at(...SPOT.eyeTree1), { rotY: 0.65 });
   place(ctx, 'wall', 'p8_wall_text', house, [K + ROOM.wall[0], ROOM.wall[1], ROOM.wall[2]]);
   person(ctx, 'seer', 'seer', house, [K + ROOM.seer[0], 0, ROOM.seer[1]], -0.2);
-  W.seerRig.parts.armL.rotation.set(-0.35, 0, 0.2); W.seerRig.parts.armR.rotation.set(-0.35, 0, -0.2);
   const sh = place(ctx, 'shovel', 'p8_shovel', house, [K + ROOM.shovel[0], 0, ROOM.shovel[1]], { rotY: 0.4 }); sh.rotation.x = -0.18;
 
   // ---- 湖边：小船上的老奶奶；她被带走后船上浮着黑方块 ----
@@ -286,9 +281,51 @@ export async function setup(ctx) {
   hs('p8_painting_entry', ['p8_altar'], W.painting, { when: () => !!ctx.flag('font_lit'), goto: 'p8_painting' });
 }
 
-/** 红发女人的眼睛：拿到羊眼睛前是白的，之后变成金色。 */
+/** 抱着曼陀林（原作 0:08）：琴身斜挂在肚子前、琴颈朝左上；左手按琴颈，右手在琴身上拨弦（每帧小幅摆动前臂）。 */
+function holdMandolin(rig, i) {
+  const m = makeProp('p8_mandolin'); m.name = 'p8_mandolin_held';
+  m.position.set(-0.03, rig.Y.waist + 0.03, i === 0 ? 0.26 : 0.18); m.rotation.set(0.15, 0, -0.9);   // Gerard 有啤酒肚，琴离身体远一点
+  rig.root.add(m); m.updateMatrix();
+  const onLute = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(m.matrix).toArray();   // 琴的局部坐标 → 人物 root 坐标
+  rig.setPose(rig.solve(rig.basePose, {
+    R: { pos: onLute(-0.06, -0.05, 0.1), pole: [-1, -0.5, -0.4] },
+    L: { pos: onLute(0.03, 0.28, -0.04), pole: [1, -0.6, -0.4] },
+  }));
+  rig._upd.push((dt, t) => { rig.idle.elbowR[0] += Math.sin(t * 11 + i * 1.3) * 0.08; });
+}
+
+/** 船上的奶奶吹号角：号角的吹嘴贴在嘴唇上、朝前方斜上（挂在头骨骼上，跟着头动），右手扶着号身。 */
+export function grandmaHorn(on) {
+  const rig = W.grandmaRig;
+  let horn = rig.joints.head.getObjectByName('p8_fog_horn');
+  if (on && !horn) {
+    horn = makeProp('p8_fog_horn');
+    const t = rig.noseTip || new THREE.Vector3(0, -0.02, rig.dims.headR[2]);
+    // noseTip 在网格 Margaret 脸上找到的是眉眼一带，嘴在它下面约 11 cm（第八灾小船特写里核对过）
+    horn.position.set(0, t.y - 0.11, t.z - 0.004); horn.rotation.set(-0.08, -Math.PI / 2 - 0.3, 0);   // 号角局部 +X 从吹嘴指向喇叭口
+    rig.joints.head.add(horn);
+  }
+  if (horn) horn.visible = on;
+  rig.setPose('sit');
+  if (on) { horn.updateMatrixWorld(true); rig.reach('R', rig.jointToRoot(horn, new THREE.Vector3(0.15, 0.04, 0), new THREE.Vector3()).toArray(), { pole: [-1, -0.8, -0.2] }); }
+}
+
+// 网格 Ida 脸上两只眼珠的位置（头骨骼局部坐标；2026-11-02 在 p8_seer 特写里用射线量的，比脸面略靠前 4 mm）
+const IDA_EYES = [[-0.0427, -0.034, 0.1356], [0.0421, -0.0326, 0.1342]];
+
+/** 红发女人 Ida 的眼睛（原作 4:20 全白、没有瞳孔）：网格贴图上的眼珠是灰的，盖两片白色圆片；拿到羊眼睛后变成金色。 */
 function seerEyes(on) {
-  W.seerRig.parts.head.children.filter((o) => o.name === 'eye').forEach((e) => e.material.color.set(on ? '#d9a23a' : '#f4f4ef'));
+  const rig = W.seerRig, head = rig.parts.head;
+  let g = head.getObjectByName('seer_eyes');
+  if (!g) {
+    g = new THREE.Group(); g.name = 'seer_eyes';
+    const mat = new THREE.MeshBasicMaterial({ color: '#efeee9' }); mat.userData.outlineParameters = { visible: false };
+    const z = rig.dims.headR[2] * 0.98;   // 程序化 Ida（模型没加载时）的脸面大约在这里
+    const spots = rig.isModel ? IDA_EYES : [[-0.031, 0, z], [0.031, 0, z]];
+    for (const p of spots) { const e = new THREE.Mesh(new THREE.CircleGeometry(0.0085, 16), mat); e.name = 'seer_eye'; e.position.fromArray(p); g.add(e); }
+    g.userData.mat = mat; head.add(g);
+  }
+  g.userData.mat.color.set(on ? '#e0a83a' : '#efeee9');
 }
 
 export function sync(ctx) {
@@ -319,7 +356,7 @@ export function sync(ctx) {
   W.shovel.visible = !f('shovel_taken');
   seerEyes(!!f('sight_on'));
   // 湖边和回忆
-  W.grandma.visible = !f('horn_given'); W.grandma.position.y = -0.53; W.grandmaRig.setHeld(null); W.grandmaRig.parts.armR.rotation.set(0, 0, 0.08);
+  W.grandma.visible = !f('horn_given'); W.grandma.position.y = -0.53; grandmaHorn(false);
   W.boatCube.visible = !!f('horn_given') && !f('cube_taken');
   W.memCube.visible = !f('cube_taken');
   // 神殿

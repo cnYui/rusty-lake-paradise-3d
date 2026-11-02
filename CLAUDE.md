@@ -17,7 +17,7 @@ src/                                                 游戏本体（会部署）
 │                 世界与第一灾道具 island/lake/sky/buildings/props_beach|inner|lake/characters …
 │                 人物 cast.js + charkit.js + human.js（各章复用）
 │                 章节专属道具 props_p2_*（第二灾）、props_p3_* + cast_p3*（第三灾）、props_flies（第四灾）、props_p5（第五灾）、props_p6 / props_p7（第六、七灾）、props_p8（第八灾）
-│                 占位人物 cast_mock.js（第六到八灾，正式模型做好前用）
+│                 第六到八灾的人物入口 cast_mock.js（makePerson：网格 / 程序化人物，瘟疫医生和冰中青年还是占位）
 └─ chapters/    每章一个文件夹，只放这一章的逻辑
    ├─ index.js      章节注册表（标题、前置章节 requires、wip、achievements、load）
    └─ plague1 … plague8/   index.js（setup / start / sync / walkthrough）+ 各区域文件 + text.js + puzzles.js
@@ -58,9 +58,9 @@ upload/                                              发布包（压缩包），
 | 第三灾 | `src/chapters/plague3/` | `props_p3_*`、`cast_p3*` | `dev/plague3/test_plague3*`、`record_plague3_demo.py`、`shots_plague3.py`、`make_plague3_preview.py` | `docs/plague3_*.md` |
 | 第四灾 | `src/chapters/plague4/` | `props_flies` | `dev/plague4/test_plague4*` | AGENTS.md「第四灾」 |
 | 第五灾 | `src/chapters/plague5/` | `props_p5*`（`_food` / `_garden`）、`cow_model` | `dev/plague5/test_plague5*` | AGENTS.md「第五灾」 |
-| 第六灾 | `src/chapters/plague6/` | `props_p6`，占位人物 `cast_mock` | `dev/plague6/test_plague6*` | `docs/plague6_7_design.md`，AGENTS.md「第六、七灾」 |
-| 第七灾 | `src/chapters/plague7/` | `props_p7`（雪景在章节 `world.js`），占位人物 `cast_mock` | `dev/plague7/test_plague7*` | 同上 |
-| 第八灾 | `src/chapters/plague8/` | `props_p8`（浓雾在章节 `world.js` 的 `fogController`），占位人物 `cast_mock` | `dev/plague8/test_plague8*` | `docs/plague8_design.md`，AGENTS.md「第八灾」 |
+| 第六灾 | `src/chapters/plague6/` | `props_p6`，人物 `cast_mock` 的 `makePerson` | `dev/plague6/test_plague6*` | `docs/plague6_7_design.md`，AGENTS.md「第六、七灾」 |
+| 第七灾 | `src/chapters/plague7/` | `props_p7`（雪景在章节 `world.js`），人物 `cast_mock` 的 `makePerson` | `dev/plague7/test_plague7*` | 同上 |
+| 第八灾 | `src/chapters/plague8/` | `props_p8`（浓雾在章节 `world.js` 的 `fogController`），人物 `cast_mock` 的 `makePerson` | `dev/plague8/test_plague8*` | `docs/plague8_design.md`，AGENTS.md「第八灾」 |
 
 第九、十灾还没做，参考视频在 `dev/common/ref/P09_*`、`P10_*`。
 
