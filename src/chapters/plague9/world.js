@@ -8,7 +8,7 @@ import { BUILDING_DIMS } from '../../art/buildings.js';
 import { groundHeight } from '../../art/island.js';
 import { flat, toon } from '../../art/materials.js';
 import { POWDER_COLORS } from '../../art/props_p9.js';
-import { TOWER_ROOM, ATTIC } from '../../art/props_p9_tower.js';
+import { TOWER_ROOM, ATTIC, nightBackdrop } from '../../art/props_p9_tower.js';
 import { DIAL_START, ORRERY_START, CANDLE_START, SHADOWS, signOf, GRIND } from './rules.js';
 import { T } from './text.js';
 
@@ -64,6 +64,37 @@ function clearUnusedColliders(ctx) {
     .some(([p, radius]) => near(x, z, p) && Math.abs(r - radius) < 0.001));
   col.segments = col.segments.filter(([ax, az, bx, bz, r]) => !((near((ax + bx) / 2, (az + bz) / 2, P.rowboat) && Math.abs(r - 0.62) < 0.001)
     || (near((ax + bx) / 2, (az + bz) / 2, P.goat) && Math.abs(r - 0.3) < 0.001)));
+}
+
+// 塔门正前方那块大石头（island.js 塔山岩石环里朝东的一块）挡住了门、镜头和冰块：这一章把它压进地里。
+// 岩石合并成一个网格，每块石头的顶点连续（同一个细分二十面体），按顶点块的中心找门前 2 m 以内的那一块；找不到就什么也不做。
+export function clearDoorBoulder(ctx) {   // 第十灾也用（Nicholas 站在塔门口敲鼓）
+  let rocks = null;
+  ctx.world.root.traverse((o) => { if (!rocks && o.isMesh && o.name === 'rocks') rocks = o; });
+  const pos = rocks?.geometry.attributes.position;
+  if (!pos) return;
+  const n = new THREE.IcosahedronGeometry(1, 2).toNonIndexed().attributes.position.count;
+  const [dx, dz] = SPOT.door, front = [dx + Math.sin(SPOT.doorRotY) * 1.9, dz + Math.cos(SPOT.doorRotY) * 1.9];
+  for (let s = 0; s + n <= Math.min(pos.count, n * 12); s += n) {
+    let cx = 0, cz = 0;
+    for (let i = s; i < s + n; i++) { cx += pos.getX(i); cz += pos.getZ(i); }
+    cx /= n; cz /= n;
+    if (Math.hypot(cx - front[0], cz - front[1]) > 2.0) continue;
+    const y = groundHeight(cx, cz) - 2;
+    for (let i = s; i < s + n; i++) pos.setXYZ(i, cx, y, cz);
+    pos.needsUpdate = true; rocks.geometry.computeBoundingSphere(); rocks.geometry.computeBoundingBox();
+    return;
+  }
+}
+
+// 神殿里两扇窗画的是白天，夜里换成夜空（月食后月亮变红，sync 里切换）
+function nightTempleWindows(temple) {
+  W.templeSky = nightBackdrop(1.1, 1.72, { moon: [0.5, 0.3, 0.13], lake: false });
+  for (const side of ['L', 'R']) {
+    const view = temple.getObjectByName(`temple_int_window${side}_view`);
+    if (!view) continue;
+    view.material = view.material.clone(); view.material.map = W.templeSky.material.map; view.material.needsUpdate = true;
+  }
 }
 
 function makeFont() {
@@ -129,8 +160,8 @@ function defineViews(ctx) {
   const close = (id, pose, back, area = 'exterior', onEnter = null, rest = {}) => ctx.views.define({ id, zone: area, closeup: true, look: 0, cam: pose, back, ...(onEnter ? { onEnter } : {}), ...rest });
   view('p9_overview', cam(P.overviewCam.pos, P.overviewCam.target, P.overviewCam.fov), { fixed: true });
   view('p9_gate', cam([1.6, 2.1, 47.3], [1.4, 1.5, 40.5], 52), { back: 'p9_overview', up: 'p9_bonfire', onEnter: () => ctx.hintOnce('p9_roam', ctx.ui.touchMode ? T.roamTouch : T.roam) });
-  view('p9_bonfire', cam([-3.2, 1.75, 21.8], [-3.0, 1.2, 15.0]), { back: 'p9_gate', up: 'p9_tower_path' });
-  view('p9_tower_path', cam([-11.8, 2.3, 15.7], [-17.0, 2.1, 15.0]), { back: 'p9_bonfire' });
+  view('p9_bonfire', cam([-3.2, 1.75, 21.8], [-3.0, 1.2, 15.0]), { back: 'p9_gate', up: 'p9_tower_path', right: 'p9_grove' });
+  view('p9_tower_path', cam([-13.3, 2.75, 15.1], [-17.0, 2.2, 14.4], 50), { back: 'p9_bonfire' });   // 站在两棵大树之间，门在两块大石头的缺口里，冰块在门右边
   view('p9_grove', cam([15.8, 2.0, 11.5], [15.5, 1.6, 5.0]), { back: 'p9_bonfire', up: 'p9_house' });
   view('p9_house', cam([4.5, 2.2, -3.0], [3, 1.5, -11]), { back: 'p9_grove', right: 'p9_shed' });
   view('p9_shed', cam([17.5, 2.2, -7], [17.5, 1.6, -13]), { left: 'p9_house', up: 'p9_lake' });
@@ -144,9 +175,9 @@ function defineViews(ctx) {
   const [ix, iy, iz] = W.ice.position.toArray();
   close('p9_ice', cam([ix + 1.1, iy + 1.3, iz + 1.0], [ix, iy + 0.2, iz], 46), 'p9_tower_path');
   const [bx, by, bz] = W.birch.position.toArray();
-  close('p9_woodpecker', cam([bx + 0.25, by + 1.8, bz + 2.5], [bx, by + 1.7, bz], 48), 'p9_grove', 'exterior', () => ctx.hintOnce('p9_peck_hint', T.peckHint));
+  close('p9_woodpecker', cam([bx + 0.3, by + 1.85, bz + 3.0], [bx, by + 1.75, bz], 48), 'p9_grove', 'exterior', () => ctx.hintOnce('p9_peck_hint', T.peckHint));
   const [cx, cy, cz] = W.crate.position.toArray();
-  close('p9_crate', cam([cx + 0.3, cy + 1.4, cz + 1.9], [cx, cy + 0.45, cz], 46), 'p9_lake');
+  close('p9_crate', cam([cx + 0.6, cy + 1.7, cz + 1.85], [cx + 0.3, cy + 0.35, cz + 0.15], 48), 'p9_lake');
 
   // 木屋里（第一灾的餐厅布景）
   const hd = BUILDING_DIMS.house_int;
@@ -167,7 +198,8 @@ function defineViews(ctx) {
   ctx.views.define({ id: 'p9_tower', zone: 'p9_tower', roam: true, ambience: 'interior', cam: cam([TW + 0.9, 1.65, 1.9], [TW - 0.2, 1.35, -1.5], 54), back: 'p9_tower_path' });
   const dial = W.cabinet.getObjectByName('cab_dial'); dial.updateWorldMatrix(true, false);
   const dp = dial.getWorldPosition(new THREE.Vector3());
-  close('p9_dial', cam([dp.x, dp.y, dp.z + 0.95], dp.toArray(), 46), 'p9_tower', 'p9_tower', () => ctx.hintOnce('p9_dial_hint', T.dialHint), { ambience: 'interior' });
+  // 往后退一点、稍微往下看：表盘和下面拉开的抽屉（铜钥匙）同在画面里
+  close('p9_dial', cam([dp.x, dp.y - 0.12, dp.z + 1.42], [dp.x, dp.y - 0.2, dp.z], 46), 'p9_tower', 'p9_tower', () => ctx.hintOnce('p9_dial_hint', T.dialHint), { ambience: 'interior' });
   close('p9_orrery', cam([TW + 1.55, 1.48, 1.05], [TW + 1.5, 0.92, 0.4], 46), 'p9_tower', 'p9_tower', () => ctx.hintOnce('p9_orrery_hint', T.orreryHint), { ambience: 'interior' });
   close('p9_chain', cam([TW - 1.2, 1.45, -0.55], [TW - 2.4, 1.25, -0.6], 48), 'p9_tower', 'p9_tower', null, { ambience: 'interior' });
   close('p9_window', cam([TW + R.window.x, 1.75, -1.3], [TW + R.window.x, 1.9, -3.6], 50), 'p9_tower', 'p9_tower', null, { ambience: 'interior' });
@@ -178,7 +210,8 @@ function defineViews(ctx) {
     circles: [[AT + ATTIC.hole[0], ATTIC.hole[1], 0.6], [AT - 1.95, -0.55, 0.4]],
   });
   ctx.views.define({ id: 'p9_attic', zone: 'p9_attic', roam: true, ambience: 'interior', cam: cam([AT - 0.9, 1.6, 1.7], [AT, 1.35, -1.5], 54), back: 'p9_tower' });
-  close('p9_shadows', cam([AT, 1.45, 2.0], [AT, 1.1, -1.6], 62), 'p9_attic', 'p9_attic', () => ctx.hintOnce('p9_shadow_hint', T.shadowsHint), { ambience: 'interior' });
+  // 从高处往下看：墙上的影子和地上一圈星座符号都在画面里
+  close('p9_shadows', cam([AT, 2.55, 2.1], [AT, 0.55, -0.85], 66), 'p9_attic', 'p9_attic', () => ctx.hintOnce('p9_shadow_hint', T.shadowsHint), { ambience: 'interior' });
   close('p9_beacon', cam([AT + ATTIC.w / 2 - 0.4, 1.75, ATTIC.door.z + 0.3], [AT + ATTIC.w / 2 + 2.6, 1.1, ATTIC.door.z - 0.1], 56), 'p9_attic', 'p9_attic', null, { ambience: 'interior' });
 
   close('p9_temple_int', cam([400, 2.4, 4.2], [400, 1.5, -0.4], 54), 'p9_temple', 'temple_int');
@@ -194,6 +227,7 @@ export async function setup(ctx) {
   W.ctx = ctx; W.zones = {};
   const { exterior: ext, house_int: house, temple_int: temple } = ctx.world.zones;
   clearUnusedColliders(ctx);
+  clearDoorBoulder(ctx);
   nightScene(ctx, ext);
 
   // ---- 门外：天堂门开着 ----
@@ -250,6 +284,7 @@ export async function setup(ctx) {
   place(ctx, 'painting', 'p9_painting', W.font.getObjectByName('font_niche'), [0, 0, 0.012], { scale: 0.82 });
   const fp = wpos(ctx, 'temple_int.font');
   place(ctx, 'blueStone', 'p9_blue_stone', temple, [fp[0] + 0.85, 0.01, fp[2] + 0.75], { scale: 1.8 });
+  nightTempleWindows(temple);
 
   // ---- 小屋：门敞开（同第五灾）----
   place(ctx, 'shed', 'shed_door', ext, P.shedDoor.pos);
@@ -282,6 +317,7 @@ export async function setup(ctx) {
   hs('p9_ladder_up', ['p9_tower'], W.ladder.userData.hit, { cursor: 'pointer', when: () => !!ctx.flag('ladder_down'), goto: 'p9_attic' });
   hs('p9_attic_down', ['p9_attic'], proxy([0.9, 0.3, 0.9], [AT + ATTIC.hole[0], 0.15, ATTIC.hole[1]], attic), { cursor: 'pointer', goto: 'p9_tower' });
   hs('p9_shadows_zoom', ['p9_attic'], W.attic.userData.wall, { goto: 'p9_shadows' });
+  hs('p9_beacon_zoom', ['p9_attic', 'p9_shadows'], W.attic.userData.door, { cursor: 'pointer', when: () => !!ctx.flag('shadows_done'), goto: 'p9_beacon' });
   const tdoor = wpos(ctx, 'temple.door');
   const entrance = proxy([1.65, 2.5, 0.4], [tdoor[0], tdoor[1] + 1.2, tdoor[2]], ext); entrance.rotation.y = P.temple.rotY;
   hs('p9_temple_entry', ['p9_temple'], entrance, { goto: 'p9_temple_int' });
@@ -302,7 +338,7 @@ export function sync(ctx) {
   const f = (k) => ctx.flag(k);
   ctx.world.lake.setBlood(0); ctx.world.lake.setPool(false);
   const blood = f('blood_moon') ? 1 : 0;
-  W.sky.setBlood(blood); W.room.setBlood(blood);
+  W.sky.setBlood(blood); W.room.setBlood(blood); W.templeSky?.setBlood(blood);
   // 篝火和石头圈
   W.fire.setState({ fire: f('fire_out') ? 'out' : 'low', stones: stoneMarks(ctx), cube: !!f('fire_out') && !f('cube_taken') });
   W.ice.setState({ fallen: !!blood, ice: !f('ice_broken'), stone: !f('moon_stone_taken') });

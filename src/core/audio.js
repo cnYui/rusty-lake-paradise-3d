@@ -659,6 +659,26 @@ const SFX = {
   mandolin(t) {
     [392, 494, 587].forEach((f, i) => { for (let k = 0; k < 6; k++) tone(t + i * 0.03 + k * 0.07, { type: 'triangle', f0: f, dur: 0.12, attack: 0.002, peak: 0.03, p: (i - 1) * 0.3 }); });
   },
+  // 第九灾：啄木鸟啄一下树干（短促的木头敲击）
+  peck(t) {
+    thump(t, { f0: 900, f1: 420, dur: 0.05, peak: 0.12 });
+    hiss(t, { type: 'bandpass', f0: 2400, Q: 3, dur: 0.03, attack: 0.001, peak: 0.05 });
+  },
+  // 研磨机：摇柄转三圈，石磨沙沙地磨
+  grind(t) {
+    hiss(t, { kind: 'brown', type: 'bandpass', f0: 700, Q: 1.2, dur: 2.0, attack: 0.2, peak: 0.07 });
+    for (let i = 0; i < 6; i++) creak(t + i * 0.33, { dur: 0.25, f0: 380, f1: 460, peak: 0.04 });
+  },
+  // 绞盘收链条：一串金属咔哒 + 低沉的吱嘎
+  chain(t) {
+    for (let i = 0; i < 16; i++) hiss(t + i * 0.14, { type: 'bandpass', f0: 3200 + (i % 3) * 400, Q: 6, dur: 0.03, attack: 0.001, peak: 0.05 });
+    creak(t, { dur: 2.2, f0: 220, f1: 300, peak: 0.06 });
+  },
+  // 冰裂开
+  ice_crack(t) {
+    for (let i = 0; i < 5; i++) hiss(t + i * 0.035, { type: 'highpass', f0: 3000 + i * 500, dur: 0.05, attack: 0.001, peak: 0.08 - i * 0.01 });
+    thump(t, { f0: 180, f1: 90, dur: 0.18, peak: 0.18 });
+  },
 };
 
 // ------------------------------------------------------------------------ ambiences

@@ -188,6 +188,10 @@ const REAL = {
   seer: ida,
   mother: caroline,
   shadow: () => makeCharacter('soul'),
+  // 第九灾：篝火边的五个人（Gerard、David、Ida、坐在树墩上的奶奶、Nicholas；Ida 和奶奶沿用上面的 ida / margaret）
+  gerard_p9: () => withIdle(gerardBody('gerard_p9')),
+  david_p9: () => withIdle(davidBody('david_p9')),
+  nicholas_p9: () => withIdle(nicholasBody('nicholas_p9').rig),
 };
 const OWN_POSE = new Set(['shadow']);   // 保留构建函数自己的站姿（灵魂是驼着背的黑影）
 
