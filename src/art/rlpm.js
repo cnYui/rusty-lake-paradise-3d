@@ -39,6 +39,8 @@ export const CHAPTER_MODELS = {
   plague6: ['gerard', 'margaret', 'jakob_child', 'deer'],
   plague7: ['gerard', 'ida', 'jakob_child', 'deer'],
   plague8: ['goat', 'gerard', 'david', 'nicholas', 'ida', 'margaret', 'jakob_child'],   // 山羊 + 三个乐手、红发女人 Ida、船上的奶奶、回忆里的少年 Jakob
+  plague9: ['gerard', 'david', 'ida', 'margaret', 'nicholas'],   // 篝火边的五个人
+  plague10: ['gerard', 'david', 'ida', 'margaret', 'nicholas', 'boar', 'rabbit', 'pigeon', 'deer'],   // 五个家人 + 戴上面具以后的动物头模型
 };
 
 function parse(buf) {

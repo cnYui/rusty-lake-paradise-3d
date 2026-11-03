@@ -12,6 +12,11 @@ import { FACTORIES as P6 } from './props_p6.js';
 import { FACTORIES as P7 } from './props_p7.js';
 // 第八灾（设计见 docs/plague8_design.md）
 import { FACTORIES as P8 } from './props_p8.js';
+// 第九灾（设计见 docs/plague9_10_design.md）：塔外 / 物品 / 天空在 props_p9，塔里在 props_p9_tower
+import { FACTORIES as P9 } from './props_p9.js';
+import { FACTORIES as P9_TOWER } from './props_p9_tower.js';
+// 第十灾：巨型木猫头鹰、火炬柱、鼓、母鸡、炉子、井下墓室、结尾幻象
+import { FACTORIES as P10 } from './props_p10.js';
 // 第三灾：物品、海滩 / 湖岸、森林、小屋、白桦林（接口见 docs/plague3_api.md）
 import { FACTORIES as P3_ITEMS } from './props_p3_items.js';
 import { FACTORIES as P3_BEACH } from './props_p3_beach.js';
@@ -20,7 +25,7 @@ import { FACTORIES as P3_HOUSE } from './props_p3_house.js';
 import { FACTORIES as P3_GROVE } from './props_p3_grove.js';
 import { PLACEHOLDERS as P3_PLACEHOLDERS } from './props_p3_placeholders.js';
 
-const MODULES = { BEACH, INNER, LAKE, FROGS, P2_LAKE, P2_HOUSE, P2_TEMPLE, P5, P6, P7, P8, P3_ITEMS, P3_BEACH, P3_FOREST, P3_HOUSE, P3_GROVE };
+const MODULES = { BEACH, INNER, LAKE, FROGS, P2_LAKE, P2_HOUSE, P2_TEMPLE, P5, P6, P7, P8, P9, P9_TOWER, P10, P3_ITEMS, P3_BEACH, P3_FOREST, P3_HOUSE, P3_GROVE };
 const FACTORIES = {};
 for (const [name, m] of Object.entries(MODULES)) {
   for (const id of Object.keys(m)) {

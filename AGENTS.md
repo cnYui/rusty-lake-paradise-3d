@@ -58,6 +58,16 @@
 - 人物（2026-11-02 起）用正式模型（`makePerson`，见第六、七灾那条）：三个乐手是网格 Gerard / David（帽子挂羽毛）/ Nicholas 抱曼陀林，红发白眼女人是网格 Ida（眼珠上盖白色圆片，`sight_on` 后变金色，位置是 `world.js` 的 `IDA_EYES`），黑影是程序化“灵魂”，船上奶奶是网格 Margaret（号角挂在头骨骼上贴着嘴，`grandmaHorn`），回忆里少年 Jakob 是网格、母亲是程序化 Caroline；山羊也是网格（模型都列在 `rlpm.js` 的 `CHAPTER_MODELS.plague8`）。Nicholas 的模型有八字胡，木盒 III 的属性改成 `[0,1,1,0]`（答案第 2 列），谜歌第三句加了胡子。注册表仍 `wip: true`（跟第六、七灾一起放开）、`requires` 第一到第七灾；`build.py` 打包副本里把第八灾 `load` 置空。
 - 验收入口：`node --test dev/plague8/test_plague8.mjs`、`python dev/plague8/test_plague8_browser.py`（自动通关、真实鼠标 / 数字键完整通关、中途读档、合唱点错重来、浓雾、门禁、菜单 wip、触屏），提示表 `python dev/common/test_hints_browser.py 8`。记录见 `docs/ai/context/20261101-150000-plague8-implementation.md`。
 
+## 第九、十灾（2026-11-02 起，wip）
+
+- 设计文档 `docs/plague9_10_design.md`：原作流程（参考 `dev/common/ref/P09_*`、`P10_*` 抽帧，带时间码）+ 重制版契约 + 与原作的差异，改谜题先改这份文档。第九灾逻辑 `src/chapters/plague9/`、道具 `src/art/props_p9.js`（`p9_` 前缀；夜空 / 黄昏天空和星月也在这里，第十灾复用）；第十灾逻辑 `src/chapters/plague10/`、道具 `src/art/props_p10.js`（`p10_` 前缀）。新音效：第九灾 `peck / grind / chain / ice_crack`，第十灾 `drum_low / drum_high / bow / hen / chick / stone_door`。
+- 第九灾（夜灾）：夜、满月、薄雪。篝火里撒粉末（树皮 / 贝壳 / 青石 / 红月石磨成棕 / 白 / 蓝 / 红）浮出星座黑影 → 塔里星座盘按影子拨针开抽屉得铜钥匙 → 挂锁、绞盘放下梯子 → 阁楼月相仪（地球挡在太阳和月亮中间）月食，红光落进塔外雪地，镐凿出红月石 → 阁楼影子戏（蜡烛挪到天蝎上，五个影子落进轮廓）→ 塔顶烽火吓走湖边猫头鹰 → 木箱里母亲的骨头磨成骨粉撒进篝火 → 灰里的黑方块 → 神殿。塔门正前方那块大石头这两章都压进地里（`plague9/world.js` 的 `clearDoorBoulder`）。
+- 第十灾（长子之死，最后一章）：黄昏，神殿外面套一只巨大的木头猫头鹰（栅栏、栅门、门前两根火炬柱）。敲鼓（照 Nicholas 的左右手节奏；左右按玩家看过去算）掉下尖骨头 → 箭杆 + 羽毛 + 尖骨头合成骨箭 → 苹果顶在 David 帽子上、骨箭给 Gerard → 虫子喂母鸡得蛋 → 刷子画 Ida 的脸（照木屋的竖条纹面具画）她递来蜡烛 → 蛋进平底锅、蜡烛点炉子孵出小鸡 → 小鸡喂仓鸮 → 食丸四组骨头转成 OWLS → 井下三间石室：字母门、拱龛室五副面具、右手边鹰室六边形拼红猫头鹰得黑方块 → 面具交给对的人（给错不接），戴上就换成自带动物头的网格模型、身边火炬点着 → 五个都戴上栅门打开 → 猫头鹰肚子里的神殿 → 红色幻象，全剧终。湖边大石头紧贴猫头鹰门的右边：门前火炬在栅门外两边，戴面具的人站在栅栏里门的左边（`world.js` 的 `GATE_TORCHES` / `OWL_SPOTS`，猫头鹰局部坐标）。
+- 纯规则在各章 `rules.js`（不 import three），接受所有合法解；中途进度（鼓的拍数、脸的颜色、骨头转角、字母门、六边形、拿走 / 戴上的面具等）都在旗标里，`sync()` 支持新游戏、读档和重复调用。
+- 人物都用 `makePerson`：`gerard_p9 / david_p9 / nicholas_p9`、`gerard_p10 / david_p10 / nicholas_p10`，第十灾戴上面具后 `gerard_boar / david_rabbit / margaret_pigeon / nicholas_deer`（Ida 是网格 Ida 加程序化野鸡面具）；`rlpm.js` 的 `CHAPTER_MODELS` 已加 `plague9 / plague10`。戴猫头鹰面具的 Elizabeth 还是程序化身体 + `p10_owl_mask`（本机那个猫头鹰头的 Elizabeth 模型还没转 .rlpm）。
+- 注册表两章都 `wip: true`，`requires` 前面所有章；`build.py` 打包副本里两章 `load` 置空，第十灾标题在包里改成“长子之S”（注册表里 `title: { zh: '长子之死', en: 'Death of the Firstborn' }` 这段字面量别改，补丁按它匹配）。`props_p9/p10` 因为 `props.js` 静态引入仍在包里，里面不能出现“死 / 血”字（`test_plague10.mjs` 查 `props_p10.js`）。放开前去掉 wip 和 `build.py` 那两行，并过一遍审核敏感字（第九灾成就“血月”）。
+- 验收入口：`node --test dev/plague9/test_plague9.mjs dev/plague10/test_plague10.mjs`、`python dev/plague9/test_plague9_browser.py`、`python dev/plague10/test_plague10_browser.py`（自动通关、真实鼠标 / 数字键完整通关、中途读档、门禁、错误用法、菜单 wip、触屏），提示表 `python dev/common/test_hints_browser.py 9 10`。记录见 `docs/ai/context/20261102-164500-plague9-10-implementation.md`。
+
 ## 第二灾与人物复用
 
 - 第二灾逻辑集中在 `src/chapters/plague2/`，专属道具在 `src/art/props_p2_*.js`（人物统一在 `src/art/cast.js`），参考为 `dev/common/ref/P02_第二灾-蛙灾_BV1bo4y1y7fm.mp4`。参考视频及抽帧仅本地保存。
