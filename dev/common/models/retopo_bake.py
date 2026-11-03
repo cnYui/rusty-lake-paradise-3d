@@ -50,6 +50,8 @@ RENAMED = {
     'historical_judge_character': '锈湖天堂岛-尼古拉斯', 'historical_character': '锈湖天堂岛-杰拉德', 'cartoon_man': '锈湖天堂岛-少年雅各布',
     'rabbit_character': '锈湖天堂岛-兔头大卫', 'boar_man': '锈湖天堂岛-野猪头杰拉德', 'pigeon_humanoid': '锈湖天堂岛-鸽子头玛格丽特',
     'deer_humanoid': '锈湖天堂岛-鹿头尼古拉斯', 'owl_headed_character': '锈湖天堂岛-猫头鹰头伊丽莎白',
+    # 2026-11-03 第二批：第六灾瘟疫医生、第八 / 十灾黑影（灵魂）、第十灾鹰室里戴猫头鹰面具的 Elizabeth
+    'plague_doctor': '锈湖天堂岛-瘟疫医生', 'tall_silhouette': '锈湖天堂岛-黑影', 'owl_mask_character': '锈湖天堂岛-猫头鹰面具伊丽莎白',
 }
 ROTZ = {}     # 名字 → 导入后绕 z 转的角度（度）；不写就按两臂方向自动判断
 for key, stem in RENAMED.items():

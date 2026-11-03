@@ -1580,6 +1580,28 @@ function buildIdaPheasant() {
   return rig;
 }
 
+// ---- 第十灾鹰室里戴猫头鹰面具的 Elizabeth：网格模型（面具、黑长发、围裙裙都是网格的一部分，没有模型时返回 null）----
+function buildElizabethOwl() {
+  const rig = modelHuman('elizabeth_owl');
+  if (!rig) return null;
+  finish(rig);
+  rig.setPose(P(armsDown(rig, { spread: 0.06, bend: 0.1 }), { head: [0.04, 0, 0] }));
+  lifeIdle(rig, { breath: 0.012, sway: 0.008, look: 0.04 });
+  rig.play('idle'); rig.apply();
+  return rig;
+}
+
+// ---- 瘟疫医生（第六灾）：网格模型（黑礼帽、乌鸦嘴面具、斗篷长袍都在网格上；没有模型时返回 null，章节回落到占位人物）----
+function buildPlagueDoctor() {
+  const rig = modelHuman('plague_doctor');
+  if (!rig) return null;
+  finish(rig);
+  rig.setPose(P(armsDown(rig, { spread: 0.1, bend: 0.08 })));
+  lifeIdle(rig, { breath: 0.01, sway: 0.006, look: 0.03 });
+  rig.play('idle'); rig.apply();
+  return rig;
+}
+
 // ---- Elizabeth（记忆场景，戴雉鸡面具的小女孩）----
 function buildElizabeth() {
   const skin = '#e3d7cc';
@@ -1619,7 +1641,34 @@ function paintPlain(sk) {
 // ===========================================================================
 
 const _UP = V(0, 1, 0);
+/** 黑影的网格版：全黑长袍 + 白眼睛的网格模型（第一、八、十灾）。接口同程序化版本：vanish() / appear()、face = null。 */
+function buildSoulMesh(rig) {
+  finish(rig);
+  rig.setPose(P(armsDown(rig, { spread: 0.1, bend: 0.06 }), { head: [0.06, 0, 0] }));
+  lifeIdle(rig, { breath: 0.006, sway: 0.01, look: 0.05 });
+  rig.face = null;
+  rig.vanish = async ({ instant = false } = {}) => {
+    if (instant) { rig.root.visible = false; return; }
+    const r = rng(5);
+    let next = 0;
+    await animate(1000, (e) => {
+      if (e >= next) {
+        rig.root.visible = r() > e * 0.9;
+        rig.root.position.x = (r() - 0.5) * 0.04 * e;
+        next = e + 0.04 + r() * 0.06;
+      }
+    }, Ease.linear);
+    rig.root.visible = false;
+    rig.root.position.x = 0;
+  };
+  rig.appear = ({ instant = true } = {}) => { rig.root.visible = true; return Promise.resolve(void instant); };
+  rig.play('idle'); rig.apply();
+  return rig;
+}
+
 function buildSoul() {
+  const mesh = modelHuman('soul');
+  if (mesh) return buildSoulMesh(mesh);
   const rig = createRig('soul');
   const M = rig.mats;
   skeleton(rig, {
@@ -1766,6 +1815,8 @@ export const CAST = {
   ida: buildIda,
   ida_pheasant: buildIdaPheasant,
   elizabeth_pheasant: buildElizabeth,
+  elizabeth_owl: buildElizabethOwl,
+  plague_doctor: buildPlagueDoctor,
   soul: buildSoul,
 };
 export {

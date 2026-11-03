@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { makeProp } from '../../art/props.js';
 import { makePerson } from '../../art/cast_mock.js';
 import { makeCharacter, makeMaskModel } from '../../art/characters.js';
+import { getModel } from '../../art/rlpm.js';
 import { P, SETS } from '../../art/layout.js';
 import { BUILDING_DIMS } from '../../art/buildings.js';
 import { groundHeight } from '../../art/island.js';
@@ -278,11 +279,16 @@ function setupUnder(ctx) {
   });
   const sx = UX + CRYPT.sideX, z = CRYPT.backZ;
   const shadow = person(ctx, 'shadow', 'shadow', under, [sx + 0.1, 0, z - 1.05], -Math.PI / 2 + 0.45);
-  const liz = makeCharacter('elizabeth_pheasant');
-  liz.setMask(null);
-  for (const t of liz.headTags || ['head', 'face', 'hair', 'hat']) liz.showTag(t, false);
-  if (liz.face?.mesh) liz.face.mesh.visible = false;
-  const owlMask = makeProp('p10_owl_mask'); owlMask.scale.setScalar((liz.dims?.headR?.[0] || 0.09) / 0.115); liz.parts.head.add(owlMask);
+  // 戴猫头鹰面具的 Elizabeth：有网格模型（elizabeth_owl，面具和头发都在网格上）就直接用；没有就是程序化小女孩 + 头骨骼上挂 p10_owl_mask
+  let liz;
+  if (getModel('elizabeth_owl')) liz = makeCharacter('elizabeth_owl');
+  else {
+    liz = makeCharacter('elizabeth_pheasant');
+    liz.setMask(null);
+    for (const t of liz.headTags || ['head', 'face', 'hair', 'hat']) liz.showTag(t, false);
+    if (liz.face?.mesh) liz.face.mesh.visible = false;
+    const owlMask = makeProp('p10_owl_mask'); owlMask.scale.setScalar((liz.dims?.headR?.[0] || 0.09) / 0.115); liz.parts.head.add(owlMask);
+  }
   liz.root.position.set(sx + 0.1, 0, z + 1.05); liz.root.rotation.y = -Math.PI / 2 - 0.45; under.add(liz.root);
   ctx.register('char', 'p10_elizabeth', liz);
   W.rigs.elizabeth = liz;

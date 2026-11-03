@@ -7,6 +7,7 @@ import { toon } from './materials.js';
 import { makeCharacter } from './characters.js';
 import { gerardBody, davidBody, nicholasBody, margaretBody, armsDown, seatedPose, mergePose, STOOP } from './cast.js';
 import { lifeIdle } from './human.js';
+import { getModel } from './rlpm.js';
 
 const SKIN = '#e7d3bf';
 
@@ -174,6 +175,8 @@ function feathered(rig) {
 
 const REAL = {
   // 第六灾：病人 Gerard、凳子上的奶奶、回忆里的鹿头人和少年 Jakob（第八灾小船上的奶奶、回忆里的少年 Jakob 同样用这几个）
+  // 瘟疫医生：有网格模型（doctor.rlpm：黑礼帽、乌鸦嘴面具、斗篷长袍）就用它，没有就回落到占位人物（返回 null）
+  plague_doctor: () => (getModel('doctor') ? makeCharacter('plague_doctor') : null),
   gerard_patient: () => withIdle(gerardBody('gerard_p6')),
   margaret: () => withIdle(margaretBody('margaret_seated', { seat: SEAT }), { seated: true }),
   nicholas_deer: deer,
@@ -187,7 +190,7 @@ const REAL = {
   musician_old: () => withIdle(nicholasBody('nicholas_p8').rig),
   seer: ida,
   mother: caroline,
-  shadow: () => makeCharacter('soul'),
+  shadow: () => makeCharacter('soul'),   // 网格黑影（soul.rlpm），没有模型时是程序化黑影
   // 第九灾：篝火边的五个人（Gerard、David、Ida、坐在树墩上的奶奶、Nicholas；Ida 和奶奶沿用上面的 ida / margaret）
   gerard_p9: () => withIdle(gerardBody('gerard_p9')),
   david_p9: () => withIdle(davidBody('david_p9')),
@@ -257,7 +260,8 @@ function finishAdapt(rig, base) {
 /** 第六到八灾的人物：有正式模型的用模型（见 REAL），没有的回落到占位人物。 */
 export function makePerson(id) {
   const make = REAL[id];
-  if (!make) return makeMockPerson(id);
-  return adapt(make(), id);
+  const rig = make ? make() : null;
+  if (!rig) return makeMockPerson(id);
+  return adapt(rig, id);
 }
 

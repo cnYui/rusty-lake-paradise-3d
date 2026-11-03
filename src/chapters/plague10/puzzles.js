@@ -350,7 +350,7 @@ function setupUnder(ctx) {
   }));
   pickup(ctx, 'p10_cube', ['p10_eagle', 'p10_hex', 'p10_under'], c.cube, 'black_cube', 'cube_taken', () => !!ctx.flag('hex_done'), () => ctx.say(T.itsTime));
   define(ctx, 'p10_shadow', ['p10_eagle', 'p10_under'], W.rigs.shadow.parts.body, { cursor: 'talk', when: () => !!ctx.flag('hex_done'), onClick: () => ctx.say(T.shadow) });
-  define(ctx, 'p10_elizabeth', ['p10_eagle', 'p10_under'], W.rigs.elizabeth.parts.body || W.rigs.elizabeth.root, { cursor: 'talk', when: () => !!ctx.flag('hex_done'), onClick: () => ctx.say(T.elizabeth) });
+  define(ctx, 'p10_elizabeth', ['p10_eagle', 'p10_under'], W.rigs.elizabeth.root, { cursor: 'talk', when: () => !!ctx.flag('hex_done'), onClick: () => ctx.say(T.elizabeth) });
 }
 
 // ---- 木头猫头鹰、神殿和结尾 ----

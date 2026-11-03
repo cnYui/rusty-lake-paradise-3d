@@ -271,8 +271,8 @@
 | Ida（举着手掌） | `ida` | 网格 `ida`，脸上盖五道竖条贴片 | 网格 `ida_pheasant`（模型 `pheasant`；没有模型时回退成网格 Ida + 程序化野鸡面具） |
 | 奶奶（炉子边） | `margaret` | 网格 `margaret`，坐 | `margaret_pigeon`（网格 `pigeon`；栅门开了以后站着） |
 | 鼓手 Nicholas | `nicholas_p10` | 网格 `nicholas` | `nicholas_deer`（网格 `deer`） |
-| 黑影 | `shadow` | 程序化“灵魂” | — |
-| 戴猫头鹰面具的 Elizabeth | — | 程序化 `elizabeth_pheasant`，头、脸、头发藏起来，头骨骼上挂 `p10_owl_mask`（还没有对应的模型；资料库里叫“猫头鹰头”的那个其实是野鸡面具 Ida，已用在上一行） | — |
+| 黑影 | `shadow` | 网格 `soul`（2026-11-03 起；没有模型时回落程序化“灵魂”） | — |
+| 戴猫头鹰面具的 Elizabeth | `elizabeth_owl` | 网格 `elizabeth_owl`（2026-11-03 起；面具、黑长发、围裙裙都在网格上，1.31 m）；没有模型时回落程序化 `elizabeth_pheasant`，头、脸、头发藏起来，头骨骼上挂 `p10_owl_mask` | — |
 
 ## 文件分工
 

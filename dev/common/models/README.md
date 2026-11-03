@@ -21,6 +21,9 @@
 | pigeon+humanoid | 锈湖天堂岛-鸽子头玛格丽特.glb | `margaret_pigeon`（裙装） | pigeon | rig_export.py |
 | deer+humanoid | 锈湖天堂岛-鹿头尼古拉斯.glb | `nicholas_deer`（长袍，腿可见） | deer | rig_export.py |
 | owl-headed character | 锈湖天堂岛-猫头鹰头伊丽莎白.glb | `ida_pheasant`（第十灾戴上野鸡面具的 Ida，1.58，棕色泡泡袖裙；2026-11-03 转好。名字里的“猫头鹰头”是误认，对照原作是野鸡面具） | pheasant | rig_export.py（裙装） |
+| plague doctor | 锈湖天堂岛-瘟疫医生.glb | `plague_doctor`（第六灾，黑礼帽乌鸦嘴医生，帽子下头骨顶 1.84，连帽顶约 2.0 m；长袍当裙装） | doctor | rig_export.py（裙装） |
+| tall silhouette | 锈湖天堂岛-黑影.glb | 黑影 / 灵魂 `soul`（第一、八、十灾，1.97；一整根锥形长袍，没有分开的腿；网格不封闭，自动权重失败，走距离反比权重） | soul | rig_export.py（裙装） |
+| owl mask character | 锈湖天堂岛-猫头鹰面具伊丽莎白.glb | `elizabeth_owl`（第十灾鹰室里戴猫头鹰面具的 Elizabeth，1.31；黑长发、浅蓝袖、棕围裙裙） | elizabeth_owl | rig_export.py（裙装） |
 | stone tower | 岛上的石塔（38 m） | tower | tower_export.py + tower_recolor.py |
 | cartoon+goat | 山羊（第一灾；已删木盆） | goat | goat_export.py |
 | cow | 牛（第五灾） | cow | cow_export.py |

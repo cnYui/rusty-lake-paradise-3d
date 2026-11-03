@@ -240,7 +240,7 @@
 
 | 章 | 人物 | id | 用什么 | 姿势 |
 | --- | --- | --- | --- | --- |
-| 六 | 瘟疫医生（门里只露面具和手；白桦林里全身，手持法杖） | `plague_doctor` | 占位（本机没有模型） | 站 |
+| 六 | 瘟疫医生（门里只露面具和手；白桦林里全身，手持法杖） | `plague_doctor` | 网格 `doctor`（2026-11-03 起；黑礼帽、乌鸦嘴面具、斗篷长袍，左手抬起握法杖；没有模型时回落占位人物） | 站 |
 | 六 | Gerard（病人） | `gerard_patient` | 网格 `gerard` | 躺（绕髋关节转 90°，胸口模型挂在 root 上） |
 | 六 | Margaret（奶奶） | `margaret` | 网格 `margaret` | 坐（凳面 0.45 m，微驼背，手搭在大腿上） |
 | 六 | 鹿头人 Nicholas、少年 Jakob（回忆） | `nicholas_deer`、`jakob_child` | 网格 `deer`、`jakob_child` | 站；交出病心后鹿头人把心举到 Jakob 头顶 |
@@ -251,7 +251,7 @@
 | 七 | 少年 Jakob（鸟笼）、鹿头人 | `jakob_child`、`nicholas_deer` | 网格 | 站；鹿头人举右手 |
 | 七 | 神殿里跪着求情的母亲 Caroline | `caroline` | 程序化 Caroline（没有网格模型；怀里的婴儿藏起来） | 跪 |
 
-还剩瘟疫医生和冰中青年是占位模型（`userData.placeholder = true`），所以两章仍标 `wip: true`。
+还剩冰中青年是占位模型（`userData.placeholder = true`），所以第七灾仍标 `wip: true`（第六灾的瘟疫医生 2026-11-03 起有了网格模型，章节本身等第七灾一起放开）。
 ## 文件分工
 
 | 内容 | 文件 |
