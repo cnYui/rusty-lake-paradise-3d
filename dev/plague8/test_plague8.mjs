@@ -15,7 +15,7 @@ test('木盒：六列各不相同，每个乐手恰好对上一列，开局没�
   for (const m of MUSICIANS) assert.equal(keys.filter((k) => k === m.attrs.join('')).length, 1, m.id);
   assert.equal(boxSolved(BOX_START), false);
   assert.ok(BOX_START.every((col, i) => col !== boxAnswer()[i]), '开局就有滑块停在正确的列上');
-  assert.deepEqual(boxAnswer(), [2, 0, 3]);
+  assert.deepEqual(boxAnswer(), [2, 0, 1]);
   assert.equal(boxSolved(boxAnswer()), true);
 });
 

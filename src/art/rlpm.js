@@ -19,7 +19,8 @@ const KEYS = [['jakob_child', 'jakob_child'], ['david', 'david'], ['gerard', 'ge
 // 动物头人物：模型自带动物头和衣服，对应记忆里戴面具的四个人；不再戴程序化面具
 const MASKED = { david_rabbit: 'rabbit', gerard_boar: 'boar', margaret_pigeon: 'pigeon', nicholas_deer: 'deer' };
 // 这几个变体和成年模型对不上（换了衣服 / 年龄 / 去掉了帽子胡子，或者要从头部网格里拆耳朵 / 换发型），继续用程序化人物
-const PROCEDURAL = new Set(['gerard_young', 'ida_child', 'nicholas_stand', 'gerard_barber']);
+// gerard_p7：第七灾玩家要拿走他的帽子，网格 Gerard 的帽子长在头部网格上摘不下来
+const PROCEDURAL = new Set(['gerard_young', 'ida_child', 'nicholas_stand', 'gerard_barber', 'gerard_p7']);
 export function modelKeyFor(id) {
   if (MASKED[id]) return MASKED[id];
   if (PROCEDURAL.has(id)) return null;
@@ -35,7 +36,11 @@ export const CHAPTER_MODELS = {
   plague3: ['david', 'gerard', 'nicholas', 'margaret', 'ida', 'jakob_child'],
   plague4: ['nicholas', 'gerard', 'margaret', 'jakob_child', 'fly'],
   plague5: ['gerard', 'nicholas', 'margaret', 'cow'],
-  plague8: ['goat'],   // 第八灾：白桦林里被螳螂叼走的山羊（人物还是占位模型）
+  plague6: ['gerard', 'margaret', 'jakob_child', 'deer'],
+  plague7: ['gerard', 'ida', 'jakob_child', 'deer'],
+  plague8: ['goat', 'gerard', 'david', 'nicholas', 'ida', 'margaret', 'jakob_child'],   // 山羊 + 三个乐手、红发女人 Ida、船上的奶奶、回忆里的少年 Jakob
+  plague9: ['gerard', 'david', 'ida', 'margaret', 'nicholas'],   // 篝火边的五个人
+  plague10: ['gerard', 'david', 'ida', 'margaret', 'nicholas', 'boar', 'rabbit', 'pigeon', 'deer'],   // 五个家人 + 戴上面具以后的动物头模型
 };
 
 function parse(buf) {

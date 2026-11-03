@@ -4,20 +4,23 @@
 
 原始 GLB 不入库（每个 60 MB），放在 `RLP_GLB_DIR`（默认 `C:/Users/yui/Downloads`）。需要 Blender（本机是 5.2.2）。
 
+2026-11-02 用户在 Downloads 重新下载了天堂岛的人物 GLB（Tripo 的低面版：每个约 1.8 万面、8 MB，三张贴图：底色 / 金属粗糙度 / 法线），并要求按「游戏名-角色名」改名，见下表“改名后”一列（`retopo_bake.py` 两种文件名都认）。现有 `.rlpm` 是 10-23 用 60 MB 的原版做的，新文件只在要重导出时才用得上。苍蝇人、Margaret、Ida、David 四个文件当时没改名（协调说法是归旅馆用，待确认）。
+
 ## 对应关系
 
-| GLB 文件名 | 游戏里的对象 | key | 脚本 |
-| --- | --- | --- | --- |
-| historical+judge+character | Nicholas（1.88） | nicholas | rig_export.py |
-| historical+character | Gerard（1.84） | gerard | rig_export.py |
-| cowboy+character | David（1.78） | david | rig_export.py |
-| cartoon+grandmother | Margaret（1.56） | margaret | rig_export.py（裙装） |
-| historical+woman | Ida（1.58） | ida | rig_export.py（裙装） |
-| cartoon+man | 少年 Jakob（1.30） | jakob_child | rig_export.py |
-| rabbit+character | `david_rabbit`（记忆里的兔头 David） | rabbit | rig_export.py |
-| boar+man | `gerard_boar` | boar | rig_export.py |
-| pigeon+humanoid | `margaret_pigeon`（裙装） | pigeon | rig_export.py |
-| deer+humanoid | `nicholas_deer`（长袍，腿可见） | deer | rig_export.py |
+| GLB 文件名 | 改名后（2026-11-02） | 游戏里的对象 | key | 脚本 |
+| --- | --- | --- | --- | --- |
+| historical+judge+character | 锈湖天堂岛-尼古拉斯.glb | Nicholas（1.88） | nicholas | rig_export.py |
+| historical+character | 锈湖天堂岛-杰拉德.glb | Gerard（1.84） | gerard | rig_export.py |
+| cowboy+character | （未改） | David（1.78） | david | rig_export.py |
+| cartoon+grandmother | （未改） | Margaret（1.56） | margaret | rig_export.py（裙装） |
+| historical+woman | （未改） | Ida（1.58） | ida | rig_export.py（裙装） |
+| cartoon+man | 锈湖天堂岛-少年雅各布.glb | 少年 Jakob（1.30） | jakob_child | rig_export.py |
+| rabbit+character | 锈湖天堂岛-兔头大卫.glb | `david_rabbit`（记忆里的兔头 David） | rabbit | rig_export.py |
+| boar+man | 锈湖天堂岛-野猪头杰拉德.glb | `gerard_boar` | boar | rig_export.py |
+| pigeon+humanoid | 锈湖天堂岛-鸽子头玛格丽特.glb | `margaret_pigeon`（裙装） | pigeon | rig_export.py |
+| deer+humanoid | 锈湖天堂岛-鹿头尼古拉斯.glb | `nicholas_deer`（长袍，腿可见） | deer | rig_export.py |
+| owl-headed character | 锈湖天堂岛-猫头鹰头伊丽莎白.glb | `elizabeth_pheasant`（第一灾回忆里戴鸟面具的女孩，裙子同 Ida；还没转，目前程序化） | — | — |
 | stone tower | 岛上的石塔（38 m） | tower | tower_export.py + tower_recolor.py |
 | cartoon+goat | 山羊（第一灾；已删木盆） | goat | goat_export.py |
 | cow | 牛（第五灾） | cow | cow_export.py |

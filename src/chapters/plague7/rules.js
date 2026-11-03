@@ -43,7 +43,7 @@ export function iceSolvable(cells) {
   return match.size === L.length;
 }
 
-// ---- 滑冰：Caroline 朝一个方向滑出去，撞上树桩或冰面边缘才停；停在目标裂纹上过关 ----
+// ---- 滑冰：Ida 朝一个方向滑出去，撞上树桩或冰面边缘才停；停在目标裂纹上过关 ----
 // 坐标 [x, y]：x 从左到右，y 从远到近（俯视图里从上到下）。
 export const SKATE_W = 7, SKATE_H = 5;
 export const SKATE_LEVELS = [
@@ -64,7 +64,7 @@ export function slide(level, [x, y], dir) {
   }
 }
 
-/** 点了冰面上的某一格：只有和 Caroline 同一行 / 同一列才算方向，返回方向名或 null。 */
+/** 点了冰面上的某一格：只有和 Ida 同一行 / 同一列才算方向，返回方向名或 null。 */
 export function directionTo([x, y], [tx, ty]) {
   if (tx === x && ty === y) return null;
   if (ty === y) return tx > x ? 'right' : 'left';

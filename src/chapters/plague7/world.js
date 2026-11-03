@@ -1,7 +1,7 @@
 // 第七灾：同一座岛换成雪景（地面发白、湖面结冰、飘雪），布局沿用第五、六灾；模型显示始终由存档状态推导。
 import * as THREE from 'three';
 import { makeProp } from '../../art/props.js';
-import { makeMockPerson } from '../../art/cast_mock.js';
+import { makePerson } from '../../art/cast_mock.js';
 import { rinkPos } from '../../art/props_p7.js';
 import { P, SETS } from '../../art/layout.js';
 import { BUILDING_DIMS } from '../../art/buildings.js';
@@ -29,7 +29,7 @@ function place(ctx, id, model, parent, pos, { scale = 1, rotY = 0 } = {}) {
 }
 
 function person(ctx, id, mockId, parent, pos, rotY = 0) {
-  const rig = makeMockPerson(mockId);
+  const rig = makePerson(mockId);
   rig.root.position.fromArray(pos); rig.root.rotation.y = rotY; parent.add(rig.root);
   ctx.register('char', `p7_${id}`, rig);
   W[id] = rig.root; W[`${id}Rig`] = rig;
@@ -161,14 +161,14 @@ export async function setup(ctx) {
   clearUnusedColliders(ctx);
   snowScene(ctx, ext);
 
-  // ---- 天堂门（开着）和冰湖边的 Caroline ----
+  // ---- 天堂门（开着）和冰湖边滑冰的红发女人 Ida（原作 0:08；六七章设计文档里误写成 Caroline）----
   place(ctx, 'gate', 'paradise_gate', ext, P.gate.pos);
-  person(ctx, 'caroline', 'caroline', ext, at(1.7, 44.0), -0.4);
+  person(ctx, 'ida', 'ida', ext, at(1.7, 44.0), -0.4);
 
-  // ---- 滑冰台面（独立区域）：冰面 + 树桩 + 小一号的 Caroline ----
+  // ---- 滑冰台面（独立区域）：冰面 + 树桩 + Ida ----
   const skate = zone(ctx, 'p7_skate');
   place(ctx, 'rink', 'p7_rink', skate, [0, 0, 0]);
-  person(ctx, 'skater', 'caroline', skate, [0, 0, 0]);
+  person(ctx, 'skater', 'ida', skate, [0, 0, 0]);
 
   // ---- 树林 ----
   place(ctx, 'scarfBranch', 'p7_scarf_branch', ext, at(-6.2, 17.8));
@@ -210,15 +210,16 @@ export async function setup(ctx) {
   for (const [k, s] of [['armL', -1], ['armR', 1]]) { youth.parts[k].rotation.set(-1.25, 0, -s * 0.95); }
   W.youthHat = makeProp('p7_fur'); W.youthHat.scale.setScalar(2.2); W.youthHat.position.y = 1.72; youth.root.add(W.youthHat);
 
-  // ---- 神殿：锤子冻在冰里；鸟笼、Caroline、鹿头人（放水晶球后出现）；吊架 / 圣水盆 / 画 ----
+  // ---- 神殿：锤子冻在冰里；鸟笼、跪着的母亲 Caroline、鹿头人（放水晶球后出现）；吊架 / 圣水盆 / 画 ----
   const tp = (k, y = 0) => [400 + TEMPLE[k][0], y, TEMPLE[k][1]];
   const chunk = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.4), flat('#cfe2ea', { transparent: true, opacity: 0.8 }));
   chunk.position.fromArray(tp('hammer', 0.125)); temple.add(chunk);
   place(ctx, 'templeHammer', 'p7_hammer', temple, tp('hammer', 0.22)).rotation.z = 1.3;
   place(ctx, 'cage', 'p7_cage', temple, tp('cage', 4.2));
   person(ctx, 'cageJakob', 'jakob_child', W.cage, [0, 0.04, 0]);
-  person(ctx, 'kneeler', 'caroline', temple, tp('caroline'), Math.PI / 2).setPose('sit');
-  person(ctx, 'deer', 'nicholas_deer', temple, tp('deer'), -Math.PI / 2);
+  person(ctx, 'kneeler', 'caroline', temple, tp('caroline'), Math.PI / 2).setPose('kneel');
+  // 鹿头人举起右手（原作 26:40）
+  person(ctx, 'deer', 'nicholas_deer', temple, tp('deer'), -Math.PI / 2).setPose(W.deerRig.POSES.hold);
   // 鸟笼升走后，黑方块留在圣水盆的石沿上（盆沿高 1.04 m）
   place(ctx, 'cube', 'black_cube', temple, tp('cube', 1.1), { scale: 1.6 });
   place(ctx, 'holder', makeHolder(), temple, wpos(ctx, 'temple_int.holder'), { scale: 1.4 });
@@ -236,7 +237,7 @@ export async function setup(ctx) {
   const hs = (id, views, object, rest = {}) => ctx.hotspots.define({ id, views, object, cursor: 'zoom', ...rest });
   const proxy = (size, pos, parent) => ctx.hotspots.makeProxy(...size, pos, parent);
   hs('p7_overview_island', ['p7_overview'], proxy([40, 9, 6], [0, 3.6, 43], ext), { goto: 'p7_gate' });
-  hs('p7_caroline', ['p7_gate'], W.carolineRig.parts.body, { goto: 'p7_skate' });
+  hs('p7_caroline', ['p7_gate'], W.idaRig.parts.body, { goto: 'p7_skate' });   // 热点 id 沿用旧名（自动通关和测试在用）
   hs('p7_squirrel_zoom', ['p7_forest'], W.squirrel.userData.trunk, { goto: 'p7_squirrel' });
   hs('p7_icepool_zoom', ['p7_grove'], W.puddle, { goto: 'p7_icepool' });
   hs('p7_snowman_zoom', ['p7_grove'], W.snowman, { goto: 'p7_snowman' });
@@ -286,7 +287,7 @@ export function sync(ctx) {
   W.table.setState({ icicles: Number(f('icicles_used')) || 0, ice: !!f('bucket_ice'), snowball: !!f('snowball') });
   W.dome.setBerries(!f('strawberry_taken'));
   W.machine.setState({ diamonds: (f('machine_diamonds') || []).length, ball: !f('ball_taken') });
-  W.gerardRig.parts.head.getObjectByName('hat').visible = !f('hat_taken');
+  W.gerardRig.showTag('hat', !f('hat_taken'));   // 程序化 Gerard 的软呢帽（网格 Gerard 的帽子摘不下来，见 cast_mock.js）
   // 湖岸冰块
   W.iceblock.setState(f('youth_free') ? 'free' : f('ice_cracked') ? 'cracked' : 'frozen');
   W.youthHat.visible = !!f('youth_warm');

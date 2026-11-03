@@ -7,7 +7,7 @@ export const ATTRS = ['hat', 'mustache', 'white_hair', 'fat'];
 export const MUSICIANS = [
   { id: 'fat', attrs: [1, 1, 0, 1] },       // I：左边的胖子，八字胡，戴礼帽
   { id: 'feather', attrs: [1, 0, 0, 0] },   // II：中间的年轻人，帽子上插着羽毛
-  { id: 'old', attrs: [0, 0, 1, 0] },       // III：右边的白发老人，不戴帽子
+  { id: 'old', attrs: [0, 1, 1, 0] },       // III：右边的白发老人，两撇细胡子，不戴帽子（Nicholas 的网格模型有八字胡）
 ];
 export const BOX_COLUMNS = [
   [1, 0, 0, 0], [0, 1, 1, 0], [1, 1, 0, 1], [0, 0, 1, 0], [1, 0, 1, 1], [0, 1, 0, 1],

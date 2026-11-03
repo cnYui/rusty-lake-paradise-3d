@@ -1,7 +1,7 @@
 // 第六灾复用岛屿与室内布景（布局沿用第五灾），模型显示始终由存档状态推导。
 import * as THREE from 'three';
 import { makeProp } from '../../art/props.js';
-import { makeMockPerson } from '../../art/cast_mock.js';
+import { makePerson } from '../../art/cast_mock.js';
 import { doctorFaceTexture } from '../../art/props_p6.js';
 import { P, SETS, PALISADE } from '../../art/layout.js';
 import { BUILDING_DIMS } from '../../art/buildings.js';
@@ -31,7 +31,7 @@ function place(ctx, id, model, parent, pos, { scale = 1, rotY = 0 } = {}) {
 }
 
 function person(ctx, id, mockId, parent, pos, rotY = 0) {
-  const rig = makeMockPerson(mockId);
+  const rig = makePerson(mockId);
   rig.root.position.fromArray(pos); rig.root.rotation.y = rotY; parent.add(rig.root);
   ctx.register('char', `p6_${id}`, rig);
   W[id] = rig.root; W[`${id}Rig`] = rig;
@@ -186,7 +186,7 @@ export async function setup(ctx) {
   // ---- 病人的嘴（独立特写台面）----
   place(ctx, 'mouth', 'p6_mouth', zone(ctx, 'p6_mouth'), [0, 1.45, 0]);
 
-  // ---- 回忆：鹿头人举着心站在少年 Jakob 身边 ----
+  // ---- 回忆：鹿头人（网格模型）举着心站在少年 Jakob 身边 ----
   ctx.world.root.getObjectByName('memory_frame').visible = false;
   place(ctx, 'memoryRoom', 'p6_memory', memory, [500, 0, 0]);
   person(ctx, 'deer', 'nicholas_deer', memory, [500.45, 0, -0.55]);
@@ -221,7 +221,8 @@ export async function setup(ctx) {
   hs('p6_flask_zoom', ['p6_room'], W.table, { goto: 'p6_flask' });
   hs('p6_trunk_zoom', ['p6_room'], W.trunk, { goto: 'p6_trunk' });
   hs('p6_patient', ['p6_room'], W.patientRig.parts.body, { goto: 'p6_chest' });
-  hs('p6_patient_face', ['p6_room', 'p6_chest'], W.patientRig.parts.head, {
+  // 点击盒要把整颗头（含网格 Gerard 的帽檐、胡子）包在里面，否则射线先打到头部网格（它在胸口特写里不是热点）
+  hs('p6_patient_face', ['p6_room', 'p6_chest'], proxy([0.44, 0.54, 0.46], [0, 0.03, 0.05], W.patientRig.joints.head), {
     when: () => !!ctx.flag('medicine_given'), goto: 'p6_mouth',
   });
   const door = wpos(ctx, 'temple.door');
@@ -258,7 +259,9 @@ export function sync(ctx) {
   W.flask.setLayers(f('medicine_taken') ? [] : f('flask_layers') || [], !!f('medicine_made') && !f('medicine_taken'));
   W.trunk.setLetters(f('trunk_letters') || TRUNK_START); W.trunk.setOpen(!!f('trunk_open'));
   W.deerHeart.visible = !!f('heart_given');
-  W.deerRig.parts.armR.rotation.z = f('heart_given') ? 2.5 : 0.08;
+  // 交出病心后鹿头人把心举到少年 Jakob 头顶（Jakob 在他右手边 0.7 m，原作 24:30）
+  if (f('heart_given')) W.deerRig.reach('R', [-0.6, 1.62, 0.18], { pole: [-1, -0.2, -0.6], aim: { fingers: [-1, 0.25, 0.2], palm: [0, -1, 0] } });
+  else W.deerRig.setPose('stand');
   W.cube.visible = !!f('heart_given') && !f('cube_taken');
   // 公共动画接口只有插入和点燃；读旧档或新游戏时重建这两种不可逆显示（同第五灾）
   if (W.holder.userData.state.cube && !f('holder_cube')) replaceTempleProp(ctx, 'holder', makeHolder());

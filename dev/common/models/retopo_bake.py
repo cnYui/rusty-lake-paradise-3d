@@ -45,6 +45,14 @@ if os.path.exists(_flt):
 GLB_DIR = os.environ.get('RLP_GLB_DIR', 'C:/Users/yui/Downloads')      # 用户生成的原始 GLB（每个 60 MB，不入库）
 files = {os.path.basename(f).replace('+3d+model.glb', '').replace('+', '_'): f for f in glob.glob(GLB_DIR + '/*3d+model.glb')}
 files.update({os.path.basename(f).replace(' 3d model.glb', '').replace(' ', '_'): f for f in glob.glob(GLB_DIR + '/* 3d model.glb')})   # 文件名带空格的（stone tower 3d model.glb）
+# 2026-11-02 起用户把天堂岛的 GLB 改名成「游戏名-角色名」（见 README 对应表）；按原来的名字也能找到
+RENAMED = {
+    'historical_judge_character': '锈湖天堂岛-尼古拉斯', 'historical_character': '锈湖天堂岛-杰拉德', 'cartoon_man': '锈湖天堂岛-少年雅各布',
+    'rabbit_character': '锈湖天堂岛-兔头大卫', 'boar_man': '锈湖天堂岛-野猪头杰拉德', 'pigeon_humanoid': '锈湖天堂岛-鸽子头玛格丽特',
+    'deer_humanoid': '锈湖天堂岛-鹿头尼古拉斯', 'owl_headed_character': '锈湖天堂岛-猫头鹰头伊丽莎白',
+}
+for key, stem in RENAMED.items():
+    if key not in files and os.path.exists(os.path.join(GLB_DIR, stem + '.glb')): files[key] = os.path.join(GLB_DIR, stem + '.glb')
 for name in NAMES:
     t0 = time.time()
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -55,7 +63,11 @@ for name in NAMES:
     hi.name = name + '_hi'
     # 发光烘焙：把基础色贴图接到 Emission，烘出来就是原色（没有光照）
     nt = hi.active_material.node_tree
-    tex = next(n for n in nt.nodes if n.type == 'TEX_IMAGE'); outn = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+    # 低面版 GLB 有底色 / 金属粗糙度 / 法线三张贴图：取接在 Base Color 上的那张
+    bsdf = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    base = bsdf.inputs['Base Color'].links[0].from_node if bsdf and bsdf.inputs['Base Color'].links else None
+    tex = base if base is not None and base.type == 'TEX_IMAGE' else next(n for n in nt.nodes if n.type == 'TEX_IMAGE')
+    outn = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
     em = nt.nodes.new('ShaderNodeEmission'); nt.links.new(tex.outputs['Color'], em.inputs['Color']); nt.links.new(em.outputs['Emission'], outn.inputs['Surface'])
     log(name, 'imported', len(hi.data.polygons), f'{time.time()-t0:.0f}s')
     # 低模：复制、焊接、去 UV

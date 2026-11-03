@@ -234,22 +234,24 @@
 
 ---
 
-## 人物（占位）
+## 人物
 
-| 章 | 人物 | `makeMockPerson` id | 身高 | 姿势 |
+2026-11-02 起章节一律调 `makePerson(id)`（`src/art/cast_mock.js`）：有正式模型的人物用网格模型（`src/art/models/*.rlpm`）或游戏原有的程序化人物，没有模型的回落到占位人物 `makeMockPerson`。对照原作抽帧改正了两处身份：第七灾滑冰的红发女人是 Ida（原来写成 Caroline），神殿里跪着说“让我替他吧”的是母亲 Caroline。
+
+| 章 | 人物 | id | 用什么 | 姿势 |
 | --- | --- | --- | --- | --- |
-| 六 | 瘟疫医生（门里只露面具和手；白桦林里全身，手持法杖） | `plague_doctor` | 1.86 | 站 |
-| 六 | Gerard（病人） | `gerard_patient` | 1.84 | 躺 |
-| 六 | Margaret（奶奶） | `margaret` | 1.47 | 坐 |
-| 六 | 鹿头人 Nicholas、少年 Jakob（回忆） | `nicholas_deer`、`jakob_child` | 1.88 / 1.31 | 站 |
-| 七 | Caroline | `caroline` | 1.66 | 站（滑冰特写里用一个小棋子代替） |
-| 七 | Gerard | `gerard_p7` | 1.84 | 坐 |
-| 七 | 冰中青年 | `ice_youth` | 1.78 | 站（抱臂） |
-| 七 | 雪人变成的老妇人 | `ida_snow`（只用头部换掉雪人的头） | — | — |
-| 七 | 少年 Jakob（鸟笼）、鹿头人 | `jakob_child`、`nicholas_deer` | | |
+| 六 | 瘟疫医生（门里只露面具和手；白桦林里全身，手持法杖） | `plague_doctor` | 占位（本机没有模型） | 站 |
+| 六 | Gerard（病人） | `gerard_patient` | 网格 `gerard` | 躺（绕髋关节转 90°，胸口模型挂在 root 上） |
+| 六 | Margaret（奶奶） | `margaret` | 网格 `margaret` | 坐（凳面 0.45 m，微驼背，手搭在大腿上） |
+| 六 | 鹿头人 Nicholas、少年 Jakob（回忆） | `nicholas_deer`、`jakob_child` | 网格 `deer`、`jakob_child` | 站；交出病心后鹿头人把心举到 Jakob 头顶 |
+| 七 | 滑冰的红发女人 Ida | `ida` | 网格 `ida` | 站 |
+| 七 | Gerard | `gerard_p7` | 程序化 Gerard（帽子要被拿走，网格 Gerard 的帽子长在头部网格上摘不下来） | 坐 |
+| 七 | 冰中青年 | `ice_youth` | 占位（本机没有模型） | 站（抱臂） |
+| 七 | 雪人变成的老妇人 | —（`props_p7` 里程序化的脸） | — | — |
+| 七 | 少年 Jakob（鸟笼）、鹿头人 | `jakob_child`、`nicholas_deer` | 网格 | 站；鹿头人举右手 |
+| 七 | 神殿里跪着求情的母亲 Caroline | `caroline` | 程序化 Caroline（没有网格模型；怀里的婴儿藏起来） | 跪 |
 
-占位模型带 `userData.placeholder = true`。正式模型做好后在章节 `world.js` 里把 `makeMockPerson(...)` 换成 `makeCharacter(...)`，并在 `src/art/rlpm.js` 的 `CHAPTER_MODELS` 里加上 `plague6` / `plague7`。
-
+还剩瘟疫医生和冰中青年是占位模型（`userData.placeholder = true`），所以两章仍标 `wip: true`。
 ## 文件分工
 
 | 内容 | 文件 |

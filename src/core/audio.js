@@ -659,6 +659,57 @@ const SFX = {
   mandolin(t) {
     [392, 494, 587].forEach((f, i) => { for (let k = 0; k < 6; k++) tone(t + i * 0.03 + k * 0.07, { type: 'triangle', f0: f, dur: 0.12, attack: 0.002, peak: 0.03, p: (i - 1) * 0.3 }); });
   },
+  // 第九灾：啄木鸟啄一下树干（短促的木头敲击）
+  peck(t) {
+    thump(t, { f0: 900, f1: 420, dur: 0.05, peak: 0.12 });
+    hiss(t, { type: 'bandpass', f0: 2400, Q: 3, dur: 0.03, attack: 0.001, peak: 0.05 });
+  },
+  // 研磨机：摇柄转三圈，石磨沙沙地磨
+  grind(t) {
+    hiss(t, { kind: 'brown', type: 'bandpass', f0: 700, Q: 1.2, dur: 2.0, attack: 0.2, peak: 0.07 });
+    for (let i = 0; i < 6; i++) creak(t + i * 0.33, { dur: 0.25, f0: 380, f1: 460, peak: 0.04 });
+  },
+  // 绞盘收链条：一串金属咔哒 + 低沉的吱嘎
+  chain(t) {
+    for (let i = 0; i < 16; i++) hiss(t + i * 0.14, { type: 'bandpass', f0: 3200 + (i % 3) * 400, Q: 6, dur: 0.03, attack: 0.001, peak: 0.05 });
+    creak(t, { dur: 2.2, f0: 220, f1: 300, peak: 0.06 });
+  },
+  // 冰裂开
+  ice_crack(t) {
+    for (let i = 0; i < 5; i++) hiss(t + i * 0.035, { type: 'highpass', f0: 3000 + i * 500, dur: 0.05, attack: 0.001, peak: 0.08 - i * 0.01 });
+    thump(t, { f0: 180, f1: 90, dur: 0.18, peak: 0.18 });
+  },
+  // 第十灾：鼓的左半（低音）/ 右半（高音）
+  drum_low(t) {
+    thump(t, { f0: 110, f1: 52, dur: 0.38, peak: 0.42 });
+    hiss(t, { kind: 'brown', type: 'lowpass', f0: 500, dur: 0.12, attack: 0.002, peak: 0.08 });
+  },
+  drum_high(t) {
+    thump(t, { f0: 240, f1: 150, dur: 0.2, peak: 0.3 });
+    hiss(t, { type: 'bandpass', f0: 1800, Q: 1.5, dur: 0.06, attack: 0.001, peak: 0.07 });
+  },
+  // 拉弓放箭：弓弦嗡的一声，箭钉进木头
+  bow(t) {
+    tone(t, { type: 'triangle', f0: 180, f1: 150, dur: 0.35, attack: 0.002, peak: 0.08 });
+    hiss(t + 0.02, { type: 'bandpass', f0: 1400, f1: 3200, Q: 1, dur: 0.22, attack: 0.01, peak: 0.07 });
+    thump(t + 0.3, { f0: 300, f1: 110, dur: 0.12, peak: 0.3 });
+    hiss(t + 0.3, { type: 'bandpass', f0: 900, Q: 2, dur: 0.06, attack: 0.001, peak: 0.1 });
+  },
+  // 母鸡咯咯叫
+  hen(t) {
+    for (let i = 0; i < 3; i++) tone(t + i * 0.16, { type: 'sawtooth', f0: 620 + i * 40, f1: 480, dur: 0.1, attack: 0.005, peak: 0.035, filter: ['bandpass', 1400] });
+    tone(t + 0.55, { type: 'sawtooth', f0: 700, f1: 900, dur: 0.28, attack: 0.02, peak: 0.04, filter: ['bandpass', 1500] });
+  },
+  // 小鸡啾啾
+  chick(t) {
+    for (let i = 0; i < 3; i++) tone(t + i * 0.18, { f0: 3400, f1: 2700, dur: 0.09, attack: 0.005, peak: 0.04 });
+  },
+  // 石门沉进地里：低沉的石头摩擦
+  stone_door(t) {
+    hiss(t, { kind: 'brown', type: 'lowpass', f0: 380, dur: 1.8, attack: 0.15, peak: 0.16 });
+    for (let i = 0; i < 8; i++) thump(t + i * 0.22, { f0: 70, f1: 45, dur: 0.2, peak: 0.08 });
+    thump(t + 1.85, { f0: 90, f1: 40, dur: 0.4, peak: 0.35 });
+  },
 };
 
 // ------------------------------------------------------------------------ ambiences

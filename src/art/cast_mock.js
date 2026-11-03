@@ -1,9 +1,12 @@
-// 占位人物（mock）：第六到八灾的人物先用简单几何体代替，等正式网格模型做好再换（见 docs/plague6_7_design.md §人物）。
-// makeMockPerson(id) → rig：root（脚底 y = 0、面朝 +Z，按真实身高建，scale 一律为 1）、parts（命名部件）、
-//   setPose('stand' | 'sit' | 'lie'：躺时头朝 -Z、脸朝上)、setHeld(Object3D | null)（挂在右手）、bob(on)、update(dt, t)、placeholder = true。
-// 不带骨骼动画：章节要“动作”就直接 tween parts 里的部件（例如 parts.armR.rotation）。
+// 第六到八灾的人物。章节一律调 makePerson(id)（文件末尾）：有正式模型的人物用网格 / 程序化人物，没有的用占位人物。
+// 占位人物（mock）makeMockPerson(id)：简单几何体拼的人 → rig：root（脚底 y = 0、面朝 +Z，按真实身高建，scale 一律为 1）、
+//   parts（命名部件）、setPose('stand' | 'sit' | 'lie'：躺时头朝 -Z、脸朝上)、setHeld(Object3D | null)（挂在右手）、bob(on)、
+//   update(dt, t)、placeholder = true。不带骨骼动画：要“动作”就直接 tween parts 里的部件（例如 parts.armR.rotation）。
 import * as THREE from 'three';
 import { toon } from './materials.js';
+import { makeCharacter } from './characters.js';
+import { gerardBody, davidBody, nicholasBody, margaretBody, armsDown, seatedPose, mergePose, STOOP } from './cast.js';
+import { lifeIdle } from './human.js';
 
 const SKIN = '#e7d3bf';
 
@@ -133,3 +136,127 @@ export function makeMockPerson(id, overrides = {}) {
   root.userData.placeholder = true; root.userData.rig = rig;
   return rig;
 }
+
+// ===========================================================================
+// 正式人物：第六到八灾的人物 id → 网格模型（src/art/models/*.rlpm，要列进 rlpm.js 的 CHAPTER_MODELS 预加载）
+// 或游戏里原有的程序化人物（Caroline、灵魂），外面套一层和 makeMockPerson 相同的接口：
+//   setPose('stand' | 'sit' | 'lie' | 'kneel' | 姿势字典)、setHeld(obj)（挂在右手）、parts.body（= root，射线点击走蒙皮网格）、
+//   parts.head（头骨骼，挂气泡）、bob()（空操作）。另外给章节摆动作用：POSES、basePose（最近一次 setPose 的基础姿势）、
+//   reach(side, pos, opts)（在基础姿势上把手腕 IK 到 root 空间的一点）。
+// 骨架人物的关节每帧由 rig.apply() 按 rig.pose 重写：章节要摆手臂用 setPose / tweenPose / reach，不能直接改 parts.armR.rotation。
+// 模型没加载时 cast.js 的 body 函数自动回退到程序化人物，接口一样；没有模型的人物（瘟疫医生、冰中青年）继续用占位人物。
+// ===========================================================================
+const SEAT = 0.45;   // 坐姿的凳面高度（第六灾 p6_stool；小船上的座位按占位人物的这个高度摆）
+
+const withIdle = (rig, o = {}) => { lifeIdle(rig, { breath: 0.012, sway: 0.008, look: 0.06, ...o }); rig.play('idle'); rig.apply(); return rig; };
+
+/** 鹿头 Nicholas：模型自带鹿头和长袍；他手里的黑方块（第一灾的回忆）藏起来，章节自己摆道具。 */
+function deer() { const rig = makeCharacter('nicholas_deer'); rig.showCube(false); return rig; }
+/** 红发、白眼的 Ida（第三灾理发那位）：第二灾头上的青蛙藏起来。 */
+function ida() { const rig = makeCharacter('ida'); rig.showFrog(false); return rig; }
+/** 母亲 Caroline：没有网格模型，用程序化人物，怀里的婴儿藏起来。 */
+function caroline() { const rig = makeCharacter('caroline'); rig.root.getObjectByName('caroline_baby').visible = false; return rig; }
+
+/** David（第八灾中间的乐手）：帽子上插两根羽毛（网格的帽子是头的一部分，羽毛挂在头骨骼上）。 */
+function feathered(rig) {
+  const [rx, ry, rz] = rig.dims.headR;
+  const g = new THREE.Group(); g.name = 'hat_feathers';
+  // 网格 David 的帽檐在头骨骼上方约 0.09 m、帽冠侧面离中线约 0.13 m（按 david.rlpm 的头部顶点量的）；程序化帽子按头的大小估
+  if (rig.isModel) g.position.set(-0.132, 0.135, -0.03); else g.position.set(-rx * 1.25, ry * 1.0, -rz * 0.2);
+  g.rotation.set(-0.5, 0, 0.35);
+  [['#efe6cf', 0.15, 0], ['#8a5a2c', 0.12, 0.25]].forEach(([color, len, tilt]) => {
+    const f = mesh(new THREE.SphereGeometry(0.5, 12, 8), color, 'feather');
+    f.scale.set(0.024, len, 0.008); f.position.set(0, len * 0.45, 0); f.rotation.z = tilt; g.add(f);
+  });
+  rig.joints.head.add(g);
+  return rig;
+}
+
+const REAL = {
+  // 第六灾：病人 Gerard、凳子上的奶奶、回忆里的鹿头人和少年 Jakob（第八灾小船上的奶奶、回忆里的少年 Jakob 同样用这几个）
+  gerard_patient: () => withIdle(gerardBody('gerard_p6')),
+  margaret: () => withIdle(margaretBody('margaret_seated', { seat: SEAT }), { seated: true }),
+  nicholas_deer: deer,
+  jakob_child: () => makeCharacter('jakob_child'),
+  // 第七灾：滑冰的红发女人是 Ida，神殿里跪着求情的是母亲 Caroline；Gerard 的帽子要被拿走，用程序化 Gerard
+  ida, caroline,
+  gerard_p7: () => withIdle(gerardBody('gerard_p7')),   // 程序化 Gerard（rlpm.js 的 PROCEDURAL）：帽子要能摘下来
+  // 第八灾：门外三个乐手 I / II / III 是 Gerard、David、Nicholas；木屋里的红发白眼女人是 Ida；雾里的黑影是“灵魂”
+  musician_fat: () => withIdle(gerardBody('gerard_p8')),
+  musician_feather: () => feathered(withIdle(davidBody('david_p8'))),
+  musician_old: () => withIdle(nicholasBody('nicholas_p8').rig),
+  seer: ida,
+  mother: caroline,
+  shadow: () => makeCharacter('soul'),
+  // 第九灾：篝火边的五个人（Gerard、David、Ida、坐在树墩上的奶奶、Nicholas；Ida 和奶奶沿用上面的 ida / margaret）
+  gerard_p9: () => withIdle(gerardBody('gerard_p9')),
+  david_p9: () => withIdle(davidBody('david_p9')),
+  nicholas_p9: () => withIdle(nicholasBody('nicholas_p9').rig),
+  // 第十灾：猎人 Gerard、白桦树前的 David、敲鼓的 Nicholas（Ida、奶奶、黑影沿用上面的）；
+  // 戴上面具以后换成记忆里的动物头模型（野猪 / 兔子 / 鸽子 / 鹿），Ida 没有野鸡头模型，章节里给她 setMask('pheasant')
+  gerard_p10: () => withIdle(gerardBody('gerard_p10')),
+  david_p10: () => withIdle(davidBody('david_p10')),
+  nicholas_p10: () => withIdle(nicholasBody('nicholas_p10').rig),
+  gerard_boar: () => makeCharacter('gerard_boar'),
+  david_rabbit: () => makeCharacter('david_rabbit'),
+  margaret_pigeon: () => makeCharacter('margaret_pigeon'),
+};
+const OWN_POSE = new Set(['shadow']);   // 保留构建函数自己的站姿（灵魂是驼着背的黑影）
+
+function adapt(rig, id) {
+  const D = rig.dims, Y = rig.Y;
+  const base = rig.setPose;
+  const zero = {}; for (const k in rig.pose) zero[k] = OWN_POSE.has(id) ? rig.pose[k].slice() : [0, 0, 0];
+  zero.body = zero.body || [0, 0, 0]; zero['body.p'] = [0, 0, 0];
+  const stand = OWN_POSE.has(id) ? zero : mergePose(zero, armsDown(rig, { spread: 0.07, bend: 0.12 }));
+  rig.POSES = { ...(rig.POSES || {}), stand };
+  if (Y && D.thigh) addPoses(rig, id, stand);   // 灵魂的骨架不是 makeHuman 建的（没有 rig.Y），只能站着
+  return finishAdapt(rig, base);
+}
+
+function addPoses(rig, id, stand) {
+  const D = rig.dims, Y = rig.Y;
+  // 坐：大腿水平、手搭在大腿上
+  const sitLegs = mergePose(stand, seatedPose(rig, SEAT, { spread: 0.1, thigh: 1.5, back: -0.02 }), { torso: [0.05, 0, 0] }, id === 'margaret' ? STOOP(0.7) : {});
+  const lap = SEAT + 0.05 * D.height / 1.78 + 0.1;
+  const sit = rig.solve(sitLegs, { L: { pos: [0.12, lap, 0.24], pole: [1, -0.4, -0.5] }, R: { pos: [-0.12, lap, 0.24], pole: [-1, -0.4, -0.5] } });
+  // 躺（脸朝上、头朝 -Z）：整个人绕髋关节转 90°，脚底留在 root 原点，背贴着 root 的 y = 0（床面）
+  const lie = mergePose(stand, { body: [-Math.PI / 2, 0, 0], 'body.p': [0, 0.13 - D.hipY, -D.hipY] });
+  // 跪：大腿竖直、小腿平放在地上，双手在胸前合拢
+  const kneelLegs = mergePose(stand, {
+    'body.p': [0, D.thigh + 0.06 - D.hipY, -0.02], torso: [0.12, 0, 0], head: [0.1, 0, 0],
+    legL: [0.05, 0, 0.06], kneeL: [1.5, 0, 0], footL: [1.1, 0, 0], legR: [0.05, 0, -0.06], kneeR: [1.5, 0, 0], footR: [1.1, 0, 0],
+  });
+  const ky = Y.chest + D.thigh + 0.06 - D.hipY - 0.06;
+  const kneel = rig.solve(kneelLegs, { L: { pos: [0.03, ky, 0.27], pole: [1, -1, -0.2] }, R: { pos: [-0.03, ky, 0.27], pole: [-1, -1, -0.2] } });
+  Object.assign(rig.POSES, { sit, lie, kneel });
+}
+
+function finishAdapt(rig, base) {
+  const J = rig.joints, root = rig.root;
+  // 射线点击走 SkinnedMesh（在 root 下）：parts.body 指向 root；头 / 手是骨骼，parts.head 留骨骼用来挂气泡
+  const holder = new THREE.Group(); holder.name = 'held'; holder.position.set(0, -0.07, 0.03); J.handR.add(holder);
+  rig.parts = { ...rig.parts, body: root, head: J.head, armL: J.armL, armR: J.armR, held: holder };
+  rig.placeholder = false;
+  rig.bob = () => {};
+  rig.setHeld = (obj) => { holder.clear(); if (obj) holder.add(obj); };
+  rig.setPose = (p) => {
+    if (typeof p !== 'string') return base(p);
+    rig.poseName = p; rig.basePose = rig.POSES[p] || rig.POSES.stand;
+    base(rig.basePose);
+    if (rig._idleFn) rig.play(p === 'lie' ? 'none' : 'idle');
+  };
+  rig.reach = (side, pos, { pole, aim, hand } = {}) => base(rig.solve(rig.basePose, {
+    [side]: { pos, pole: pole || [side === 'L' ? 1 : -1, -0.6, -0.4], aim, hand },
+  }));
+  rig.setPose('stand');
+  return rig;
+}
+
+/** 第六到八灾的人物：有正式模型的用模型（见 REAL），没有的回落到占位人物。 */
+export function makePerson(id) {
+  const make = REAL[id];
+  if (!make) return makeMockPerson(id);
+  return adapt(make(), id);
+}
+
