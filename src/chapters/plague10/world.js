@@ -253,7 +253,7 @@ function setupFamily(ctx, ext, house) {
     W.torches[p] = place(ctx, `torch_${p}`, makeProp('p10_torch'), ext, at(x, z));
   }
   W.masked = {};
-  for (const [p, mock] of [['gerard', 'gerard_boar'], ['david', 'david_rabbit'], ['margaret', 'margaret_pigeon'], ['nicholas', 'nicholas_deer']]) {
+  for (const [p, mock] of [['gerard', 'gerard_boar'], ['david', 'david_rabbit'], ['ida', 'ida_pheasant'], ['margaret', 'margaret_pigeon'], ['nicholas', 'nicholas_deer']]) {
     const plain = W.rigs[p];
     const rig = makePerson(mock);
     plain.root.parent.add(rig.root);
@@ -473,7 +473,6 @@ function syncFamily(ctx) {
     W.torches[p].setState({ lit: on });
     const show = alt && on ? alt : plain;
     if (alt) { plain.root.visible = !on; alt.root.visible = on; }
-    if (p === 'ida') plain.setMask(on ? 'pheasant' : null);
     const home = W.home[p];
     if (gateOpen) {
       const [lx, lz] = OWL_SPOTS[p];

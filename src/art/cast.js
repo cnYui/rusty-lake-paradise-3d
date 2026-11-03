@@ -1566,6 +1566,20 @@ function buildIda() {
   return rig;
 }
 
+/**
+ * 戴野鸡面具的 Ida（第十灾戴上面具以后）：网格模型 pheasant 自带面具和同一身棕色泡泡袖裙，不再往上加程序化的头发、领子；
+ * 模型没加载（或 ?models=0）时用程序化 Ida 戴面具。
+ */
+function buildIdaPheasant() {
+  const rig = modelHuman('ida_pheasant');
+  if (!rig) { const ida = buildIda(); ida.showFrog(false); ida.setMask('pheasant'); return ida; }
+  finish(rig);
+  rig.setPose(P(armsDown(rig, { spread: 0.05, bend: 0.06 }), { head: [0.04, 0, 0] }));
+  lifeIdle(rig, { breath: 0.012, sway: 0.008, look: 0.04 });
+  rig.play('idle'); rig.apply();
+  return rig;
+}
+
 // ---- Elizabeth（记忆场景，戴雉鸡面具的小女孩）----
 function buildElizabeth() {
   const skin = '#e3d7cc';
@@ -1750,6 +1764,7 @@ export const CAST = {
   margaret_pigeon: buildMargaretPigeon,
   caroline: buildCaroline,
   ida: buildIda,
+  ida_pheasant: buildIdaPheasant,
   elizabeth_pheasant: buildElizabeth,
   soul: buildSoul,
 };

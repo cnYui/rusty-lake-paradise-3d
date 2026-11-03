@@ -258,7 +258,7 @@
 - 鼓的左右按玩家看过去的左右算（鼓面左半边 = Nicholas 的右手），提示和测试都按这个说。
 - 苹果顶在 David 的帽子顶上（按网格头部包围盒的最高点放，挂在头骨骼上跟着动）。
 - 画好脸以后 Ida 直接把蜡烛递给玩家（她的手掌在脸部特写画面外）；万一物品栏没收到，空地上还能从她掌心里拿。
-- 戴上面具：Gerard / David / 奶奶 / Nicholas 换成自带动物头的网格模型（站在同一个位置），Ida 还是网格 Ida 加程序化野鸡面具。
+- 戴上面具：五个人都换成自带动物头的网格模型（站在同一个位置）；Ida 戴上后是 `ida_pheasant`（野鸡面具、棕色泡泡袖裙，2026-11-03 起）。
 - 湖边那块大石头紧贴着猫头鹰门的右边（栅栏右半边埋在石头里），所以门前两根火炬柱放在栅门外两边（右边那根贴着石头脚），戴面具的五个人都站在栅栏里门的左边；`p10_temple` 机位从正面稍偏左看过去，石头只占画面右边。
 - 塔门前的大石头和第九灾一样压进地里（挡门、挡鼓的镜头）。
 
@@ -268,11 +268,11 @@
 | --- | --- | --- | --- |
 | 猎人 Gerard（拿弓） | `gerard_p10` | 网格 `gerard` | `gerard_boar`（网格 `boar`，自带动物头） |
 | David（靠着白桦树） | `david_p10` | 网格 `david` | `david_rabbit`（网格 `rabbit`） |
-| Ida（举着手掌） | `ida` | 网格 `ida`，脸上盖五道竖条贴片 | 网格 Ida + 程序化野鸡面具（`setMask('pheasant')`） |
+| Ida（举着手掌） | `ida` | 网格 `ida`，脸上盖五道竖条贴片 | 网格 `ida_pheasant`（模型 `pheasant`；没有模型时回退成网格 Ida + 程序化野鸡面具） |
 | 奶奶（炉子边） | `margaret` | 网格 `margaret`，坐 | `margaret_pigeon`（网格 `pigeon`；栅门开了以后站着） |
 | 鼓手 Nicholas | `nicholas_p10` | 网格 `nicholas` | `nicholas_deer`（网格 `deer`） |
 | 黑影 | `shadow` | 程序化“灵魂” | — |
-| 戴猫头鹰面具的 Elizabeth | — | 程序化 `elizabeth_pheasant`，头、脸、头发藏起来，头骨骼上挂 `p10_owl_mask`（本机的猫头鹰头 Elizabeth 还没转成 .rlpm） | — |
+| 戴猫头鹰面具的 Elizabeth | — | 程序化 `elizabeth_pheasant`，头、脸、头发藏起来，头骨骼上挂 `p10_owl_mask`（还没有对应的模型；资料库里叫“猫头鹰头”的那个其实是野鸡面具 Ida，已用在上一行） | — |
 
 ## 文件分工
 

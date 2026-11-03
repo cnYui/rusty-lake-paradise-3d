@@ -20,7 +20,7 @@
 | boar+man | 锈湖天堂岛-野猪头杰拉德.glb | `gerard_boar` | boar | rig_export.py |
 | pigeon+humanoid | 锈湖天堂岛-鸽子头玛格丽特.glb | `margaret_pigeon`（裙装） | pigeon | rig_export.py |
 | deer+humanoid | 锈湖天堂岛-鹿头尼古拉斯.glb | `nicholas_deer`（长袍，腿可见） | deer | rig_export.py |
-| owl-headed character | 锈湖天堂岛-猫头鹰头伊丽莎白.glb | `elizabeth_pheasant`（第一灾回忆里戴鸟面具的女孩，裙子同 Ida；还没转，目前程序化） | — | — |
+| owl-headed character | 锈湖天堂岛-猫头鹰头伊丽莎白.glb | `ida_pheasant`（第十灾戴上野鸡面具的 Ida，1.58，棕色泡泡袖裙；2026-11-03 转好。名字里的“猫头鹰头”是误认，对照原作是野鸡面具） | pheasant | rig_export.py（裙装） |
 | stone tower | 岛上的石塔（38 m） | tower | tower_export.py + tower_recolor.py |
 | cartoon+goat | 山羊（第一灾；已删木盆） | goat | goat_export.py |
 | cow | 牛（第五灾） | cow | cow_export.py |
@@ -39,6 +39,13 @@ W=<临时目录>
 "$B" -b -P cow_export.py  -- $W/lo $W/out
 "$B" -b -P fly_export.py  -- $W/lo $W/out
 # 3) 贴图 PNG → JPEG（q86），和 .rlpm 一起复制到 src/art/models/（<key>.jpg 对应 <name>_bake.png）
+```
+
+2026-11-03 起，Tripo 低面版 GLB 导入后是侧着的（面朝 +x、两臂沿 y），`retopo_bake.py` 按包围盒自动绕 z 转 -90° 摆正（判断不准的在 `ROTZ` 里写死角度）；云端容器没有 Blender 程序，用 `/home/claude/bpyenv` 里装的 bpy 模块直接跑同样的脚本（还要 `pip install pillow`），`RLP_GLB_DIR` 指到放 GLB 的目录（资料库里上传的文件没有扩展名，先复制成 `锈湖天堂岛-角色名.glb`）。例：
+
+```bash
+RLP_GLB_DIR=$GLB /home/claude/bpyenv/bin/python dev/common/models/retopo_bake.py -- $W/lo 40000 2048 owl_headed_character
+RLP_GLB_DIR=$GLB /home/claude/bpyenv/bin/python dev/common/models/rig_export.py -- $W/lo $W/out owl_headed_character
 ```
 
 ## 要点

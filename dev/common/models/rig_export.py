@@ -35,6 +35,10 @@ CFG = {
         shoulder=(0.10, 0.71), elbow=(0.22, 0.83), wrist=(0.33, 0.93), tip=(0.39, 0.98), knee=(0.06, 0.27), ankle=(0.26, 0.05), dress=True, foot=(0.11, 0.08)),
     'deer_humanoid': dict(key='deer', H=1.88, top=0.80, chin=0.545, neck=0.52, waist=0.40, hip=(0.06, 0.365),
         shoulder=(0.09, 0.515), elbow=(0.24, 0.52), wrist=(0.34, 0.525), tip=(0.405, 0.53), knee=(0.175, 0.2125), ankle=(0.29, 0.06), footFollowsLeg=True),
+    # 戴野鸡面具、棕色泡泡袖裙子（第十灾戴上面具的 Ida；第一灾回忆里的 Elizabeth 也是这身）。Tripo 低面版，导入时转了 -90°。
+    # top 取面具里头骨顶的估计（面具顶在 0.995），chin = 面具下沿；腿在裙子里，露出的长袜 + 鞋（0.12 T 以下）整块跟脚走
+    'owl_headed_character': dict(key='pheasant', H=1.58, top=0.97, chin=0.80, neck=0.775, waist=0.60, hip=(0.06, 0.45),
+        shoulder=(0.105, 0.795), elbow=(0.262, 0.827), wrist=(0.385, 0.89), tip=(0.475, 0.945), knee=(0.06, 0.25), ankle=(0.37, 0.045), dress=True, foot=(0.12, 0.12)),
 }
 _ov = os.path.join(OUT, 'cfg_override.json')
 if os.path.exists(_ov):

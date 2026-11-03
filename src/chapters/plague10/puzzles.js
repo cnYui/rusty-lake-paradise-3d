@@ -198,6 +198,8 @@ function setupClearing(ctx) {
     onClick: () => (ctx.flag('face_done') ? ctx.say(T.idaAfter) : Array.isArray(ctx.flag('face')) ? ctx.say(T.faceHint) : talk(ctx, 'ida', [T.idaNeedBrush, ...T.ida])),
     onItem: { ...masksFor(ctx, 'ida'), brush: startPaint }, onWrongItem: wrongItem(ctx),
   });
+  // 戴上面具以后：真身藏起来，换成戴野鸡面具的模型（同 personSpots 里的其他人）
+  define(ctx, 'p10_ida_masked', ['p10_clearing', 'p10_ida', 'p10_temple'], W.masked.ida.parts.body, { cursor: 'talk', onClick: () => ctx.say(T.maskedTalk) });
   W.facePaint.userData.stripes.forEach((hit) => define(ctx, `p10_stripe_${hit.userData.stripe}`, ['p10_ida'], hit, {
     when: () => Array.isArray(ctx.flag('face')) && !ctx.flag('face_done'),
     onClick: async () => {
