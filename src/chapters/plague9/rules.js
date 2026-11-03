@@ -34,6 +34,8 @@ export function stepOrrery(o, which) {
   return { ...o, [which]: (o[which] + 1) % 8 };
 }
 export const isEclipse = (o) => !!o && o.moon === o.earth;
+/** 从 o 起只转月亮要点几下才月食（自动通关用；只转地球同样可以）。 */
+export const eclipseClicks = (o = ORRERY_START) => (o.earth - o.moon + 8) % 8;
 
 // ---- 影子：蜡烛放在地上第 i 个星座符号上；粉笔轮廓画在“天蝎”那个位置的影子上 ----
 export const CANDLE_START = 0;

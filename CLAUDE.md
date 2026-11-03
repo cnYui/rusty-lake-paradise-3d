@@ -16,11 +16,11 @@ src/                                                 游戏本体（会部署）
 ├─ art/         公共：3D 素材。世界、建筑、道具是程序化建模代码；人物 / 山羊 / 牛 / 苍蝇人用 AI 生成的网格模型（models/*.rlpm，rlpm.js 加载，缺失时回退程序化）
 │                 世界与第一灾道具 island/lake/sky/buildings/props_beach|inner|lake/characters …
 │                 人物 cast.js + charkit.js + human.js（各章复用）
-│                 章节专属道具 props_p2_*（第二灾）、props_p3_* + cast_p3*（第三灾）、props_flies（第四灾）、props_p5（第五灾）、props_p6 / props_p7（第六、七灾）、props_p8（第八灾）
-│                 第六到八灾的人物入口 cast_mock.js（makePerson：网格 / 程序化人物，瘟疫医生和冰中青年还是占位）
+│                 章节专属道具 props_p2_*（第二灾）、props_p3_* + cast_p3*（第三灾）、props_flies（第四灾）、props_p5（第五灾）、props_p6 / props_p7（第六、七灾）、props_p8（第八灾）、props_p9 / props_p10（第九、十灾）
+│                 第六到十灾的人物入口 cast_mock.js（makePerson：网格 / 程序化人物，瘟疫医生和冰中青年还是占位）
 └─ chapters/    每章一个文件夹，只放这一章的逻辑
    ├─ index.js      章节注册表（标题、前置章节 requires、wip、achievements、load）
-   └─ plague1 … plague8/   index.js（setup / start / sync / walkthrough）+ 各区域文件 + text.js + puzzles.js
+   └─ plague1 … plague10/  index.js（setup / start / sync / walkthrough）+ 各区域文件 + text.js + puzzles.js
 docs/
 ├─ ai/context/  上下文文档仓库：每次修改、验证、设计决策都在这里新增带时间戳的中文记录，不覆盖旧的
 └─ plagueN_design|api|agent_brief|handoff.md   第二、三灾的设计契约、美术接口、交接说明
@@ -34,7 +34,7 @@ dev/                                                 开发期材料（不部署
 │   ├─ test_progress_browser.py   存档、解锁、章节衔接（跨章节）
 │   ├─ deploy_mac.sh（私有，不入库）  deploy_mac.example.sh   公网部署
 │   └─ media/      本地截图（不入库）
-├─ plague1 … plague5/   每章自己的验收、录像、剪辑脚本 + 本地成片
+├─ plague1 … plague10/  每章自己的验收、录像、剪辑脚本 + 本地成片
 │   ├─ test_plagueN.mjs          纯规则测试（node --test）
 │   ├─ test_plagueN_browser.py   浏览器验收：自动通关、真实鼠标 / 键盘、触屏、读档
 │   ├─ record_plagueN_demo.py    真人输入通关并录像（第一、二、三灾有）
@@ -61,13 +61,15 @@ upload/                                              发布包（压缩包），
 | 第六灾 | `src/chapters/plague6/` | `props_p6`，人物 `cast_mock` 的 `makePerson` | `dev/plague6/test_plague6*` | `docs/plague6_7_design.md`，AGENTS.md「第六、七灾」 |
 | 第七灾 | `src/chapters/plague7/` | `props_p7`（雪景在章节 `world.js`），人物 `cast_mock` 的 `makePerson` | `dev/plague7/test_plague7*` | 同上 |
 | 第八灾 | `src/chapters/plague8/` | `props_p8`（浓雾在章节 `world.js` 的 `fogController`），人物 `cast_mock` 的 `makePerson` | `dev/plague8/test_plague8*` | `docs/plague8_design.md`，AGENTS.md「第八灾」 |
+| 第九灾 | `src/chapters/plague9/` | `props_p9`（夜空、星月、黄昏天空，第十灾复用），人物 `cast_mock` 的 `makePerson` | `dev/plague9/test_plague9*` | `docs/plague9_10_design.md`，AGENTS.md「第九、十灾」 |
+| 第十灾 | `src/chapters/plague10/` | `props_p10`（木头猫头鹰、井下石室），人物 `makePerson` + 动物头网格模型 | `dev/plague10/test_plague10*` | 同上 |
 
-第九、十灾还没做，参考视频在 `dev/common/ref/P09_*`、`P10_*`。
+十灾都已接入；第六到十灾还标着 `wip`（菜单“敬请期待”，`?wip=1` 才能选）。
 
 ## 常用命令（在项目根目录）
 
 ```bash
-node --test dev/plague2/test_plague2.mjs dev/plague3/test_plague3.mjs dev/plague4/test_plague4.mjs dev/plague5/test_plague5.mjs dev/plague6/test_plague6.mjs dev/plague7/test_plague7.mjs dev/plague8/test_plague8.mjs
+node --test dev/plague2/test_plague2.mjs dev/plague3/test_plague3.mjs dev/plague4/test_plague4.mjs dev/plague5/test_plague5.mjs dev/plague6/test_plague6.mjs dev/plague7/test_plague7.mjs dev/plague8/test_plague8.mjs dev/plague9/test_plague9.mjs dev/plague10/test_plague10.mjs
 python dev/plague3/test_plague3_browser.py          # 其他章同理：dev/plagueN/test_plagueN_browser.py
 python dev/common/test_progress_browser.py          # 存档 / 解锁 / 章节衔接
 python dev/common/shot.py "index.html?chapter=3&view=beach_mid" out.png     # 截图

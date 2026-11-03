@@ -10,6 +10,8 @@ import { plaguePainting } from './props_p6.js';
 
 export const FINE = { outline: 0.0022 };
 const HIT = new THREE.MeshBasicMaterial({ visible: false }); HIT.userData.outlineParameters = { visible: false };
+/** 多面体按平面法线着色（卡通材质没有 flatShading）。 */
+const faceted = (geo) => { geo.computeVertexNormals(); return geo; };
 /** 不可见的点击盒（热点射线只认带 proxy 标记的不可见网格）。 */
 export function hitBox(parent, name, size, pos = [0, 0, 0]) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(...size), HIT); m.name = name; m.userData.proxy = true; m.position.fromArray(pos); parent.add(m); return m;
@@ -124,7 +126,7 @@ function shell() {
 }
 function blueStone() {
   const r = group('p9_blue_stone');
-  const m = add(r, new THREE.Mesh(new THREE.IcosahedronGeometry(0.05, 0), toon('#5a7fa6', { ...FINE, flatShading: true })), 'stone', [0, 0.04, 0]);
+  const m = add(r, new THREE.Mesh(new THREE.IcosahedronGeometry(0.05, 0), toon('#5a7fa6', FINE)), 'stone', [0, 0.04, 0]);
   m.scale.set(1.25, 0.8, 1); m.rotation.set(0.3, 0.6, 0.1);
   return r;
 }
@@ -141,7 +143,7 @@ function pickaxe() {
 }
 function moonStone() {
   const r = group('p9_moon_stone');
-  const m = add(r, new THREE.Mesh(new THREE.DodecahedronGeometry(0.045, 0), toon('#b4302a', { ...FINE, flatShading: true, emissive: '#5a0e0a' })), 'moon_stone', [0, 0.045, 0]);
+  const m = add(r, new THREE.Mesh(new THREE.DodecahedronGeometry(0.045, 0), toon('#b4302a', { ...FINE, emissive: '#5a0e0a' })), 'moon_stone', [0, 0.045, 0]);
   m.scale.set(1.2, 0.9, 1);
   add(r, new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 10), glow('#ff5040', { opacity: 0.25 })), 'moon_stone_glow', [0, 0.045, 0]);
   return r;
@@ -235,7 +237,7 @@ function bonfire() {
   const stones = [];
   for (let i = 0; i < 12; i++) {
     const a = -PI / 2 + (i / 12) * 2 * PI, x = Math.cos(a) * 0.95, z = Math.sin(a) * 0.95;
-    const s = add(r, new THREE.Mesh(new THREE.DodecahedronGeometry(0.17, 0), toon('#6f6c69', { ...FINE, flatShading: true })), 'fire_stone', [x, 0.08, z]);
+    const s = add(r, new THREE.Mesh(new THREE.DodecahedronGeometry(0.17, 0), toon('#6f6c69', FINE)), 'fire_stone', [x, 0.08, z]);
     s.scale.set(1.2, 0.62, 1); s.rotation.y = -a;
     const glyph = tex(128, 128, () => {});
     const mark = add(r, new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), unlit('#ffffff', { map: glyph, transparent: true, depthWrite: false })), 'fire_glyph', [x, 0.19, z]);
@@ -300,7 +302,12 @@ function bonfire() {
   };
   /** 烟里浮出一个黑影：慢慢显出来、往上飘，再散掉（约 4 秒）。 */
   r.showShadow = (kind) => {
-    const g = figTex.image.getContext('2d'); g.clearRect(0, 0, 512, 512); drawShadowFigure(g, kind, 512, 512); figTex.needsUpdate = true;
+    const g = figTex.image.getContext('2d'); g.clearRect(0, 0, 512, 512);
+    for (const [x, y, rr, a] of [[256, 300, 240, 0.34], [190, 230, 160, 0.22], [330, 190, 170, 0.2], [256, 110, 130, 0.16]]) {
+      const gr = g.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, `rgba(214,178,146,${a})`); gr.addColorStop(1, 'rgba(214,178,146,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 512, 512);
+    }
+    drawShadowFigure(g, kind, 512, 512); figTex.needsUpdate = true;
     fig.visible = true; fig.position.y = 2.2;
     return animate(4200, (k) => { fig.material.opacity = k < 0.3 ? k / 0.3 : k > 0.75 ? (1 - k) / 0.25 : 1; fig.position.y = 2.2 + k * 0.9; fig.scale.setScalar(0.85 + k * 0.25); }, Ease.linear)
       .then(() => { fig.visible = false; fig.material.opacity = 0; });
@@ -355,7 +362,7 @@ function towerDoor() {
 /** 冻在冰里的红月石（月食后落在塔门边的雪地里）：镐凿开冰，石头留在原地等人捡。 */
 function iceStone() {
   const r = group('p9_ice');
-  const ice = add(r, new THREE.Mesh(new THREE.IcosahedronGeometry(0.32, 1), toon('#cfe4ee', { ...FINE, transparent: true, opacity: 0.72, flatShading: true })), 'ice_block', [0, 0.16, 0]);
+  const ice = add(r, new THREE.Mesh(faceted(new THREE.IcosahedronGeometry(0.32, 1)), toon('#cfe4ee', { ...FINE, transparent: true, opacity: 0.72 })), 'ice_block', [0, 0.16, 0]);
   ice.scale.set(1.3, 0.62, 1.1);
   const stone = moonStone(); stone.name = 'ice_moon_stone'; stone.scale.setScalar(1.6); stone.position.set(0, 0.08, 0); r.add(stone);
   const shards = [];
@@ -484,17 +491,18 @@ function crate() {
   const lid = group('crate_lid'); lid.position.set(0, H, -D / 2); r.add(lid);
   box(lid, 'crate_lid_board', [W + 0.04, 0.04, D + 0.04], '#957452', [0, 0.02, D / 2], toon('#957452', FINE));
   const owl = barnOwl('crate_owl'); owl.position.set(0.05, 0.04, D / 2); lid.add(owl);
-  const bundle = bones(); bundle.name = 'crate_bones'; bundle.position.set(0, 0.05, 0); bundle.scale.setScalar(1.6); r.add(bundle);
+  const straw = box(r, 'crate_straw', [W - 0.08, 0.12, D - 0.08], '#b39a62', [0, 0.09, 0], toon('#b39a62', FINE));
+  const bundle = bones(); bundle.name = 'crate_bones'; bundle.position.set(0, 0.15, -0.06); bundle.scale.setScalar(1.7); r.add(bundle);
   hitBox(r, 'crate_hit', [W + 0.1, H + 0.1, D + 0.1], [0, H / 2, 0]);
   r.userData.owl = owl; r.userData.lid = lid; r.userData.bones = bundle;
   r.setState = ({ owl: hasOwl = true, open = false, bones: hasBones = true } = {}) => {
     owl.visible = hasOwl; owl.position.set(0.05, 0.04, D / 2); owl.rotation.set(0, 0, 0);
-    lid.rotation.x = open ? -1.9 : 0; bundle.visible = open && hasBones;
+    lid.rotation.x = open ? -1.9 : 0; bundle.visible = open && hasBones; straw.visible = open;
   };
   /** 猫头鹰怕光：张开翅膀飞进黑暗里。 */
   r.owlFlyAway = () => animate(1800, (k) => { owl.position.set(0.05 + k * 2.5, 0.04 + k * k * 6, D / 2 - k * 4); owl.rotation.x = -k * 0.6; owl.scale.setScalar(1 - k * 0.3); }, Ease.inQuad)
     .then(() => { owl.visible = false; owl.scale.setScalar(1); });
-  r.openLid = () => animate(700, (k) => { lid.rotation.x = -1.9 * k; }, Ease.outCubic).then(() => { bundle.visible = true; });
+  r.openLid = () => { straw.visible = true; return animate(700, (k) => { lid.rotation.x = -1.9 * k; }, Ease.outCubic).then(() => { bundle.visible = true; }); };
   r.setState();
   return r;
 }
@@ -574,7 +582,7 @@ function scroll({ lines = [] } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// 第九灾的画：月亮变红的夜空、篝火边几个小人；下一灾（长子之死）是右边一只木头猫头鹰
+// 第九灾的画：月亮变红的夜空、篝火边几个小人；下一灾（第十灾）是右边一只木头猫头鹰
 const p9Painting = () => plaguePainting('p9_painting', {
   plague: (g, k) => {
     g.fillStyle = `rgba(14,18,40,${0.75 * k})`; g.fillRect(0, 0, 640, 200);
