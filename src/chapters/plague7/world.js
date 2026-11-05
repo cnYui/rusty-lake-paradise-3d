@@ -206,9 +206,16 @@ export async function setup(ctx) {
   // ---- 湖岸：冰块里的年轻人 ----
   place(ctx, 'iceblock', 'p7_iceblock', ext, at(24.4, -31.4));
   const youth = person(ctx, 'youth', 'ice_youth', ext, at(24.4, -31.4), 0.5);
-  // 双臂抱在胸前（原作 10:47 冰里的人）
-  for (const [k, s] of [['armL', -1], ['armR', 1]]) { youth.parts[k].rotation.set(-1.25, 0, -s * 0.95); }
-  W.youthHat = makeProp('p7_fur'); W.youthHat.scale.setScalar(2.2); W.youthHat.position.y = 1.72; youth.root.add(W.youthHat);
+  // 双臂交叉抱在胸前（原作 10:47 冰里的人）：两只手分别搭到对侧的上臂前面
+  const Yc = youth.Y.chest;
+  youth.setPose(youth.solve(youth.POSES.stand, {
+    L: { pos: [-0.12, Yc - 0.04, 0.15], pole: [1, -0.7, 0.2], hand: [0, 0, 0] },
+    R: { pos: [0.12, Yc - 0.01, 0.18], pole: [-1, -0.7, 0.2], hand: [0, 0, 0] },
+  }));
+  // 松鼠毛做的毛帽挂在头骨骼上（解冻后给他取暖时才显示）
+  const [hrx, hry, hrz = hrx] = youth.dims.headR;
+  W.youthHat = makeProp('p7_fur_cap'); W.youthHat.scale.set(hrx * 1.12, hry * 0.95, hrz * 1.12);
+  W.youthHat.position.set(0, hry * 0.3, -0.01); W.youthHat.rotation.x = -0.12; youth.joints.head.add(W.youthHat);
 
   // ---- 神殿：锤子冻在冰里；鸟笼、跪着的母亲 Caroline、鹿头人（放水晶球后出现）；吊架 / 圣水盆 / 画 ----
   const tp = (k, y = 0) => [400 + TEMPLE[k][0], y, TEMPLE[k][1]];

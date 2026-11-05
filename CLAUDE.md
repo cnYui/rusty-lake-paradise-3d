@@ -17,7 +17,7 @@ src/                                                 游戏本体（会部署）
 │                 世界与第一灾道具 island/lake/sky/buildings/props_beach|inner|lake/characters …
 │                 人物 cast.js + charkit.js + human.js（各章复用）
 │                 章节专属道具 props_p2_*（第二灾）、props_p3_* + cast_p3*（第三灾）、props_flies（第四灾）、props_p5（第五灾）、props_p6 / props_p7（第六、七灾）、props_p8（第八灾）、props_p9 / props_p10（第九、十灾）
-│                 第六到十灾的人物入口 cast_mock.js（makePerson：网格 / 程序化人物，瘟疫医生已有网格模型，冰中青年还是占位）
+│                 第六到十灾的人物入口 cast_mock.js（makePerson：网格 / 程序化人物，瘟疫医生已有网格模型，冰中青年是 cast.js 里用代码做的光膀子青年）
 └─ chapters/    每章一个文件夹，只放这一章的逻辑
    ├─ index.js      章节注册表（标题、前置章节 requires、wip、achievements、load）
    └─ plague1 … plague10/  index.js（setup / start / sync / walkthrough）+ 各区域文件 + text.js + puzzles.js

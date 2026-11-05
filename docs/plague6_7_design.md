@@ -246,12 +246,12 @@
 | 六 | 鹿头人 Nicholas、少年 Jakob（回忆） | `nicholas_deer`、`jakob_child` | 网格 `deer`、`jakob_child` | 站；交出病心后鹿头人把心举到 Jakob 头顶 |
 | 七 | 滑冰的红发女人 Ida | `ida` | 网格 `ida` | 站 |
 | 七 | Gerard | `gerard_p7` | 程序化 Gerard（帽子要被拿走，网格 Gerard 的帽子长在头部网格上摘不下来） | 坐 |
-| 七 | 冰中青年 | `ice_youth` | 占位（本机没有模型） | 站（抱臂） |
+| 七 | 冰中青年 | `ice_youth` | 程序化（`cast.js` 的 `buildIceYouth`，David 身材、光膀子短裤光脚、金发；2026-11-05 起，不用网格模型）；冰块是 `props_p7.js` 的 `iceBlock` | 站（双臂交叉抱胸；解冻后仍是这个姿势，戴上 `p7_fur_cap` 毛帽） |
 | 七 | 雪人变成的老妇人 | —（`props_p7` 里程序化的脸） | — | — |
 | 七 | 少年 Jakob（鸟笼）、鹿头人 | `jakob_child`、`nicholas_deer` | 网格 | 站；鹿头人举右手 |
 | 七 | 神殿里跪着求情的母亲 Caroline | `caroline` | 程序化 Caroline（没有网格模型；怀里的婴儿藏起来） | 跪 |
 
-还剩冰中青年是占位模型（`userData.placeholder = true`），所以第七灾仍标 `wip: true`（第六灾的瘟疫医生 2026-11-03 起有了网格模型，章节本身等第七灾一起放开）。
+第六、七灾现在都没有占位人物了（瘟疫医生 2026-11-03 起是网格模型，冰中青年 2026-11-05 起是程序化人物），两章仍标 `wip: true`，放开由用户决定。
 ## 文件分工
 
 | 内容 | 文件 |

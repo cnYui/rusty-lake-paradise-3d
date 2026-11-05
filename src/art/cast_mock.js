@@ -183,6 +183,8 @@ const REAL = {
   jakob_child: () => makeCharacter('jakob_child'),
   // 第七灾：滑冰的红发女人是 Ida，神殿里跪着求情的是母亲 Caroline；Gerard 的帽子要被拿走，用程序化 Gerard
   ida, caroline,
+  // 冰中青年：David 的身材、光膀子短裤的程序化人物（cast.js 的 buildIceYouth），不需要网格模型
+  ice_youth: () => makeCharacter('ice_youth'),
   gerard_p7: () => withIdle(gerardBody('gerard_p7')),   // 程序化 Gerard（rlpm.js 的 PROCEDURAL）：帽子要能摘下来
   // 第八灾：门外三个乐手 I / II / III 是 Gerard、David、Nicholas；木屋里的红发白眼女人是 Ida；雾里的黑影是“灵魂”
   musician_fat: () => withIdle(gerardBody('gerard_p8')),
