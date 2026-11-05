@@ -3,6 +3,7 @@
 //
 // 每个部分导出 setup(ctx) / sync(ctx) / walkthrough（约定见 world.js 顶部和 beach.js 的说明）。
 import { defineItems } from './items.js';
+import { HINTS } from './hints.js';
 import { T, ACHIEVEMENTS } from './text.js';
 import * as puzzles from './puzzles.js';
 import * as world from './world.js';
@@ -101,6 +102,7 @@ export default {
   title: { zh: '蛙灾', en: 'Frogs' },
   label: { zh: '第二灾', en: 'Plague II' },
   completeFlag: 'plague2_complete',
+  hints: HINTS,   // 提示任务表（233 乐园版的提示按钮用，见 src/core/hints.js）
 
   async setup(ctx) {
     ctx.defineAchievements(ACHIEVEMENTS);

@@ -11,13 +11,13 @@ with hex colours) is `../_analysis/plague1_design.md` — read it; reference fra
 Already written (do not rewrite, extend only if truly needed): `src/core/tween.js`,
 `src/art/materials.js`, `src/art/layout.js`, `src/art/props.js`, `src/chapters/index.js`,
 `src/chapters/plague1/{index,items,text}.js` (+ stub `beach/forest/lake.js` to be replaced),
-`dev/viewer.html`, `dev/viewer.js`, `dev/shot.py`, `vendor/three/**`.
+`dev/common/viewer.html`, `dev/common/viewer.js`, `dev/common/shot.py`, `vendor/three/**`.
 
 ## Tech
 
 - Plain ES modules, **no build step**. Three.js r170 vendored: `three` → `./vendor/three/three.module.js`,
   `three/addons/` → `./vendor/three/addons/` (import map in every HTML page).
-- Served over HTTP from the project root (`python -m http.server 8080`). `dev/shot.py` starts its own server.
+- Served over HTTP from the project root (`python -m http.server 8080`). `dev/common/shot.py` starts its own server.
 - **No external assets**: every texture is drawn on a `<canvas>`, every model is built from Three.js
   primitives / Lathe / Extrude / Tube geometry, every sound is synthesized with WebAudio.
 - Target 60 fps on a mid laptop iGPU: < ~400 draw calls in any view (use `InstancedMesh` for forests,
@@ -39,6 +39,8 @@ Already written (do not rewrite, extend only if truly needed): `src/core/tween.j
 - Blood: `#8a1c1c` deep, `#a3282a` fresh, `#5e1414` dark, `#a85a5a` pinkish stain on the lake.
 
 ## Directory layout
+
+这里只列游戏本体（`index.html` / `styles.css` / `src/`）；整个仓库的目录地图（公共 / 每章 / 发布包 / 文档）见根目录 `CLAUDE.md`。
 
 ```
 index.html                 import map, <canvas id="game">, <div id="ui">, loads src/main.js
@@ -76,10 +78,10 @@ src/chapters/plague1/items.js   items.define(...) for every plague-1 item
 src/chapters/plague1/beach.js   intro → overview → beach → gate open
 src/chapters/plague1/forest.js  forest path → clearing → pump → house → owl → shed door
 src/chapters/plague1/lake.js    soul → lakeshore → coffin → memory → temple → ending
-dev/viewer.html|js         ✔ standalone art viewer (see §Dev tools)
+dev/common/viewer.html|js         ✔ standalone art viewer (see §Dev tools)
 dev/minitool/              小红书小工具打包：build.py（esbuild 打成 game.js；默认输出声音版 dist-audio/，--release 去调试状态条，--legacy 旧版）+ rotate.js（竖屏转 90° 和坐标换算）+ audio_out.js（iPhone 出声线路）+ compat.js / css_compat.py（Chrome 61 兼容）+ test_minitool.py / audio_check.py / compat_check.py，见 docs/ai/context/*xiaohongshu-minitool*.md
-dev/shot.py                ✔ headless screenshot helper (Playwright + SwiftShader)
-tests/playtest.py          full autoplay test + per-view screenshots
+dev/common/shot.py                ✔ headless screenshot helper (Playwright + SwiftShader)
+dev/<plagueN>/             每章自己的验收 / 录像脚本（test_plagueN*.py|mjs、record_*.py），公共工具在 dev/common/，发布包在 upload/（完整目录地图见 CLAUDE.md）
 docs/impl_<module>.md      each module's author documents what they actually implemented (see below)
 ```
 
@@ -119,12 +121,15 @@ state.chapter; state.flags /*{}*/; state.inventory /*item ids, max 6*/; state.se
 state.flag(key) → value ; state.setFlag(key, value = true)
 state.has(itemId) ; state.give(itemId) ; state.take(itemId) ; state.select(itemIdOrNull)
 state.replace(oldId, newId)        // keep slot position (jug ⇄ jug_blood)
-state.achieve(id) → boolean (true if newly unlocked)
-state.on(evt, fn) → off ; state.emit(evt, data)   // 'inventory' 'flag' 'select' 'view' 'achievement' 'reset'
-state.save() ; state.load(chapterId) → boolean ; state.reset(chapterId)
+state.achieve(id, { zh, en, ch }) → boolean (true if newly unlocked; also recorded in the profile history)
+state.on(evt, fn) → off ; state.emit(evt, data)   // 'inventory' 'flag' 'select' 'view' 'achievement' 'cleared' 'reset' 'load'
+state.save() ; state.load(chapterId) → boolean ; state.reset(chapterId) ; state.peekSave(chapterId) → data | null
+state.markCleared(chapterId) ; state.isCleared(chapterId) ; state.achievementHistory() ; state.lastChapter() ; state.wipeAll()
 ```
-localStorage key `rlp3d.save.<chapter>` (try/catch everything). Used items are removed and later
-items move up (no holes).
+localStorage (try/catch everything; 本机、跨启动保留): `rlp3d.save.<chapter>` (`v: 2`), `rlp3d.profile`
+(`{ ach: { id: { t, zh, en, ch } }, cleared: { chapterId: { t } } }`, 成就历史和通关记录，“重新开始”不清它),
+`rlp3d.last`. 写入失败时档案留在内存里。Used items are removed and later items move up (no holes).
+章节解锁 / 下一章 / 继续哪一章在 `src/core/progress.js`（注册表 `requires`），结尾卡的“进入下一灾”见 `ui.ending`。
 
 ### `src/core/views.js`
 ```js
@@ -231,7 +236,7 @@ ui.inspect(itemId) → Promise                // item inspector overlay (drag to
 ui.shakeSelected()
 ui.renderInventory()                        // auto-bound to state events
 ui.setArrows({ left, right, up, down, upScreen /*{x,y}|null*/ }, onClick(dir))   // used by views
-ui.menu.show(chapters) ; ui.menu.hide() ; ui.ending({ zh, en }) → Promise
+ui.menu.show(chapters) ; ui.menu.hide() ; ui.ending({ zh, en }) → Promise   // 有下一灾时多一个“进入下一灾”并倒数自动进入（ui.setEndingNext / ui.autoAdvance，事件 'next'）
 ```
 Inventory: **6** square beige slots in a dark vertical strip on the right, double white inner frame,
 icons may overflow the slot. 电脑上物品栏只用键盘（槽位不接收鼠标，右下角标着键位；触屏界面下
@@ -548,10 +553,10 @@ export const ACHIEVEMENTS = {
 ```
 
 ## Dev tools
-- `dev/viewer.html?prop=owl_totem&hud=0` (also `&mod=props_inner`, `?char=david&anim=idle`,
+- `dev/common/viewer.html?prop=owl_totem&hud=0` (also `&mod=props_inner`, `?char=david&anim=idle`,
   `?animal=goat`, `?world=1&zone=exterior&cam=px,py,pz,tx,ty,tz&fov=40`, `&call=flap:true;setLevel:3`,
   `&advance=1.5`, `&freeze=1`). `window.VIEW` exposes `{ scene, camera, obj, world, rig, advance(sec), call(name,...), render() }`.
-- `python dev/shot.py "<url relative to project root>" out.png [--size 1280x720] [--js "async body"] [--wait s]`
+- `python dev/common/shot.py "<url relative to project root>" out.png [--size 1280x720] [--js "async body"] [--wait s]`
   — headless Chromium + SwiftShader WebGL, starts its own server on a random port, prints console errors,
   exit code 1 on errors. Use it to *look at your work* (Read the PNG) — iterate until it matches the
-  reference frames. Put screenshots under `dev/shots/<module>/`.
+  reference frames. Put screenshots under `dev/<章节>/media/`.

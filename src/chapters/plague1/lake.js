@@ -71,6 +71,11 @@ export async function setup(ctx) {
     const nail = coffin.getObjectByName(`nail_${i}`) || coffin;
     ctx.hotspots.define({ id: `coffin_nail_${i}`, views: ['blood_pool', 'coffin'], object: nail, cursor: 'pointer', when: () => ctx.flag('coffin_risen') && !ctx.flag(`nail_${i}`), onClick: async () => { await coffin.pullNail(i); ctx.setFlag(`nail_${i}`); S.nails++; if (S.nails >= 6 || [1, 2, 3, 4, 5, 6].every((n) => ctx.flag(`nail_${n}`))) { await coffin.slideLid(); ctx.setFlag('lid_open'); await coffin.takeCube(); ctx.setFlag('cube_taken'); await ctx.give('black_cube', { from: coffin }); } } });
   }
+  // 棺材里右侧的符号（成就“第一个符号”）：盖子滑开后才看得见，点它得成就；点中它不会进回忆，不影响主线
+  const coffinSymbol = coffin.getObjectByName('coffin_symbol');
+  // 点击区要盖过水线阴影片（coffin_shadow，盖在整个棺材上方），否则点击先被它截走变成点棺材
+  const symbolHit = ctx.hotspots.makeProxy(0.4, 0.2, 0.4, [0, 0.05, 0], coffinSymbol);
+  ctx.hotspots.define({ id: 'coffin_symbol', views: ['blood_pool', 'coffin'], object: symbolHit, cursor: 'pointer', when: () => ctx.flag('lid_open') && !ctx.flag('first_symbol_seen'), onClick: async () => { ctx.setFlag('first_symbol_seen'); ctx.achieve('the_first_symbol', { anchor: coffinSymbol }); } });
   ctx.hotspots.define({ id: 'temple', views: ['temple_door'], object: ctx.hotspots.makeProxy(3, 3, 2, [30.5, 1.4, -35.7], ext), cursor: 'zoom', goto: 'temple_int' });
   ctx.hotspots.define({ id: 'memory_scene', views: ['memory'], object: memoryHit, cursor: 'pointer', onClick: async () => { await ctx.say(T.memory); ctx.setFlag('memory_seen', true); await ctx.go('blood_pool'); } });
   ctx.hotspots.define({ id: 'holder', views: ['temple_int', 'holder'], object: holder, cursor: 'pointer', onClick: async () => {
@@ -78,7 +83,7 @@ export async function setup(ctx) {
     if (ctx.state.has('black_cube') && !ctx.flag('holder_cube')) return;
     if (ctx.flag('holder_closed') && ctx.flag('reflection_seen') && !ctx.flag('holder_lowered')) { await holder.lower(1.2); ctx.setFlag('holder_lowered'); }
   }, onItem: { black_cube: async () => { if (!ctx.flag('holder_open')) { await holder.open(); ctx.setFlag('holder_open'); } ctx.take('black_cube'); await holder.insertCube(); ctx.setFlag('holder_cube'); await holder.close(); ctx.setFlag('holder_closed'); } } });
-  ctx.hotspots.define({ id: 'font', views: ['temple_int', 'font'], object: font, cursor: 'pointer', when: () => ctx.flag('holder_closed'), onClick: async () => { await font.showReflection(); ctx.setFlag('reflection_seen'); await ctx.say(T.reflection); } });
+  ctx.hotspots.define({ id: 'font', views: ['temple_int', 'font'], object: font, cursor: 'pointer', when: () => ctx.flag('holder_closed'), onClick: async () => { await font.showReflection(); ctx.setFlag('reflection_seen'); ctx.achieve('its_me', { anchor: font }); await ctx.say(T.reflection); } });
   ctx.hotspots.define({ id: 'painting', views: ['temple_int', 'painting'], object: painting, cursor: 'pointer', when: () => ctx.flag('holder_lowered'), onClick: async () => { await painting.glowCube(); await painting.purify(); ctx.setFlag('painting_lit'); ctx.setFlag('stream_purified'); } });
   ctx.hotspots.define({ id: 'frogs', views: ['temple_int', 'painting'], object: painting, cursor: 'pointer', when: () => ctx.flag('painting_lit') && !ctx.flag('frogs_framed'), onClick: async () => { await painting.frameFrogs(); ctx.setFlag('frogs_framed'); ctx.setFlag('plague1_complete'); await ctx.ui.ending(T.ending); } });
 }
@@ -95,6 +100,8 @@ export function sync(ctx) {
   if (ctx.flag('holder_closed')) S.holder.close({ instant: true });
   if (ctx.flag('holder_lowered')) S.holder.lower(1.2, { instant: true });
   if (ctx.flag('reflection_seen')) S.font.showReflection({ instant: true });
+  // 旧存档补发：“这是我”以前没有发放点，倒影已经看过的存档静默补上（不弹提示）
+  if (ctx.flag('reflection_seen')) { const d = ctx.achievementDefs.its_me; if (d) ctx.state.achieve('its_me', { zh: d.zh, en: d.en, ch: ctx.state.chapter }); }
   if (ctx.flag('painting_lit')) S.painting.glowCube({ instant: true });
   if (ctx.flag('stream_purified')) S.painting.purify({ instant: true });
   if (ctx.flag('frogs_framed')) S.painting.frameFrogs({ instant: true });
@@ -116,6 +123,7 @@ export const walkthrough = [
   { go: 'blood_pool' }, { click: 'coffin' }, { click: 'coffin' },
   { click: 'coffin_nail_1' }, { click: 'coffin_nail_2' }, { click: 'coffin_nail_3' },
   { click: 'coffin_nail_4' }, { click: 'coffin_nail_5' }, { click: 'coffin_nail_6' },
+  { click: 'coffin_symbol' }, { expectFlag: 'first_symbol_seen' },
   { click: 'coffin' }, { go: 'memory' }, { click: 'memory_scene' }, { go: 'lake_shore' }, { go: 'temple_door' }, { click: 'temple' },
   { click: 'holder' }, { use: 'black_cube', on: 'holder' }, { click: 'font' }, { click: 'holder' }, { click: 'painting' }, { click: 'frogs' }, { expectFlag: 'plague1_complete' },
 ];

@@ -47,11 +47,10 @@ export const ctx = {
 
   /** Unlock an achievement; shows the chalk toast if new. opts.anchor = Object3D to draw it next to. */
   achieve(id, opts = {}) {
-    const isNew = state.achieve(id);
-    if (isNew) {
-      const def = ctx.achievementDefs[id] || { zh: id, en: id };
-      ui.toast({ id, zh: def.zh, en: def.en }, opts);
-    }
+    const def = ctx.achievementDefs[id] || { zh: id, en: id };
+    // 名字和章节一起记进成就历史（state.js），标题菜单没装载这一章时也能显示
+    const isNew = state.achieve(id, { zh: def.zh, en: def.en, ch: state.chapter });
+    if (isNew) ui.toast({ id, zh: def.zh, en: def.en }, opts);
     return isNew;
   },
   /** Register extra achievement labels: { id: { zh, en } }. */

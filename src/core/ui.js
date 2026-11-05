@@ -16,11 +16,15 @@ import { audio } from './audio.js';
 import { ctx } from './context.js';
 import { views } from './views.js';
 import { animate, Ease } from './tween.js';
+import { chapterStatus, requiredChapter, resumeChapter, liveSave } from './progress.js';
+import { isLeyuan } from './leyuan.js';
 
 let engine = null;
 const el = {};
 let lockCount = 0;
 let modalCount = 0;
+const ENDING_AUTO_SECONDS = 8;   // 结尾卡上“自动进入下一灾”的倒数秒数
+let endingSeq = 0;           // 结尾卡的序号：关闭 / 重开 / 选了去向时加一，让上一张卡的自动倒计时作废
 const listeners = new Map();
 
 // ------------------------------------------------------------------------- small helpers
@@ -557,11 +561,7 @@ function toggleFullscreen() {
   } else enterFullscreen();
 }
 
-// 章节在菜单里能不能选：要有 load；开发中（wip）的章节只有 URL 带 ?wip=1（或 localStorage rlp3d.wip=1）时才开放。
-function wipEnabled() {
-  try { return /[?&]wip(=1|=true)?(&|$)/.test(location.search) || localStorage.getItem('rlp3d.wip') === '1'; } catch { return false; }
-}
-const chapterOpen = (c) => !!c.load && (!c.wip || wipEnabled());
+// 章节在菜单里能不能选（有没有 load、开发中、前置章节有没有通关）由 progress.js 的 chapterStatus 判断。
 
 // 槽位对应的按键：1–9、0 是前 10 格，- 和 = 是第 11、12 格（第二列）
 const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
@@ -654,6 +654,18 @@ export const ui = {
     el.gear.setAttribute('aria-label', '设置');
     el.gear.innerHTML = gearSVG();
     el.gear.addEventListener('click', () => { audio.unlock(); this.openSettings(); });
+    // 提示按钮：只在 233 乐园版显示；点了发 'hint-request'（观看广告再给提示由监听方接，见 setHintButton）
+    el.hintBtn = h('button', 'hint-btn', root);
+    el.hintBtn.type = 'button';
+    el.hintBtn.title = '提示';
+    el.hintBtn.setAttribute('aria-label', '提示');
+    el.hintBtn.innerHTML = bulbSVG();
+    el.hintBtn.addEventListener('click', () => {
+      audio.unlock();
+      if (this.locked || this.modalOpen) return;
+      emit('hint-request');
+    });
+    this.setHintButton(isLeyuan());
     el.slots = [];
     for (let i = 0; i < MAX_SLOTS; i++) {
       // 第二列（第 7–12 格）在第一列左边，物品超过 6 件时才展开
@@ -720,7 +732,7 @@ export const ui = {
       return;
     }
     if (el.modal.classList.contains('show')) {
-      if (k === 'Escape') { ev.preventDefault(); el.modal.querySelector('.btn')?.click(); }
+      if (k === 'Escape') { ev.preventDefault(); (el.modal.querySelector('.btn.esc') || el.modal.querySelector('.btn'))?.click(); }
       return;
     }
     if (this.menu.visible || !plain) return;
@@ -769,6 +781,11 @@ export const ui = {
 
   showInventory(on = true) {
     el.stage.classList.toggle('inv-on', !!on);
+  },
+
+  /** 显示 / 隐藏右上角的提示按钮（默认只在 233 乐园版显示，见 leyuan.js）。 */
+  setHintButton(on = true) {
+    el.stage.classList.toggle('hint-on', !!on);
   },
 
   /** 切换室外漫游样式；实际移动由 views 统一驱动。 */
@@ -1327,39 +1344,138 @@ export const ui = {
     h('h2', '', p, '暂停');
     volumeRow(p);
     const row = h('div', 'btn-row', p);
+    const saveBtn = h('button', 'btn', row, '保存进度');
     const resume = h('button', 'btn', row, '继续游戏');
     const toMenu = h('button', 'btn', row, '返回主菜单');
+    // 游戏本来就会在每次变化后自动存档；这个按钮让玩家能手动存一次并看到结果（时间取存档里记下的 savedAt）
+    const last = state.peekSave(state.chapter);
+    const note = h('p', 'set-note', p, last && last.savedAt ? `上次保存：${fmtTime(last.savedAt)}（进度会自动保存）` : '进度会自动保存，也可以点“保存进度”立刻存一次。');
     const close = () => { el.modal.classList.remove('show'); el.modal.innerHTML = ''; modalCount = Math.max(0, modalCount - 1); views.refreshArrows(); };
+    saveBtn.type = 'button';
+    saveBtn.addEventListener('click', async () => {
+      audio.sfx('click');
+      // 暂停面板本身占着 el.modal，dialog 会被直接判成 null；先按 close() 收掉面板，弹完提示再重新打开。
+      let title = '';
+      let msg;
+      if (this.locked) {
+        msg = '正在播放过场，结束后会自动保存。'; // 半截状态不存（和自动存档一样）
+      } else if (state.save() && state.storageOk()) {
+        title = '已保存';
+        msg = `已保存：${fmtTime(Date.now())}`;
+      } else {
+        title = '无法保存';
+        msg = '当前环境无法保存进度，关掉后会从头开始。';
+      }
+      note.textContent = msg; // 旧行为：底部 note 也写一份，方便测试和回看
+      close();
+      await this.dialog({ title, lines: [msg], buttons: [{ label: '知道了', value: true }] });
+      this.openSettings(); // 包括 dialog 意外返回 null 的情况：不能让玩家停在没面板的状态
+    });
     resume.addEventListener('click', close);
     toMenu.addEventListener('click', () => { close(); state.save(); emit('menu'); });
     el.modal.classList.add('show');
     this.setArrows(null);
   },
 
+  /**
+   * 通用应用内对话框（和暂停面板同款）：标题、几行文字、一排按钮；返回的 Promise 在点了按钮时给出该按钮的 value。
+   * buttons 为空时没有按钮（“广告加载中”这类等待框），由返回的 promise.close(value) 关闭；Esc 点 esc 为真的按钮，没有就点第一个。
+   * 同一时间只开一个：已有浮层时直接给 null。
+   */
+  dialog({ title = '', lines = [], buttons = [{ label: '知道了', value: true }] } = {}) {
+    let close = () => {};
+    const promise = new Promise((resolve) => {
+      if (this.menu.visible || el.modal.classList.contains('show')) { resolve(null); return; }
+      modalCount++;
+      el.modal.innerHTML = '';
+      const p = h('div', 'panel', el.modal);
+      if (title) h('h2', '', p, title);
+      for (const t of (Array.isArray(lines) ? lines : [lines])) h('p', '', p, t);
+      let done = false;
+      close = (value = null) => {
+        if (done) return;
+        done = true;
+        el.modal.classList.remove('show');
+        el.modal.innerHTML = '';
+        modalCount = Math.max(0, modalCount - 1);
+        views.refreshArrows();
+        resolve(value);
+      };
+      if (buttons.length) {
+        const row = h('div', 'btn-row', p);
+        for (const b of buttons) {
+          const btn = h('button', b.esc ? 'btn esc' : 'btn', row, b.label);
+          btn.type = 'button';
+          btn.addEventListener('click', () => close(b.value));
+        }
+      }
+      el.modal.classList.add('show');
+      this.setArrows(null);
+    });
+    promise.close = (value) => close(value);
+    return promise;
+  },
+
   // --------------------------------------------------------------------------- ending
+  // main.js 注册：() => { number, label, title } | null。有下一灾（已解锁、可进入）时，结尾卡多一个“进入下一灾”按钮，
+  // 并在按钮出现后倒数几秒自动进入（点“返回主菜单”或关掉结尾卡就取消）；点了 / 倒数完发 'next' 事件，由 main.js 换章。
+  endingNext: null,
+  autoAdvance: true,         // 测试页（?autotest=1）关掉，免得通关后页面自己跳走
+  setEndingNext(fn) { this.endingNext = typeof fn === 'function' ? fn : null; },
+
   ending({ zh = '完', en = '' } = {}) {
     el.ending.innerHTML = '';
+    const seq = ++endingSeq;
+    const next = this.endingNext ? this.endingNext() : null;
     const box = h('div', 'ending-box', el.ending);
     const t = h('div', 'ending-zh', box, zh);
     const e = h('div', 'ending-en', box, en);
-    const btn = h('button', 'btn ending-btn', box, '返回主菜单');
+    const row = h('div', 'ending-row', box);
+    const goBtn = next ? h('button', 'btn ending-btn ending-next', row, `进入${next.label.zh} · ${next.title.zh}`) : null;
+    const btn = h('button', 'btn ending-btn', row, '返回主菜单');
+    const note = h('div', 'ending-note', box);
     btn.addEventListener('click', () => {
+      endingSeq++;
       el.ending.classList.remove('show');
       modalCount = Math.max(0, modalCount - 1);
       emit('menu');
     });
+    if (goBtn) {
+      goBtn.addEventListener('click', () => {
+        if (seq !== endingSeq) return;
+        endingSeq++;
+        audio.sfx('click');
+        note.textContent = `正在进入${next.label.zh} · ${next.title.zh}……`;
+        emit('next', next);
+      });
+    }
     modalCount++;
     el.ending.classList.add('show');
     audio.music('ending');
-    return animate(3600, (k) => {
+    const shown = animate(3600, (k) => {
       const tt = k * 3600;
       el.ending.style.setProperty('--bg', String(Math.min(1, tt / 1200)));
       t.style.opacity = String(Math.min(1, Math.max(0, (tt - 900) / 900)));
       e.style.opacity = String(Math.min(1, Math.max(0, (tt - 1600) / 900)));
-      btn.style.opacity = String(Math.min(1, Math.max(0, (tt - 2600) / 800)));
+      const bo = String(Math.min(1, Math.max(0, (tt - 2600) / 800)));
+      if (goBtn) goBtn.style.opacity = bo;
+      btn.style.opacity = bo;
     }, Ease.linear);
+    if (goBtn && this.autoAdvance) {
+      // 倒数用游戏时间（和结尾动画一样跟随 timeScale）；页面在后台时不走，玩家没在看就不会被带走
+      shown.then(async () => {
+        for (let n = ENDING_AUTO_SECONDS; n > 0; n--) {
+          if (seq !== endingSeq) return;
+          note.textContent = `${n} 秒后自动进入${next.label.zh} · ${next.title.zh}`;
+          await gameWait(1000, () => seq !== endingSeq);
+        }
+        if (seq === endingSeq) goBtn.click();
+      });
+    }
+    return shown;
   },
   hideEnding() {
+    endingSeq++;
     if (!el.ending.classList.contains('show')) return;
     el.ending.classList.remove('show');
     modalCount = Math.max(0, modalCount - 1);
@@ -1392,6 +1508,13 @@ export const ui = {
 
     /** Show the title screen. Resolves with { number, fresh } when the player starts a chapter. */
     show(chapters = []) {
+      const done = new Promise((resolve) => { this._resolve = resolve; });
+      this.build(chapters);
+      return done;
+    },
+
+    /** 画一遍标题菜单。“重置进度”之后会再画一遍（传 statusText），让通关标记和锁跟着变。 */
+    build(chapters, statusText = null) {
       this.visible = true;
       const m = el.menu;
       m.innerHTML = '';
@@ -1410,29 +1533,49 @@ export const ui = {
       play.setAttribute('aria-label', '开始');
       play.innerHTML = '<svg viewBox="0 0 100 100"><path d="M6 7 L93 5 L95 94 L5 95 Z" fill="none" stroke="#111" stroke-width="5" stroke-linejoin="round"/><path d="M37 29 L70 50 L37 72 Z" fill="#111"/></svg>';
       const links = h('div', 'menu-links', m);
-      const ch1 = chapters.find(chapterOpen) || chapters[0];
-      const hasSave = ch1 ? state.hasSave(ch1.id) : false;
-      const status = h('div', 'menu-status', m, hasSave ? `继续：${ch1.label.zh} · ${ch1.title.zh}` : '');
+      // ▶：最近玩的那一章（没打完）→ 第一个已开放、没通关的章节（通关第一灾后就是第二灾）→ 从头重玩
+      const first = chapters.find((c) => chapterStatus(c, chapters) === 'open') || chapters[0];
+      const resume = resumeChapter(chapters);
+      const resumeSave = resume ? liveSave(resume) : null;
+      let statusMsg = '';
+      if (!state.storageOk()) statusMsg = '这里不能保存进度，关掉后会从头开始';
+      else if (resumeSave) statusMsg = `继续：${resume.label.zh} · ${resume.title.zh}`;
+      else if (resume && first && resume.id !== first.id) statusMsg = `下一章：${resume.label.zh} · ${resume.title.zh}`;
+      const status = h('div', 'menu-status', m, statusText != null ? statusText : statusMsg);
       const newBtn = h('button', 'menu-link', links, '新游戏');
       const achBtn = h('button', 'menu-link', links, '成就');
       const setBtn = h('button', 'menu-link', links, '设置');
       const grid = h('div', 'plagues', m);
       chapters.forEach((c) => {
-        const open = chapterOpen(c);
-        const card = h('button', 'plague' + (open ? ' open' : ' locked'), grid);
+        const st = chapterStatus(c, chapters);
+        const need = requiredChapter(c, chapters);
+        const card = h('button', 'plague' + (st === 'open' ? ' open' : ' locked' + (st === 'locked' ? ' gated' : '')) + (state.isCleared(c.id) ? ' done' : ''), grid);
         card.type = 'button';
         h('div', 'num', card, roman(c.number));
-        h('div', 'zh', card, open ? c.title.zh : '敬请期待');
+        h('div', 'zh', card, st === 'open' ? c.title.zh : st === 'locked' ? '未解锁' : '敬请期待');
         h('div', 'lbl', card, c.label.zh);
         card.addEventListener('click', () => {
           audio.unlock();
-          if (!open) {
+          if (st !== 'open') {
             audio.sfx('wrong');
             card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
-            status.textContent = `${c.label.zh} · ${c.title.zh} —— 敬请期待`;
+            status.textContent = st === 'locked' && need ? `${c.label.zh} · ${c.title.zh} —— 通关${need.label.zh}后解锁` : `${c.label.zh} · ${c.title.zh} —— 敬请期待`;
+            // 锁卡不只有音效和抖一下：再弹一个菜单面板写清楚原因。先收掉旧面板，避免连点几张锁卡叠成两层。
+            m.querySelectorAll('.menu-panel').forEach((old) => old.remove());
+            if (st === 'locked') {
+              const p = panel(m, '未解锁');
+              h('p', '', p, need ? `${c.label.zh} · ${c.title.zh} 要先通关${need.label.zh}才能玩。` : '这一章暂时还不能玩。');
+              const row = h('div', 'btn-row', p);
+              h('button', 'btn', row, '知道了').addEventListener('click', () => p.parentNode.remove());
+            } else {
+              const p = panel(m, '敬请期待');
+              h('p', '', p, `${c.label.zh} 还在制作中，敬请期待。`);
+              const row = h('div', 'btn-row', p);
+              h('button', 'btn', row, '知道了').addEventListener('click', () => p.parentNode.remove());
+            }
             return;
           }
-          if (state.hasSave(c.id)) chooseContinue(c);
+          if (liveSave(c)) chooseContinue(c);
           else finish({ number: c.number, fresh: true });
         });
       });
@@ -1452,23 +1595,24 @@ export const ui = {
         h('button', 'btn', row, '重新开始').addEventListener('click', () => finish({ number: c.number, fresh: true }));
       };
       play.addEventListener('click', () => {
-        if (!ch1) return;
-        finish({ number: ch1.number, fresh: !state.hasSave(ch1.id) });
+        // ▶ 优先继续最近玩的那一章；没有可继续的章节时退回第一个可玩章节，别让点击完全没反应。
+        if (resume) { finish({ number: resume.number, fresh: !resumeSave }); return; }
+        if (!first) return;
+        finish({ number: first.number, fresh: !liveSave(first) });
       });
       newBtn.addEventListener('click', () => {
         audio.unlock();
-        if (!ch1) return;
-        if (!state.hasSave(ch1.id)) { finish({ number: ch1.number, fresh: true }); return; }
+        if (!first) return;
+        if (!state.hasSave(first.id)) { finish({ number: first.number, fresh: true }); return; }
         const p = panel(m, '重新开始？');
         h('p', '', p, '当前进度将被覆盖。');
         const row = h('div', 'btn-row', p);
-        h('button', 'btn', row, '确定').addEventListener('click', () => finish({ number: ch1.number, fresh: true }));
+        h('button', 'btn', row, '确定').addEventListener('click', () => finish({ number: first.number, fresh: true }));
         h('button', 'btn', row, '取消').addEventListener('click', () => p.parentNode.remove());
       });
-      achBtn.addEventListener('click', () => { audio.unlock(); achievementsPanel(m); });
-      setBtn.addEventListener('click', () => { audio.unlock(); settingsPanel(m, () => this.show(chapters)); });
+      achBtn.addEventListener('click', () => { audio.unlock(); achievementsPanel(m, chapters); });
+      setBtn.addEventListener('click', () => { audio.unlock(); settingsPanel(m, () => this.build(chapters, '进度已重置')); });
       requestAnimationFrame(() => m.classList.add('show'));
-      return new Promise((resolve) => { this._resolve = resolve; });
     },
 
     hide() {
@@ -1511,46 +1655,76 @@ function volumeRow(p) {
   cb.addEventListener('change', () => audio.mute(cb.checked));
 }
 
-function settingsPanel(parent) {
+function settingsPanel(parent, onWiped) {
   const p = panel(parent, '设置');
   volumeRow(p);
+  h('p', 'set-note', p, '进度、通关记录和成就保存在这台设备的浏览器里，清除浏览器数据或换设备后不会带过去。');
   const row = h('div', 'btn-row', p);
   const reset = h('button', 'btn danger', row, '重置进度');
   reset.addEventListener('click', () => {
     const q = panel(parent, '重置全部进度？');
-    h('p', '', q, '所有存档与成就都将被清除。');
+    h('p', '', q, '所有存档、通关记录与成就都将被清除。');
     const r2 = h('div', 'btn-row', q);
     h('button', 'btn danger', r2, '清除').addEventListener('click', () => {
       state.wipeAll();
       q.parentNode.remove();
       p.parentNode.remove();
-      const st = parent.querySelector('.menu-status');
-      if (st) st.textContent = '进度已重置';
+      if (onWiped) onWiped();
+      else { const st = parent.querySelector('.menu-status'); if (st) st.textContent = '进度已重置'; }
     });
     h('button', 'btn', r2, '取消').addEventListener('click', () => q.parentNode.remove());
   });
 }
 
-function achievementsPanel(parent) {
+function fmtTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const z = (n) => (n < 10 ? '0' : '') + n;
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+
+// 成就面板：按章节分组，列出这一章所有成就（没解锁的变暗），已解锁的写明首次解锁时间（成就历史存在本机，见 state.js）。
+// 没有成就表的章节（或没装载的章节）里解锁过的成就，用解锁时记下的名字放进“其他章节”。
+function achievementsPanel(parent, chapters = []) {
   const p = panel(parent, '成就');
-  const list = h('div', 'ach-list', p);
-  const defs = ctx.achievementDefs || {};
-  const got = new Set(state.allAchievements());
-  const ids = Object.keys(defs);
-  if (!ids.length) h('p', '', p, '暂无成就。');
-  for (const id of ids) {
-    const d = defs[id];
-    const row = h('div', 'ach' + (got.has(id) ? ' got' : ''), list);
-    const c = h('canvas', 'ach-icon', row);
-    c.width = c.height = 96;
-    const g = c.getContext('2d');
-    g.fillStyle = '#1b1d1d';
-    g.fillRect(0, 0, 96, 96);
-    drawChalk(g, chalkStrokes(id, 12, 12, 72), 1, 3.2, 5);
-    const txt = h('div', 'ach-txt', row);
-    h('div', 'ach-zh', txt, d.zh || id);
-    h('div', 'ach-en', txt, got.has(id) ? (d.en || '') : '尚未解锁');
+  const scroll = h('div', 'ach-scroll', p);
+  const hist = state.achievementHistory();
+  const shown = new Set();
+  const group = (head, tail, rows) => {
+    const hd = h('div', 'ach-head', scroll);
+    h('span', '', hd, head);
+    h('span', 'ach-count', hd, tail);
+    const list = h('div', 'ach-list', scroll);
+    for (const { id, zh, en } of rows) {
+      shown.add(id);
+      const got = !!hist[id];
+      const row = h('div', 'ach' + (got ? ' got' : ''), list);
+      const c = h('canvas', 'ach-icon', row);
+      c.width = c.height = 96;
+      const g = c.getContext('2d');
+      g.fillStyle = '#1b1d1d';
+      g.fillRect(0, 0, 96, 96);
+      drawChalk(g, chalkStrokes(id, 12, 12, 72), 1, 3.2, 5);
+      const txt = h('div', 'ach-txt', row);
+      h('div', 'ach-zh', txt, zh || id);
+      h('div', 'ach-en', txt, got ? (en || '') : '尚未解锁');
+      if (got && hist[id].t) h('div', 'ach-date', txt, fmtTime(hist[id].t));
+    }
+  };
+  for (const c of chapters) {
+    if (!c.achievements) continue;
+    const ids = Object.keys(c.achievements);
+    if (!ids.length) continue;
+    const have = ids.filter((id) => hist[id]).length;
+    group(`${c.label.zh} · ${c.title.zh}${state.isCleared(c.id) ? '　已通关' : ''}`, `${have} / ${ids.length}`,
+      ids.map((id) => ({ id, zh: c.achievements[id].zh, en: c.achievements[id].en })));
   }
+  const rest = Object.keys(hist).filter((id) => !shown.has(id));
+  if (rest.length) {
+    const defs = ctx.achievementDefs || {};
+    group('其他章节', `${rest.length}`, rest.map((id) => ({ id, zh: hist[id].zh || (defs[id] && defs[id].zh), en: hist[id].en || (defs[id] && defs[id].en) })));
+  }
+  if (!shown.size) h('p', '', p, '暂无成就。');
 }
 
 function gearSVG() {
@@ -1562,6 +1736,15 @@ function gearSVG() {
     d += `${i === 0 ? 'M' : 'L'}${(14 + Math.cos(a0) * rad).toFixed(2)} ${(14 + Math.sin(a0) * rad).toFixed(2)} L${(14 + Math.cos(a1) * rad).toFixed(2)} ${(14 + Math.sin(a1) * rad).toFixed(2)} `;
   }
   return `<svg viewBox="0 0 28 28"><path d="${d}Z" fill="#d8d2c4" stroke="#111" stroke-width="1.2"/><circle cx="14" cy="14" r="3.6" fill="#111"/></svg>`;
+}
+
+function bulbSVG() {
+  return '<svg viewBox="0 0 28 28">'
+    + '<path d="M14 3C9.3 3 5.8 6.6 5.8 11c0 2.7 1.3 4.6 2.9 6.2.9.9 1.4 1.8 1.4 3v.8h7.8v-.8c0-1.2.5-2.1 1.4-3 1.6-1.6 2.9-3.5 2.9-6.2C22.2 6.6 18.7 3 14 3Z" fill="#d8d2c4" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/>'
+    + '<path d="M11 10.6l3 3.2 3-3.2M14 13.8v6" fill="none" stroke="#111" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<rect x="10.4" y="21.6" width="7.2" height="2" rx=".7" fill="#938c76" stroke="#111" stroke-width="1.1"/>'
+    + '<rect x="11.6" y="24" width="4.8" height="1.7" rx=".7" fill="#938c76" stroke="#111" stroke-width="1.1"/>'
+    + '</svg>';
 }
 
 export { drawHandLines };

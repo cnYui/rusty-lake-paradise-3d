@@ -1,5 +1,6 @@
 // 第五灾 · 疫灾。模块按 world（场景）→ puzzles（交互）组合，存档只保存 flags / inventory。
 import { defineItems } from './items.js';
+import { HINTS } from './hints.js';
 import { T, ACHIEVEMENTS } from './text.js';
 import * as world from './world.js';
 import * as puzzles from './puzzles.js';
@@ -10,6 +11,7 @@ export default {
   title: { zh: '疫灾', en: 'Pestilence' },
   label: { zh: '第五灾', en: 'Plague V' },
   completeFlag: 'plague5_complete',
+  hints: HINTS,   // 提示任务表（233 乐园版的提示按钮用，见 src/core/hints.js）
 
   async setup(ctx) {
     ctx.defineAchievements(ACHIEVEMENTS);

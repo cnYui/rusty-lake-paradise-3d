@@ -190,7 +190,7 @@ function run(inst, ms, fn, ease = Ease.inOutSine) {
 }
 /**
  * Several animation phases driven by ONE animate() job, so a whole multi-step method registers its
- * timing synchronously (deterministic in dev/viewer `&call=` / VIEW.advance, cheap in game).
+ * timing synchronously (deterministic in dev/common/viewer `&call=` / VIEW.advance, cheap in game).
  * segs: [{ ms, fn(kEased), ease?, enter?() }] — enter runs once when the phase starts.
  */
 function timeline(inst, segs) {

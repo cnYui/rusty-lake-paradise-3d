@@ -23,7 +23,7 @@ function buildColliders(island) {
   const at = (p) => [p.pos[0], p.pos[2]];
   const circles = (island.trunks || []).map(([x, z, r]) => [x, z, r * 1.08]);
   circles.push([...at(P.temple), P.temple.radius + 0.06]);
-  circles.push([...at(P.tower), 3.0]);
+  circles.push([...at(P.tower), P.tower.radius || 3.0]);
   circles.push([...at(P.pump), 0.45], [...at(P.owlTotem), 0.6], [...at(P.margaret), 0.55], [...at(P.bucket), 0.3]);
   // 房屋是实心石墙（室内是另一个布景），按轴对齐盒子处理
   const [hw, , hd] = P.house.size;

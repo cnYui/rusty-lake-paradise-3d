@@ -84,7 +84,7 @@ function replaceTempleProp(ctx, id, model) {
 
 function defineViews(ctx) {
   const view = (id, pose, rest = {}) => ctx.views.define({ id, zone: 'exterior', cam: pose, ...rest });
-  const close = (id, pos, target, back, area = 'exterior', fov = 48) => ctx.views.define({ id, zone: area, closeup: true, look: 0, cam: cam(pos, target, fov), back });
+  const close = (id, pos, target, back, area = 'exterior', fov = 48, onEnter = null) => ctx.views.define({ id, zone: area, closeup: true, look: 0, cam: cam(pos, target, fov), back, ...(onEnter ? { onEnter } : {}) });
   view('p5_overview', cam(P.overviewCam.pos, P.overviewCam.target, P.overviewCam.fov), { fixed: true });
   view('p5_gate', cam([0, 2.3, 48], [0, 1.7, 40]), { back: 'p5_overview', up: 'p5_forest', onEnter: () => ctx.hintOnce('p5_roam', ctx.ui.touchMode ? T.roamTouch : T.roam) });
   view('p5_forest', cam([-3, 2.2, 23], [-3, 1.1, 17]), { back: 'p5_gate', up: 'p5_house' });
@@ -94,22 +94,25 @@ function defineViews(ctx) {
   const door = wpos(ctx, 'temple.door');
   view('p5_temple', cam([24.6, 2.5, -27.7], [door[0], 1.9, door[2]], 52), { left: 'p5_lake', up: () => ctx.flag('cube_taken') ? 'p5_temple_int' : null });
   close('p5_cow', [5.6, 2.4, 49], [5.3, 1.8, 43.5], 'p5_gate');
-  close('p5_skin', [0, 2.1, 6.4], [0, 2.1, 0], 'p5_cow', 'p5_skin', 44);
-  close('p5_field', [0, 8.0, 0.45], [0, 0, 0.45], 'p5_forest', 'p5_field', 46);
-  close('p5_constellation', [0, 2, 7.4], [0, 2, 0], 'p5_forest', 'p5_constellation', 46);
+  // 牛皮斑点直接在牛身上点：镜头推到牛的侧面，整头牛占满画面（原作 0:30 的牛皮图案）
+  close('p5_skin', [5.2, 2.3, 47.4], [5.2, 2.2, 43.6], 'p5_cow', 'exterior', 44);
+  close('p5_field', [0, 4.9, 4.7], [0, 0, 0.55], 'p5_forest', 'p5_field', 46, () => ctx.hintOnce('p5_field_hint', T.fieldHint));
+  close('p5_constellation', [3.0, 3.0, 8.0], [0, 1.9, 0], 'p5_forest', 'p5_constellation', 46, () => ctx.hintOnce('p5_thread_hint', T.threadHint));
   close('p5_barrel', [-5.2, 2.1, 20], [-5.2, 0.95, 17.2], 'p5_forest');
   const hd = BUILDING_DIMS.house_int;
   ctx.views.defineRoamArea('house_int', {
     bounds: [K - hd.width / 2, hd.wallZ, K + hd.width / 2, hd.wallZ + hd.depth], eye: 1.65,
-    circles: [[K - 1.2, -0.65, 0.48], [K + 1.25, -0.7, 0.65], [K - 1.65, 0.8, 0.34]],
+    circles: [[K - 1.2, -0.65, 0.32], [K + 1.25, -0.7, 0.4], [K - 1.65, 0.8, 0.25]],
     boxes: [[K - 1.55, -1.55, K - 0.85, -0.85]],
   });
   ctx.views.define({ id: 'p5_kitchen', zone: 'house_int', roam: true, cam: cam([K, 1.65, 2.3], [K, 1.2, -1], 52), back: 'p5_house' });
-  close('p5_cutboard', [K - 1.2, 1.9, 1.3], [K - 1.2, 0.8, -0.65], 'p5_kitchen', 'house_int', 44);
-  close('p5_pot', [K + 1.25, 2.1, 1.5], [K + 1.25, 0.9, -0.7], 'p5_kitchen', 'house_int', 44);
+  close('p5_cutboard', [K - 1.2, 1.5, 0.5], [K - 1.2, 0.95, -0.7], 'p5_kitchen', 'house_int', 44);
+  close('p5_pot', [K + 1.25, 1.3, 0.1], [K + 1.25, 0.76, -0.7], 'p5_kitchen', 'house_int', 44);
   close('p5_menu', [K + 0.6, 1.8, 1.1], [K + 0.6, 1.8, -1.5], 'p5_kitchen', 'house_int', 44);
   // 人物按真实身高坐在桌后：镜头放低、拉近，让两人的上半身占画面（原作 02:15 的构图）
   close('p5_dining', [0, 1.62, 2.25], [0, 1.28, -1.2], 'p5_kitchen', 'p5_dining', 46);
+  // 盘子和面包只有巴掌大（真实尺寸），点盘子把镜头推到桌面（原作 8:20 的盘子特写）
+  close('p5_table', [-0.12, 1.2, 1.12], [-0.12, 0.98, 0.4], 'p5_dining', 'p5_dining', 40);
   close('p5_toilet', [0, 1.8, 4.2], [0, 1.2, -0.5], 'p5_house', 'p5_toilet', 48);
   close('p5_memory', [500, 1.85, 4.7], [500, 1.4, -0.5], 'p5_toilet', 'memory', 48);
   close('p5_temple_int', [400, 2.4, 4.2], [400, 1.5, -0.4], 'p5_temple', 'temple_int', 54);
@@ -135,23 +138,25 @@ export async function setup(ctx) {
   place(ctx, 'fieldSign', 'p5_field', ext, [4, 0.52, 16], { scale: 0.6 });
   W.fieldSign.setState(FIELD_LEVELS[0], FIELD_LEVELS[0].solution, null, 0);
   place(ctx, 'threadSign', sign('林间连线'), ext, [1.3, 0.5, 19]);
-  place(ctx, 'skin', 'p5_skin', zone(ctx, 'p5_skin'), [0, 0, 0]);
   place(ctx, 'field', 'p5_field', zone(ctx, 'p5_field'), [0, 0, 0]);
   place(ctx, 'constellation', 'p5_constellation', zone(ctx, 'p5_constellation'), [0, 0, 0]);
   place(ctx, 'cutboard', 'p5_chopping_block', house, [K - 1.2, 0, -0.65]);
   place(ctx, 'pot', 'p5_pot', house, [K + 1.25, 0, -0.7]);
-  place(ctx, 'knifeStand', 'p5_chopping_block', house, [K - 1.65, 0, 0.8], { scale: 0.6 });
-  place(ctx, 'knife', 'p5_knife', house, [K - 1.65, 0.56, 0.8], { scale: 0.75 });
+  place(ctx, 'knifeStand', 'p5_chopping_block', house, [K - 1.65, 0, 0.8], { scale: 0.75 });
+  place(ctx, 'knife', 'p5_knife', house, [K - 1.65, 0.685, 0.8], { rotY: 0.5 });
   place(ctx, 'menu', 'p5_menu', house, [K + 0.65, 1.8, -1.5], { scale: 0.7 });
   // 奶奶站在砧板后面，右手举着菜刀（原作 02:40）
   person(ctx, 'grandmother', makeCharacter('margaret_chef'), house, [K - 1.2, 0, -1.12]);
   place(ctx, 'diningDoor', sign('餐室 →', 0.9), house, [K + 2.2, 0, 1.3], { rotY: -Math.PI / 2 });
   const dining = zone(ctx, 'p5_dining');
   place(ctx, 'dining', 'p5_dining_room', dining, [0, 0, 0]);
-  place(ctx, 'plate', 'p5_plate', dining, [0, 0.93, 0.35]);
-  place(ctx, 'burger', 'p5_burger', dining, [0, 0.96, 0.35]);
-  place(ctx, 'bunBottom', 'p5_bun_bottom', dining, [-1.05, 0.94, 0.25], { scale: 0.75 });
-  place(ctx, 'bunTop', 'p5_bun_top', dining, [-1.05, 1.03, 0.25], { scale: 0.75 });
+  place(ctx, 'plate', 'p5_plate', dining, [0, 0.925, 0.35]);
+  place(ctx, 'burger', 'p5_burger', dining, [0, 0.929, 0.35]);
+  // 面包放在盘子旁的小木板上（真实大小：直径 13 cm）
+  const board = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.016, 0.5), toon('#a98154')); board.position.set(-0.4, 0.933, 0.4); dining.add(board);
+  place(ctx, 'bunBottom', 'p5_bun_bottom', dining, [-0.4, 0.941, 0.28]);
+  place(ctx, 'bunTop', 'p5_bun_top', dining, [-0.4, 0.941, 0.5]);
+  W.breadBoard = board;
   place(ctx, 'diningMenu', 'p5_menu', dining, [2.2, 1.45, -1.84], { scale: 0.7 });
   // 餐桌后坐着 Gerard 和满头绷带的父亲（原作 02:15）；桌子较高，两人坐在高凳上，腿藏在桌布后
   const gerard = person(ctx, 'gerard', makeCharacter('gerard'), dining, [0.72, 0, -1.24]); gerard.sit(0.6, { hands: 'table' });
@@ -183,6 +188,7 @@ export async function setup(ctx) {
   hs('p5_house_entry', ['p5_house'], proxy([2.0, 2.3, 0.45], [3, 1.65, -11.35], ext), { goto: 'p5_kitchen' });
   hs('p5_kitchen_exit', ['p5_kitchen'], proxy([1.2, 2.25, 0.3], [K, 1.15, 2.85], house), { goto: 'p5_house' });
   hs('p5_dining_entry', ['p5_kitchen'], W.diningDoor, { goto: 'p5_dining' });
+  hs('p5_plate_zoom', ['p5_dining'], W.plate, { goto: 'p5_table' });
   hs('p5_cutboard_zoom', ['p5_kitchen'], W.cutboard, { goto: 'p5_cutboard' });
   hs('p5_pot_zoom', ['p5_kitchen'], W.pot, { goto: 'p5_pot' });
   hs('p5_menu_zoom', ['p5_kitchen'], W.menu, { goto: 'p5_menu' });
@@ -200,8 +206,7 @@ export async function setup(ctx) {
 export function sync(ctx) {
   if (!W.ctx) return;
   ctx.world.lake.setBlood(0); ctx.world.lake.setPool(false);
-  W.cow.setState({ cured: !!ctx.flag('cow_cured'), meat: !!ctx.flag('cow_meat_taken') });
-  W.skin.setState(ctx.flag('cow_pairs') || [], ctx.flag('cow_selected') ?? null);
+  W.cow.setState({ cured: !!ctx.flag('cow_cured'), meat: !!ctx.flag('cow_meat_taken'), pairs: ctx.flag('cow_pairs') || [], selected: ctx.flag('cow_selected') ?? null });
   W.plant.visible = !ctx.flag('lettuce_taken'); W.bucket.visible = !ctx.flag('bucket_taken'); W.knife.visible = !ctx.flag('knife_taken');
   W.barrel.setState(!!ctx.flag('barrel_filled'), !!ctx.flag('cheese_taken'));
   const round = Math.min(ctx.flag('field_round') || 0, FIELD_LEVELS.length - 1), level = FIELD_LEVELS[round];
@@ -209,7 +214,7 @@ export function sync(ctx) {
   const stage = Math.min(ctx.flag('constellation_stage') || 0, THREAD_LEVELS.length - 1);
   W.constellation.setState(THREAD_LEVELS[stage], ctx.flag('constellation_edges') || [], ctx.flag('constellation_selected') ?? null, stage, !!ctx.flag('constellation_solved'));
   W.pot.setState(!!ctx.flag('pot_loaded'), !!ctx.flag('pot_cooked'), !!ctx.flag('patty_taken'));
-  W.bunBottom.visible = W.bunTop.visible = !ctx.flag('buns_taken');
+  W.bunBottom.visible = W.bunTop.visible = !ctx.flag('buns_taken'); W.breadBoard.visible = !ctx.flag('buns_taken');
   W.burger.setLayers(ctx.flag('burger_layers') || []); W.burger.visible = !ctx.flag('burger_taken');
   W.gerard.visible = !ctx.flag('gerard_fed'); W.latrine.setOpen(!!ctx.flag('gerard_fed'));
   W.cube.visible = !!ctx.flag('memory_seen') && !ctx.flag('cube_taken');
