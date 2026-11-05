@@ -1422,6 +1422,10 @@ export const ui = {
   endingNext: null,
   autoAdvance: true,         // 测试页（?autotest=1）关掉，免得通关后页面自己跳走
   setEndingNext(fn) { this.endingNext = typeof fn === 'function' ? fn : null; },
+  // main.js 注册：() => { note?, comment? } | null（可以是 Promise）。小红书 App 里结尾卡多一行“发笔记 / 发评论”（src/core/share.js），
+  // 每个动作返回 Promise<{ ok, msg }>；点了分享就不再自动进入下一灾（玩家要去发布页 / 评论区），两个去向按钮照常能点。
+  endingShare: null,
+  setEndingShare(fn) { this.endingShare = typeof fn === 'function' ? fn : null; },
 
   ending({ zh = '完', en = '' } = {}) {
     el.ending.innerHTML = '';
@@ -1433,7 +1437,39 @@ export const ui = {
     const row = h('div', 'ending-row', box);
     const goBtn = next ? h('button', 'btn ending-btn ending-next', row, `进入${next.label.zh} · ${next.title.zh}`) : null;
     const btn = h('button', 'btn ending-btn', row, '返回主菜单');
+    const shareRow = h('div', 'ending-row ending-share', box);   // 查到能分享才放按钮，空着时不占位
     const note = h('div', 'ending-note', box);
+    const shareBtns = [];
+    let auto = true;       // 点了分享就取消自动进入下一灾
+    let sharing = false;
+    if (this.endingShare) {
+      const SHARE = [['note', '发笔记', '发布页'], ['comment', '发评论', '评论区']];
+      Promise.resolve().then(() => this.endingShare()).then((acts) => {
+        if (seq !== endingSeq || !acts) return;
+        for (const [key, label, where] of SHARE) {
+          if (typeof acts[key] !== 'function') continue;
+          const b = h('button', 'btn ending-btn ending-share-btn', shareRow, label);
+          b.type = 'button';
+          b.dataset.share = key;
+          b.style.opacity = btn.style.opacity;   // 晚到也和其它按钮一样淡入（下面的动画接着改它）
+          shareBtns.push(b);
+          b.addEventListener('click', async () => {
+            if (sharing || seq !== endingSeq) return;
+            sharing = true;
+            auto = false;
+            audio.sfx('click');
+            for (const x of shareBtns) x.disabled = true;
+            note.textContent = key === 'note' ? '正在生成通关卡，打开发布页……' : '正在打开评论区……';
+            let r = null;
+            try { r = await acts[key](); } catch (err) { r = { ok: false, msg: String((err && err.message) || err || '') }; }
+            sharing = false;
+            for (const x of shareBtns) x.disabled = false;
+            if (seq !== endingSeq) return;
+            note.textContent = r && r.ok ? (key === 'note' ? '发布页已打开' : '') : `没能打开${where}${r && r.msg ? `（${r.msg}）` : ''}`;
+          });
+        }
+      }).catch((err) => console.warn('[ui] 分享按钮没装上', err));
+    }
     btn.addEventListener('click', () => {
       endingSeq++;
       el.ending.classList.remove('show');
@@ -1460,16 +1496,17 @@ export const ui = {
       const bo = String(Math.min(1, Math.max(0, (tt - 2600) / 800)));
       if (goBtn) goBtn.style.opacity = bo;
       btn.style.opacity = bo;
+      for (const b of shareBtns) b.style.opacity = bo;
     }, Ease.linear);
     if (goBtn && this.autoAdvance) {
       // 倒数用游戏时间（和结尾动画一样跟随 timeScale）；页面在后台时不走，玩家没在看就不会被带走
       shown.then(async () => {
         for (let n = ENDING_AUTO_SECONDS; n > 0; n--) {
-          if (seq !== endingSeq) return;
+          if (seq !== endingSeq || !auto) return;
           note.textContent = `${n} 秒后自动进入${next.label.zh} · ${next.title.zh}`;
-          await gameWait(1000, () => seq !== endingSeq);
+          await gameWait(1000, () => seq !== endingSeq || !auto);
         }
-        if (seq === endingSeq) goBtn.click();
+        if (seq === endingSeq && auto) goBtn.click();
       });
     }
     return shown;

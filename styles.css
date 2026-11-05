@@ -466,6 +466,11 @@ button { font-size: inherit; font-family: inherit; }
 .ending-row .ending-btn + .ending-btn { margin-left: 1.1em; }
 .btn.ending-next { border-color: #e8d9a8; background: rgba(232, 217, 168, 0.16); }
 .btn.ending-next:hover { background: rgba(232, 217, 168, 0.28); }
+/* 小红书 App 里多一行“发笔记 / 发评论”（src/core/share.js），别的环境这一行是空的 */
+.ending-row.ending-share { margin-top: 1.1em; }
+.ending-share:empty { display: none; }
+.btn.ending-share-btn { font-size: 0.95em; border-color: rgba(232, 217, 168, 0.7); }
+.btn.ending-share-btn:disabled { cursor: default; filter: brightness(0.6); }
 .ending-note { margin-top: 1.1em; min-height: 1.5em; font-size: 0.95em; color: #b9b4a8; letter-spacing: 0.08em; }
 
 /* ------------------------------------------------------------- buttons/panels */
