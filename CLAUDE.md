@@ -13,7 +13,7 @@ CLAUDE.md  AGENTS.md  README.md  ARCHITECTURE.md   说明文档（本文件 = �
 index.html  styles.css  vendor/three/               网页入口、样式、three.js
 src/                                                 游戏本体（会部署）
 ├─ core/        公共：引擎、状态与存档、视图、热点、物品栏、界面、音频、触屏、章节进度（progress.js）
-├─ art/         公共：3D 素材。世界、建筑、道具是程序化建模代码；人物 / 山羊 / 牛 / 苍蝇人用 AI 生成的网格模型（models/*.rlpm，rlpm.js 加载，缺失时回退程序化）
+├─ art/         公共：3D 素材。世界、建筑、道具是程序化建模代码；人物 / 山羊 / 牛 / 苍蝇人 / 第八灾的乐手和螳螂用 AI 生成的网格模型（models/*.rlpm，rlpm.js 加载，缺失时回退程序化）
 │                 世界与第一灾道具 island/lake/sky/buildings/props_beach|inner|lake/characters …
 │                 人物 cast.js + charkit.js + human.js（各章复用）
 │                 章节专属道具 props_p2_*（第二灾）、props_p3_* + cast_p3*（第三灾）、props_flies（第四灾）、props_p5（第五灾）、props_p6 / props_p7（第六、七灾）、props_p8（第八灾）、props_p9 / props_p10（第九、十灾）

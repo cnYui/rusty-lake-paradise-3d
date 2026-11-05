@@ -188,7 +188,11 @@ function setupChest(ctx) {
         if (!ctx.flag('clock_heart_placed')) { ctx.state.select(null); return ctx.say(T.chestEmpty); }
         ctx.take('needle_thread'); ctx.setFlag('chest_sewn'); ctx.sfx('nail'); refresh(ctx);
         ctx.achieve('p6_clockwork');
-        await ctx.say(T.sewn); await ctx.say(T.boar); await ctx.say(T.boar); await ctx.say(T.grandmaAfter);
+        await ctx.say(T.sewn);
+        W.patientRig.play('talk');
+        try { await ctx.say(T.boar); await ctx.say(T.boar); }
+        finally { W.patientRig.play('none'); W.patientRig.refreshFace(); }
+        await ctx.say(T.grandmaAfter);
       }),
     },
   });

@@ -1,12 +1,14 @@
 // 第八灾（蝗灾）专属道具工厂：id 一律 p8_ 前缀（设计见 docs/plague8_design.md）。
 // 模型只呈现传入的状态（setState …），玩法真值在章节的 flags 和物品栏里。尺寸按米建；
-// 蝗虫、蚱蜢、螳螂是原作里的“巨大”版本（蝗虫 0.3 m、蚱蜢 1.5 m、螳螂站起来约 5.6 m）。
+// 蝗虫、蚱蜢、螳螂是原作里的“巨大”版本（蝗虫 0.3 m、蚱蜢 1.5 m、螳螂站起来约 5 m，网格螳螂见 mantis_model.js）。
 import * as THREE from 'three';
 import { toon, unlit, flat, canvasTexture } from './materials.js';
 import { animate, Ease } from '../core/tween.js';
 import { PI, group, add, box, ball, cyl, ring, rod } from './p5_kit.js';
 import { plaguePainting } from './props_p6.js';
 import { BOX_COLUMNS, SCORE, LOCUST_LEVELS } from '../chapters/plague8/rules.js';
+import { getModel } from './rlpm.js';
+import { buildMantisModel } from './mantis_model.js';
 
 const FINE = { outline: 0.0022 };
 const BRASS = '#c9a043', BARK = '#4f4740', BARK_DARK = '#3a332d';
@@ -327,8 +329,11 @@ function eggCase() {
   return r;
 }
 
-// 巨型螳螂：身体挂在 3 m 高处，四条细长的步足落到地面，一对捕捉足折在胸前；update 里做待机摆动和走路时的腿部摆动
+// 巨型螳螂：2026-11-05 起有网格模型（mantis.rlpm，见 mantis_model.js）就用它；没有模型时是下面的程序化螳螂：
+// 身体挂在 3 m 高处，四条细长的步足落到地面，一对捕捉足折在胸前；update 里做待机摆动和走路时的腿部摆动
 function mantis() {
+  const mm = getModel('mantis');
+  if (mm) return buildMantisModel(mm);
   const r = group('p8_mantis');
   const C = '#6d7650', D = '#4b5236', P = '#b9bd8a';
   const rig = group('mantis_rig'); r.add(rig);

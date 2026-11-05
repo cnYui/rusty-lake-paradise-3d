@@ -15,6 +15,7 @@ import {
   torsoSkin, limbSkin, skirtSkin, cloth, fabric, restPos,
 } from './human.js';
 import { modelHuman } from './rlpm.js';
+import { patientTorsoGeometry, patientFront } from './p6_patient_surface.js';
 
 // ===========================================================================
 // 公共：脸部笔触
@@ -571,13 +572,13 @@ function buildJakobChild() {
 
 const SKIN_GERARD = '#d8cbbd';
 const GINGER = '#8a5530';
-function paintGerard(g, v) {
+function paintGerard(g, v, o = {}) {
   const closed = v === 'blink' || v === 'squeeze', shock = v === 'shock', tired = v === 'tired';
-  stubble(g, 23, [[-0.5, -0.45], [0.5, -1.0]], 0.18);
+  if (!o.noStubble) stubble(g, 23, [[-0.5, -0.45], [0.5, -1.0]], 0.18);
   for (const s of [-1, 1]) {
     bags(g, s * 0.34, 0.04, 0.18, 0.09, s, { depth: 1.6, lines: 1, color: 'rgba(75,63,65,0.3)' });
     eye(g, s * 0.34, 0.04, 0.175, shock ? 0.13 : 0.085, s, {
-      skin: SKIN_GERARD, lid: shock ? 0.08 : tired ? 0.72 : 0.58, pupil: shock ? 0.32 : 0.52, closed, squeeze: v === 'squeeze', droop: 0.12, lw: 6, crease: false,
+      skin: o.skin || SKIN_GERARD, white: o.white, lid: o.lid ?? (shock ? 0.08 : tired ? 0.72 : 0.58), pupil: o.pupil ?? (shock ? 0.32 : 0.52), closed, squeeze: v === 'squeeze', droop: 0.12, lw: 6, crease: false,
     });
     // 眉头下压：内端低、外端高
     brow(g, shock ? [[s * 0.12, 0.25], [s * 0.33, 0.3], [s * 0.58, 0.24]] : [[s * 0.11, 0.17], [s * 0.32, 0.25], [s * 0.6, 0.2]], 9, '#5a3a26');
@@ -613,6 +614,150 @@ function gerardBody(id, { hat = true, beard = true } = {}) {
     hat: hat ? { color: '#a7a094', band: '#76716a', r: 0.118, h: 0.125, brim: 0.05, dent: 0.18, pinch: 0.16, up: 0.18, sideUp: 0.3, y: 0.042, tilt: [-0.05, 0, -0.07], seed: 82 } : null,
     extra: beard ? gerardBeard : null, handScale: 1.12,
   });
+}
+
+/** 第六灾的 Gerard：赤裸的连续胸腹、暗红长裤、病态睡脸和无檐便帽。 */
+function buildGerardPatient() {
+  const skin = '#cec3b6';
+  const rig = makeHuman('gerard_patient', { height: 1.84,
+    dims: { head: 0.0745, headW: 0.8, headD: 0.86, shoulderW: 0.12, hip: 0.5, upper: 0.165, fore: 0.145, neck: 0.85 } });
+  const M = rig.mats, D = rig.dims;
+  const paintPatient = (g, v) => {
+    const sleeping = v === 'sleeping';
+    for (const s of [-1, 1]) bags(g, s * 0.34, 0.04, 0.195, 0.092, s,
+      { depth: 2.0, lines: 2, color: 'rgba(64,54,60,0.44)' });
+    paintGerard(g, sleeping ? 'blink' : v === 'patient_talk' ? 'talk' : 'tired', { skin, lid: 0.40, pupil: 0.3, white: '#d8d3aa', noStubble: true });
+    for (const s of [-1, 1]) {
+      blob(g, [[s * 0.57, -0.22], [s * 0.38, -0.34], [s * 0.43, -0.52]], 'rgba(76,68,64,0.24)');
+      line(g, [[s * 0.58, -0.23], [s * 0.4, -0.35]], 2.2, 'rgba(55,48,45,0.48)');
+    }
+    if (v === 'patient_talk') {
+      blob(g, [[-0.18, -0.50], [0.18, -0.50], [0.15, -0.69], [-0.13, -0.69]], '#171211');
+      blob(g, [[-0.09, -0.66], [0.03, -0.62], [0.10, -0.67], [0, -0.70]], '#987268');
+    }
+  };
+  head(rig, { skin, jaw: 0.16, chin: 0.1, crown: 0.08, flat: 0.12, cheek: 0.1,
+    nose: { top: 0.1, y: -0.27, len: 0.03, w: 0.0145, tip: 1.15, wing: 0.8 },
+    paint: paintPatient, neck: [0.078, 0.085] });
+  // 鼻梁、鼻尖和头骨原本就共用 skinMat；降低明暗跳阶，避免球状鼻尖被强光冲白。
+  const ramp = new THREE.DataTexture(new Uint8Array([112, 145, 175, 199, 220, 235].flatMap((v) => [v, v, v, 255])), 6, 1, THREE.RGBAFormat);
+  ramp.minFilter = ramp.magFilter = THREE.LinearFilter; ramp.needsUpdate = true;
+  rig.skinMat.gradientMap = ramp; rig.face.mesh.material.gradientMap = ramp;
+  // 沿用 Gerard 的鼻子尺寸，把鼻尖的圆球压成较长、略扁的鼻头；只改本人物待合并的鼻子。
+  for (const part of rig.ps.map.values()) if (part.joint === rig.joints.head && part.mat === rig.skinMat) {
+    for (const geo of part.geos.slice(3)) {
+      const p = geo.attributes.position, tip = rig.noseTip;
+      for (let i = 0; i < p.count; i++) p.setXYZ(i, p.getX(i) * 0.92, tip.y + (p.getY(i) - tip.y) * 1.16, tip.z + (p.getZ(i) - tip.z) * 0.80 - 0.002);
+      geo.computeVertexNormals();
+    }
+  }
+  // 结构线直接画在连续皮肤的 UV 上；几何负责胸肌、圆肚腩的起伏。
+  const map = canvasTexture(1024, 1024, (g) => {
+    g.fillStyle = skin; g.fillRect(0, 0, 1024, 1024);
+    const pt = (x, y) => [(0.5 + x / 0.5) * 1024, (1 - (y - 0.985) / 0.565) * 1024];
+    const stroke = (pts, width = 4.5, color = '#4b3d34') => {
+      g.strokeStyle = color; g.lineWidth = width; g.lineCap = 'round'; g.lineJoin = 'round';
+      const pixels = pts.map(([x, y]) => pt(x, y));
+      g.beginPath(); g.moveTo(...pixels[0]);
+      for (let i = 1; i < pixels.length - 1; i++) {
+        const p = pixels[i], q = pixels[i + 1]; g.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
+      }
+      g.lineTo(...pixels.at(-1)); g.stroke();
+    };
+    const shadow = (x, y, rx, ry, alpha) => {
+      const p = pt(x, y); g.save(); g.translate(...p); g.scale(rx * 2048, ry * 1024 / 0.565);
+      const grad = g.createRadialGradient(0, 0, 0.1, 0, 0, 1);
+      grad.addColorStop(0, `rgba(91,66,54,${alpha})`); grad.addColorStop(1, 'rgba(91,66,54,0)');
+      g.fillStyle = grad; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill(); g.restore();
+    };
+    shadow(0, 1.035, 0.18, 0.040, 0.24);
+    for (const s of [-1, 1]) {
+      shadow(s * 0.105, 1.266, 0.085, 0.026, 0.24);
+      shadow(s * 0.184, 1.20, 0.038, 0.16, 0.17);
+      stroke([[s * 0.018, 1.49], [s * 0.052, 1.477], [s * 0.105, 1.484], [s * 0.171, 1.466]], 5.0);
+      stroke([[s * 0.025, 1.298], [s * 0.064, 1.275], [s * 0.115, 1.269], [s * 0.175, 1.296]], 6.2, '#392e28');
+      stroke([[s * 0.177, 1.422], [s * 0.182, 1.354], [s * 0.175, 1.302]], 4.7);
+      stroke([[s * 0.173, 1.475], [s * 0.198, 1.458], [s * 0.214, 1.427]], 4.1);
+      const [x, y] = pt(s * 0.133, 1.306);
+      g.fillStyle = '#c39489'; g.strokeStyle = '#6e554e'; g.lineWidth = 1.7;
+      g.beginPath(); g.ellipse(x, y, 19, 16, 0, 0, TAU); g.fill(); g.stroke();
+      g.fillStyle = '#a5756a'; g.beginPath(); g.ellipse(x + 1, y, 5, 5, 0, 0, TAU); g.fill();
+      for (let j = 0; j < 5; j++) {
+        const a = j * 1.3 + 0.3;
+        g.beginPath(); g.moveTo(x + Math.cos(a) * 20, y + Math.sin(a) * 17);
+        g.lineTo(x + Math.cos(a + 0.06) * 27, y + Math.sin(a + 0.06) * 24); g.stroke();
+      }
+    }
+    stroke([[0, 1.43], [-0.003, 1.385], [0.001, 1.34], [0, 1.302]], 4.8);
+    const [nx, ny] = pt(0, 1.132);
+    g.fillStyle = '#8e8277'; g.beginPath(); g.ellipse(nx, ny, 7, 10, -0.15, 0, TAU); g.fill();
+    stroke([[-0.003, 1.139], [-0.005, 1.133], [0, 1.128], [0.004, 1.13]], 2.1, '#564b43');
+  });
+  const torsoGeo = patientTorsoGeometry();
+  const whole = Array.from(torsoGeo.index.array), opened = [], tp = torsoGeo.attributes.position;
+  for (let i = 0; i < whole.length; i += 3) {
+    const a = whole[i], b = whole[i + 1], c = whole[i + 2];
+    const x = (tp.getX(a) + tp.getX(b) + tp.getX(c)) / 3;
+    const y = (tp.getY(a) + tp.getY(b) + tp.getY(c)) / 3;
+    const z = (tp.getZ(a) + tp.getZ(b) + tp.getZ(c)) / 3;
+    const t = (1.425 - y) / 0.13;
+    if (!(z > 0.05 && t > 0 && t < 1 && Math.abs(x - 0.085) < Math.sin(t * Math.PI) * 0.027)) opened.push(a, b, c);
+  }
+  const torsoMat = M.toon('#ffffff', { map, outline: 0.0025, side: THREE.DoubleSide }); torsoMat.gradientMap = ramp;
+  torsoSkin(rig, null, torsoMat,
+    { geo: torsoGeo, tag: 'patient_skin', armBlend: 0 });
+  let chestOpen = false;
+  rig.setChestOpen = (open) => { if (!!open !== chestOpen) { chestOpen = !!open; torsoGeo.setIndex(open ? opened : whole); } };
+  for (const s of [-1, 1]) torsoSkinRigid(rig,
+    place(sphere(0.0033, 0.0031, 0.0023, 14, 10), [s * 0.133, 1.306, patientFront(s * 0.133, 1.306) + 0.001]),
+    M.toon('#b18278', { outline: false }), 'patient_nipple');
+  for (const side of ['L', 'R']) {
+    limbSkin(rig, side, 'arm', [
+      { s: -0.035, w: 0.050, d: 0.064, ox: -0.020, oz: 0.018 },
+      { s: 0.025, w: 0.081, d: 0.086, oz: 0.014 }, { s: 0.10, w: 0.078, d: 0.084, oz: 0.015 },
+      { s: D.upper * 0.66, w: 0.068, d: 0.074, oz: 0.012 },
+      { s: D.upper, w: 0.047, d: 0.052 }, { s: D.upper + 0.075, w: 0.060, d: 0.057, oz: 0.004 },
+      { s: D.upper + D.fore * 0.75, w: 0.038, d: 0.034 },
+      { s: D.upper + D.fore + 0.012, w: 0.028, d: 0.027 },
+    ], rig.skinMat, { tag: 'patient_arm', radial: 40, steps: 5, cap: 'both' });
+  }
+  trousers(rig, cloth(rig, '#7d2f2b', { folds: 5, ink: 0.2, shadeAmt: 0.025, seed: 63 }),
+    { seat: [0.169, 0.131], thigh: 0.086, knee: 0.061, ankle: 0.044 });
+  // 光脚保留脚背、脚跟和五根脚趾，不能留下鞋底或靴筒。
+  for (const side of ['L', 'R']) {
+    const foot = rig.joints['foot' + side];
+    rig.ps.add(foot, place(sphere(0.044, 0.039, 0.109, 24, 16), [0, -0.035, 0.04]), rig.skinMat, 'patient_foot');
+    for (let j = 0; j < 5; j++) rig.ps.add(foot,
+      place(sphere(0.010 - j * 0.001, 0.013, 0.025 - j * 0.002, 12, 8), [(j - 2) * 0.017, -0.043, 0.133 - j * 0.004]), rig.skinMat, 'patient_foot');
+  }
+  hairCap(rig, { front: 0.14 * Math.PI, side: 0.46 * Math.PI, back: 0.68 * Math.PI, scale: 1.025, top: 0.008, quiff: 0 },
+    M.toon('#ffffff', { map: hairStrands('#915331', '#543624', 63) }));
+  gerardBeard(rig);
+  const cap = cloth(rig, '#b9b5ac', { folds: 2, ink: 0.14, shadeAmt: 0.018, seed: 65, outline: 0.0015 });
+  // 扁圆顶略向后松垂，顶面较平；轮廓带细微不对称，区别于硬头盔。
+  const crown = ringLoft([
+    { y: 0.062, w: 0.113, d: 0.124, cz: -0.005 },
+    { y: 0.087, w: 0.116, d: 0.126, cx: -0.002, cz: -0.008 },
+    { y: 0.125, w: 0.102, d: 0.109, cx: -0.005, cz: -0.011 },
+    { y: 0.148, w: 0.067, d: 0.072, cx: -0.007, cz: -0.014 },
+    { y: 0.152, w: 0.003, d: 0.004, cx: -0.007, cz: -0.014 },
+  ], { radial: 64, steps: 5, cap: 'top', pleat: (th, t) => 0.012 * Math.sin(th * 3 + t * 2) });
+  rig.ps.add(rig.joints.head, crown, cap, 'hat');
+  const rim = new THREE.TorusGeometry(0.112, 0.0055, 10, 64); rim.rotateX(Math.PI / 2); rim.scale(1, 1, 1.10); rim.translate(0, 0.065, -0.005);
+  rig.ps.add(rig.joints.head, rim, M.toon('#b1ada4', { outline: 0.0013 }), 'hat');
+  hands(rig, 1.12, ['flat', 'relax', 'grip', 'fist', 'point']);
+  finish(rig);
+  // 睡眠状态不参加随机眨眼；说话只切换嘴，不对平躺的身体应用 idle。
+  rig.eyesOpen = false;
+  rig.refreshFace = () => {
+    const f = rig.face;
+    f.timer = Infinity; f.blink = false;
+    const key = !rig.eyesOpen ? 'sleeping' : rig.anim === 'talk' && f.mouth ? 'patient_talk' : 'awake';
+    if (f.cur !== key) { f.cur = key; f.mesh.material.map = f.tex(key); f.mesh.material.needsUpdate = true; }
+  };
+  rig.setEyes = (open) => { rig.eyesOpen = !!open; rig.refreshFace(); };
+  rig.setEyes(false); rig.play('none'); rig.apply();
+  return rig;
 }
 
 function gerardPockets(rig) {
@@ -1840,6 +1985,7 @@ export const CAST = {
   margaret_pigeon: buildMargaretPigeon,
   caroline: buildCaroline,
   ice_youth: buildIceYouth,
+  gerard_patient: buildGerardPatient,
   ida: buildIda,
   ida_pheasant: buildIdaPheasant,
   elizabeth_pheasant: buildElizabeth,
