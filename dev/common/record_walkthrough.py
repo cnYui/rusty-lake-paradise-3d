@@ -240,6 +240,48 @@ class Walk(Demo):
                 last = e
         raise Fail(f'走近点击 {hid} 失败：{last}')
 
+    def in_dead_zone(self, x, y, margin=0.0):
+        """画布中心死区（views.js 的 deadX 0.38 / deadY 0.5）：漫游时鼠标停在死区外，视角会一直转。"""
+        r = self.rect
+        nx = (x - r['left']) / r['width'] * 2 - 1
+        ny = (y - r['top']) / r['height'] * 2 - 1
+        return abs(nx) <= 0.38 - margin and abs(ny) <= 0.5 - margin
+
+    def stable_target(self, hid, tol=1.2, timeout=4.0):
+        """先照原来的要求等目标在屏幕上停稳；1.5 秒还停不稳、镜头又没在转（会自己动的东西：篝火的火苗一抖，
+        挑出来的点就在几个候选之间跳），就用最后一次取样：按下之前 click() 还会确认指针下确实是它。"""
+        if self.mx is not None and not self.in_dead_zone(self.mx, self.my) and self.ev('__demo.pose().free'):
+            self.recenter(200)                 # 上一次没点中时鼠标留在死区外，视角还在转
+            self.page.wait_for_timeout(350)
+        try:
+            return super().stable_target(hid, tol=tol, timeout=min(timeout, 1.5))
+        except Fail as e:
+            if '位置一直在动' not in str(e):
+                raise
+        try:
+            return self.ev('id => __demo.target(id)', hid)
+        except Exception as e:  # noqa: BLE001
+            raise Fail(f'点不到 {hid}：{str(e).splitlines()[0]}')
+
+    def click(self, hid, hover=0.28, after=0.7):
+        """漫游时先把要点的那一处转到画面中间再点：按包围盒中心转过去以后，挑出来的点可能在画面边上（第九灾塔里链条
+        下端的绞盘、包围盒被藏着的烟中黑影撑高的篝火、第十灾带 2.9 m 烟囱管的炉子），鼠标移过去悬停的工夫视角就转走了，点了个空。"""
+        for _ in range(2):
+            if not self.ev('__demo.pose().free'):
+                break
+            try:
+                pt = self.stable_target(hid)
+            except Fail:
+                break
+            if self.in_dead_zone(pt['x'], pt['y'], margin=0.06):
+                break
+            w = self.ev('([id, x, y]) => { const h = RLP.ctx.hotspots.pickAt(x, y); return h && h.spec.id === id ? [h.point.x, h.point.y, h.point.z] : null; }',
+                        [hid, pt['x'], pt['y']])
+            if not w:
+                break
+            self.face(*w)
+        return super().click(hid, hover=hover, after=after)
+
     def click_in_context(self, hid, after=0.7, hover=0.28):
         mode = self.ensure_context(hid)
         if mode == 'roam':
