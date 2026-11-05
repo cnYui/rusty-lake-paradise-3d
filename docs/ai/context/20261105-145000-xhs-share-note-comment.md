@@ -28,3 +28,7 @@
 - `postNote` 唤起发布页时小工具会不会被关掉（文档没写；结尾卡状态不依赖它）。
 - 从评论区重开小工具时读 `miniToolSnapshotInfo` 恢复状态：现在只写了章节 id，没做恢复逻辑。
 - 没有打包上传、没有提审。上传前照惯例跑 `test_minitool.py`（无参数首页 + 真实触摸）。
+
+## 补记：口袋方舟包（同日）
+
+旅馆那边的 GPT 验收发现：`main.js` 的 `saveBeforeLeave` 里提到了 `window.__RLP_STORE`，而 `build.py --ark` 有断言要求口袋方舟包的 `game.js` 里没有 `__RLP_STORE`，所以这个提交原样会让 `--ark` 打包失败。已在 `build.py` 的 `if a.ark:` 分支里把副本中等存档层的那两行去掉（只留 `state.save()`），重打 `--ark`（644 KB）和 `--release`（661 KB，和改前同样大小）都过了全部断言。

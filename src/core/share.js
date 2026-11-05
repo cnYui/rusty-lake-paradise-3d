@@ -235,7 +235,7 @@ export async function shareCard(info, engine) {
   const gm = info.game;
   spaced(g, gm.card, CARD_W / 2, 975, `72px ${SERIF}`, '#efebe2', 14);
   spaced(g, gm.en, CARD_W / 2, 1032, `italic 28px Georgia, "Times New Roman", serif`, '#b9b4a8', 2);
-  spaced(g, chapterName(info.chapter), CARD_W / 2, 1150, `58px ${SERIF}`, '#e8d9a8', 8);
+  spaced(g, chapterName(info.chapter).replace(' · ', '·'), CARD_W / 2, 1150, `58px ${SERIF}`, '#e8d9a8', 8);   // 字间距已经够宽，去掉点两边的空格
   const ach = achLine(info).replace('，', '　·　');
   if (ach) spaced(g, ach, CARD_W / 2, 1232, `34px ${SANS}`, '#b9b4a8', 1);
   spaced(g, `${dateText()}　·　小红书小工具「${gm.name}」`, CARD_W / 2, 1352, `26px ${SANS}`, '#8f8a80', 1);
