@@ -28,6 +28,10 @@
 | cartoon+goat | 山羊（第一灾；已删木盆） | goat | goat_export.py |
 | cow | 牛（第五灾） | cow | cow_export.py |
 | anthropomorphic+fly | 苍蝇人（第四灾） | fly | fly_export.py |
+| cartoon musician 3d model | 第八灾门外乐手 I（胖子、灰色礼帽，抱曼陀林；头骨顶 1.84） | musician_fat | p8_export.py |
+| mandolin 3d model | 乐手 II（年轻人、棕帽插羽毛；1.78） | musician_feather | p8_export.py |
+| mandolin playing man 3d model | 乐手 III（白发、八字胡、不戴帽子、左手拨弦；1.88） | musician_old | p8_export.py |
+| praying mantis 3d model | 第八灾巨型螳螂（眼睛离地 4.55 m） | mantis | p8_export.py |
 
 ## 步骤
 
@@ -41,6 +45,7 @@ W=<临时目录>
 "$B" -b -P goat_export.py -- $W/lo $W/out
 "$B" -b -P cow_export.py  -- $W/lo $W/out
 "$B" -b -P fly_export.py  -- $W/lo $W/out
+"$B" -b -P p8_export.py  -- $W/lo $W/out        # 第八灾三个乐手 + 螳螂（retopo 的名字：cartoon_musician mandolin mandolin_playing_man praying_mantis）
 # 3) 贴图 PNG → JPEG（q86），和 .rlpm 一起复制到 src/art/models/（<key>.jpg 对应 <name>_bake.png）
 ```
 

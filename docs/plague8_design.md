@@ -114,15 +114,16 @@
 
 | 人物 | id | 用什么 | 姿势 |
 | --- | --- | --- | --- |
-| I 胖乐手（八字胡、礼帽） | `musician_fat` | 网格 `gerard` | 站，抱曼陀林（右手拨弦的前臂每帧小幅摆动） |
-| II 年轻乐手（帽子插羽毛） | `musician_feather` | 网格 `david` + 头骨骼上挂两根羽毛 | 同上 |
-| III 白发乐手（两撇细胡子） | `musician_old` | 网格 `nicholas` | 同上 |
+| I 胖乐手（八字胡、山羊胡、灰色礼帽） | `musician_fat` | 2026-11-05 起是用户给的抱琴网格 `musician_fat`（`musician_model.js`）；没有模型时回落网格 `gerard` + 章节挂的曼陀林 | 站，抱曼陀林：身体跟着拍子左右晃、点头，拨弦的前臂上下拨 |
+| II 年轻乐手（棕帽插羽毛） | `musician_feather` | 抱琴网格 `musician_feather`（羽毛在模型上）；回落网格 `david` + 头骨骼上挂两根羽毛 | 同上 |
+| III 白发乐手（两撇细胡子，左手拨弦） | `musician_old` | 抱琴网格 `musician_old`；回落网格 `nicholas` | 同上 |
 | 红发女人（白眼，拿到羊眼睛后变金色） | `seer` | 网格 `ida`：眼珠上盖两片白色圆片，`sight_on` 后变金色（位置 `world.js` 的 `IDA_EYES`，射线量的） | 站 |
 | 黑影人（白眼） | `shadow` | 网格 `soul`（2026-11-03 起，全黑长袍 + 白眼睛；没有模型时回落程序化“灵魂”） | 站 |
 | 老奶奶（船上） | `margaret` | 网格 `margaret`；吹号角时号角挂在头骨骼上贴着嘴（`grandmaHorn`），右手扶着 | 坐 |
 | 回忆：少年 Jakob、母亲 Caroline | `jakob_child`、`mother` | 网格 `jakob_child`、程序化 Caroline（婴儿藏起来） | 坐 |
 
-Nicholas 的模型有八字胡，木盒里 III 的属性随之改成 `[0,1,1,0]`（见上面谜题 1）。`cast_mock.js` 里第八灾的占位外观（`skin` / `eyes` / `fat` / `thin` / `feather` / `longHair`）没删，但现在用不到：模型没加载时回退的是程序化人物，不是占位人物。
+Nicholas 的模型有八字胡，木盒里 III 的属性随之改成 `[0,1,1,0]`（见上面谜题 1）；2026-11-05 换上的三个抱琴乐手（胖子戴礼帽有胡子、年轻人戴羽毛帽没胡子、白发老人没帽子有胡子）和这套属性一致，木盒不用改。
+巨型螳螂 2026-11-05 起也换成用户给的网格模型 `mantis`（`src/art/mantis_model.js`：眼睛离地约 4.55 m，连触角约 5 m；四条步足、前胸、头、一对捕捉足各有关节，走路摆腿、出手时前胸连头往前下方扑、捕捉足甩出去），接口和程序化螳螂一样（`walkTo / face / strike / rest`），没有模型时回落 `props_p8.js` 里的程序化螳螂。`cast_mock.js` 里第八灾的占位外观（`skin` / `eyes` / `fat` / `thin` / `feather` / `longHair`）没删，但现在用不到：模型没加载时回退的是程序化人物，不是占位人物。
 ## 文件分工
 
 逻辑 `src/chapters/plague8/`（`index / items / text / hints / rules / world / puzzles.js`），道具 `src/art/props_p8.js`（`p8_` 前缀：斧子、铲子、蛾子、羊眼睛、萤火虫、钥匙、号角、木板、曼陀林、乐谱架、木盒、蝗虫树、蚱蜢、卵鞘、巨型螳螂、猫头鹰树、灯和蛾群、刻眼睛的树、羊骨、箱子、地上的圈、小船、白墙、画），音效 `src/core/audio.js`（`locust_1…5`、`mantis`、`fog_horn`、`owl`、`mandolin`），测试 `dev/plague8/test_plague8.mjs`、`test_plague8_browser.py`，注册 `src/chapters/index.js`（`requires` 第一到第七灾，`wip: true`），`build.py` 打包副本里把第八灾 `load` 置空。

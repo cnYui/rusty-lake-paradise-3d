@@ -41,7 +41,7 @@ export const CHAPTER_MODELS = {
   plague5: ['gerard', 'nicholas', 'margaret', 'cow'],
   plague6: ['gerard', 'margaret', 'jakob_child', 'deer', 'doctor'],   // doctor：天堂门里走出来的瘟疫医生
   plague7: ['gerard', 'ida', 'jakob_child', 'deer'],
-  plague8: ['goat', 'gerard', 'david', 'nicholas', 'ida', 'margaret', 'jakob_child', 'soul'],   // 山羊 + 三个乐手、红发女人 Ida、船上的奶奶、回忆里的少年 Jakob、雾里的黑影
+  plague8: ['goat', 'musician_fat', 'musician_feather', 'musician_old', 'mantis', 'ida', 'margaret', 'jakob_child', 'soul'],   // 山羊 + 三个抱琴的乐手、巨型螳螂、红发女人 Ida、船上的奶奶、回忆里的少年 Jakob、雾里的黑影
   plague9: ['gerard', 'david', 'ida', 'margaret', 'nicholas'],   // 篝火边的五个人
   plague10: ['gerard', 'david', 'ida', 'margaret', 'nicholas', 'boar', 'rabbit', 'pigeon', 'deer', 'pheasant', 'soul', 'elizabeth_owl'],   // 五个家人 + 戴上面具以后的动物头模型 + 黑影、鹰室里的 Elizabeth
 };

@@ -8,6 +8,7 @@ import { makeCharacter } from './characters.js';
 import { gerardBody, davidBody, nicholasBody, margaretBody, armsDown, seatedPose, mergePose, STOOP } from './cast.js';
 import { lifeIdle } from './human.js';
 import { getModel, removableHat } from './rlpm.js';
+import { buildMusicianModel } from './musician_model.js';
 
 const SKIN = '#e7d3bf';
 
@@ -189,9 +190,10 @@ const REAL = {
   // setHat(false) 时不画帽子、补一顶头发；没有模型时是程序化 Gerard，章节照旧用 showTag('hat', …)
   gerard_p7: () => removableHat(withIdle(gerardBody('gerard_p7')), 'gerard'),
   // 第八灾：门外三个乐手 I / II / III 是 Gerard、David、Nicholas；木屋里的红发白眼女人是 Ida；雾里的黑影是“灵魂”
-  musician_fat: () => withIdle(gerardBody('gerard_p8')),
-  musician_feather: () => feathered(withIdle(davidBody('david_p8'))),
-  musician_old: () => withIdle(nicholasBody('nicholas_p8').rig),
+  // 乐手 2026-11-05 起用自己抱着曼陀林的网格模型（musician_model.js）；没有模型时回落到程序化 / 网格 Gerard、David、Nicholas，琴由章节的 holdMandolin 挂上
+  musician_fat: () => buildMusicianModel('musician_fat') || withIdle(gerardBody('gerard_p8')),
+  musician_feather: () => buildMusicianModel('musician_feather') || feathered(withIdle(davidBody('david_p8'))),
+  musician_old: () => buildMusicianModel('musician_old') || withIdle(nicholasBody('nicholas_p8').rig),
   seer: ida,
   mother: caroline,
   shadow: () => makeCharacter('soul'),   // 网格黑影（soul.rlpm），没有模型时是程序化黑影
@@ -266,6 +268,6 @@ export function makePerson(id) {
   const make = REAL[id];
   const rig = make ? make() : null;
   if (!rig) return makeMockPerson(id);
-  return adapt(rig, id);
+  return rig.adapted ? rig : adapt(rig, id);   // 抱琴的乐手模型自带接口（见 musician_model.js）
 }
 

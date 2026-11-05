@@ -39,7 +39,7 @@ export const MANTIS = {
   boat: { from: [15.0, -43.5], strike: [20.0, -42.4], water: true },
 };
 export const mantisPos = ([x, z], water = false) => (water ? [x, LAKE_Y, z] : at(x, z));
-const MUSICIANS_MOCK = ['musician_fat', 'musician_feather', 'musician_old'];   // I / II / III：Gerard、David、Nicholas（网格模型）
+const MUSICIANS_MOCK = ['musician_fat', 'musician_feather', 'musician_old'];   // I / II / III：Gerard、David、Nicholas（抱着曼陀林的网格模型）
 
 // 屋里的布置（相对 house_int 原点；后墙 z = -1.6，前墙门洞 z = 3.0）
 export const ROOM = { seer: [0.9, -0.75], wall: [-0.6, 1.55, -1.585], shovel: [-1.9, -1.42] };
@@ -196,7 +196,7 @@ export async function setup(ctx) {
   ctx.views.addRoamGate((x, z) => !ctx.flag('gate_open') && z < PALISADE.z + 0.6);
   W.musicianRigs = MUSICIANS_MOCK.map((id, i) => {
     const rig = person(ctx, `musician${i}`, id, ext, at(...SPOT.musicians[i]), 0.12 - i * 0.12);
-    holdMandolin(rig, i);
+    if (!rig.holdsLute) holdMandolin(rig, i);   // 网格乐手自己抱着琴（musician_model.js），没有模型时才挂程序化的琴
     return rig;
   });
   place(ctx, 'score', 'p8_score', ext, at(...SPOT.score), { rotY: 0.15 });
