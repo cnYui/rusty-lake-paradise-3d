@@ -9,6 +9,7 @@ import { gerardBody, davidBody, nicholasBody, margaretBody, armsDown, seatedPose
 import { lifeIdle } from './human.js';
 import { getModel, removableHat } from './rlpm.js';
 import { buildMusicianModel } from './musician_model.js';
+import { PATIENT_BACK_Y } from './p6_patient_surface.js';
 
 const SKIN = '#e7d3bf';
 
@@ -178,7 +179,7 @@ const REAL = {
   // 第六灾：病人 Gerard、凳子上的奶奶、回忆里的鹿头人和少年 Jakob（第八灾小船上的奶奶、回忆里的少年 Jakob 同样用这几个）
   // 瘟疫医生：有网格模型（doctor.rlpm：黑礼帽、乌鸦嘴面具、斗篷长袍）就用它，没有就回落到占位人物（返回 null）
   plague_doctor: () => (getModel('doctor') ? makeCharacter('plague_doctor') : null),
-  gerard_patient: () => withIdle(gerardBody('gerard_p6')),
+  gerard_patient: () => makeCharacter('gerard_patient'),
   margaret: () => withIdle(margaretBody('margaret_seated', { seat: SEAT }), { seated: true }),
   nicholas_deer: deer,
   jakob_child: () => makeCharacter('jakob_child'),
@@ -232,6 +233,12 @@ function addPoses(rig, id, stand) {
   const sit = rig.solve(sitLegs, { L: { pos: [0.12, lap, 0.24], pole: [1, -0.4, -0.5] }, R: { pos: [-0.12, lap, 0.24], pole: [-1, -0.4, -0.5] } });
   // 躺（脸朝上、头朝 -Z）：整个人绕髋关节转 90°，脚底留在 root 原点，背贴着 root 的 y = 0（床面）
   const lie = mergePose(stand, { body: [-Math.PI / 2, 0, 0], 'body.p': [0, 0.13 - D.hipY, -D.hipY] });
+  if (id === 'gerard_patient') Object.assign(lie, armsDown(rig, { spread: 0.075, bend: 0.025 }), {
+    'body.p': [0, PATIENT_BACK_Y - D.hipY, -D.hipY], armL: [0, 0, 0.09], armR: [0, 0, -0.09],
+    // 后脑由枕头托住；手掌朝内，手背轻靠床面，避免双臂悬空。
+    'head.p': [0, 0, 0.045], 'armL.p': [0, 0, -0.036], 'armR.p': [0, 0, -0.036],
+    handL: [0, -0.12, 0.02], handR: [0, 0.12, -0.02],
+  });
   // 跪：大腿竖直、小腿平放在地上，双手在胸前合拢
   const kneelLegs = mergePose(stand, {
     'body.p': [0, D.thigh + 0.06 - D.hipY, -0.02], torso: [0.12, 0, 0], head: [0.1, 0, 0],

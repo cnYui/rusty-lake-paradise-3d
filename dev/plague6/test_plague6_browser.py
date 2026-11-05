@@ -123,7 +123,8 @@ def checkpoint(page, kind):
         assert page.evaluate(w + '.holder.userData.state.lowered') == 0.8
         assert page.evaluate(w + '.font.userData.state.lit')
         assert page.evaluate(w + '.painting.userData.state.framed') == 1
-        assert page.evaluate(w + '.chest.userData.clockHeart.visible')
+        assert page.evaluate(w + '.chest.getObjectByName("chest_stitches").visible')
+        assert not page.evaluate(w + '.chest.userData.clockHeart.visible')
 
 
 def run():

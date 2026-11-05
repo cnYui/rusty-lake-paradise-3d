@@ -241,7 +241,7 @@
 | 章 | 人物 | id | 用什么 | 姿势 |
 | --- | --- | --- | --- | --- |
 | 六 | 瘟疫医生（门里只露面具和手；白桦林里全身，手持法杖） | `plague_doctor` | 网格 `doctor`（2026-11-03 起；黑礼帽、乌鸦嘴面具、斗篷长袍，左手抬起握法杖；没有模型时回落占位人物） | 站 |
-| 六 | Gerard（病人） | `gerard_patient` | 网格 `gerard` | 躺（绕髋关节转 90°，胸口模型挂在 root 上） |
+| 六 | Gerard（病人） | `gerard_patient` | `cast.js` 的 `buildGerardPatient` 直接程序化建模：1.84 m，全身统一暖灰肤色 `#cec3b6`，连续宽肩裸胸、圆肚腩和肚脐、粗壮裸臂与粗短颈；Gerard 长鼻、八字胡 / 尖山羊胡、重眼圈、红棕后脑发、浅灰软布便帽 `#b9b5ac`；暗红长裤 `#7d2f2b` 和光脚由病床红布从腰以下覆盖，布边垂过床沿 | 背厚偏移统一用 `PATIENT_BACK_Y`，后脑由低枕承托，双臂自然放身侧、手掌朝内且手指并拢；无 idle。喝药前闭眼、`medicine_given` 后黄眼白 / 小瞳孔半睁眼，BOAR 对话时 `play('talk')`；胸口谜题与身体共用 `p6_patient_surface.js` 曲面，疹子在上胸、切口在左胸（俯视右侧），切开挖去身体三角形、缝合还原皮肤，仅露缝线且发条心藏在体内；热点 / userData 不变 |
 | 六 | Margaret（奶奶） | `margaret` | 网格 `margaret` | 坐（凳面 0.45 m，微驼背，手搭在大腿上） |
 | 六 | 鹿头人 Nicholas、少年 Jakob（回忆） | `nicholas_deer`、`jakob_child` | 网格 `deer`、`jakob_child` | 站；交出病心后鹿头人把心举到 Jakob 头顶 |
 | 七 | 滑冰的红发女人 Ida | `ida` | 网格 `ida` | 站 |
