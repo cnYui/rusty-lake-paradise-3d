@@ -17,12 +17,15 @@ const warned = new Set();
 /** 角色 id → 模型 key（没有模型的角色返回 null，继续用程序化建模）。 */
 const KEYS = [['jakob_child', 'jakob_child'], ['david', 'david'], ['gerard', 'gerard'], ['nicholas', 'nicholas'], ['margaret', 'margaret'], ['ida', 'ida']];
 // 动物头人物：模型自带动物头和衣服，对应记忆里戴面具的四个人；不再戴程序化面具
-const MASKED = { david_rabbit: 'rabbit', gerard_boar: 'boar', margaret_pigeon: 'pigeon', nicholas_deer: 'deer' };
+const MASKED = { david_rabbit: 'rabbit', gerard_boar: 'boar', margaret_pigeon: 'pigeon', nicholas_deer: 'deer', ida_pheasant: 'pheasant', elizabeth_owl: 'elizabeth_owl' };   // pheasant：戴野鸡面具、棕色泡泡袖裙（第十灾的 Ida）；elizabeth_owl：第十灾鹰室里戴猫头鹰面具的 Elizabeth
+// 其他单独成模的人物（2026-11-03 第二批）：第六灾瘟疫医生、第一 / 八 / 十灾的黑影（灵魂）
+const OWN = { plague_doctor: 'doctor', soul: 'soul' };
 // 这几个变体和成年模型对不上（换了衣服 / 年龄 / 去掉了帽子胡子，或者要从头部网格里拆耳朵 / 换发型），继续用程序化人物
 // gerard_p7：第七灾玩家要拿走他的帽子，网格 Gerard 的帽子长在头部网格上摘不下来
 const PROCEDURAL = new Set(['gerard_young', 'ida_child', 'nicholas_stand', 'gerard_barber', 'gerard_p7']);
 export function modelKeyFor(id) {
   if (MASKED[id]) return MASKED[id];
+  if (OWN[id]) return OWN[id];
   if (PROCEDURAL.has(id)) return null;
   for (const [prefix, key] of KEYS) if (id === prefix || id.startsWith(prefix + '_')) return key;
   return null;
@@ -31,16 +34,16 @@ const MASKED_KEYS = new Set(Object.values(MASKED));
 
 /** 每章要用到的模型（章节启动前预加载）。 */
 export const CHAPTER_MODELS = {
-  plague1: ['nicholas', 'margaret', 'goat', 'boar', 'rabbit', 'pigeon', 'deer'],     // 后四个：记忆里戴动物头的家人
+  plague1: ['nicholas', 'margaret', 'goat', 'boar', 'rabbit', 'pigeon', 'deer', 'soul'],     // boar 到 deer：记忆里戴动物头的家人；soul：黑影
   plague2: ['david', 'gerard', 'nicholas', 'margaret', 'ida'],
   plague3: ['david', 'gerard', 'nicholas', 'margaret', 'ida', 'jakob_child'],
   plague4: ['nicholas', 'gerard', 'margaret', 'jakob_child', 'fly'],
   plague5: ['gerard', 'nicholas', 'margaret', 'cow'],
-  plague6: ['gerard', 'margaret', 'jakob_child', 'deer'],
+  plague6: ['gerard', 'margaret', 'jakob_child', 'deer', 'doctor'],   // doctor：天堂门里走出来的瘟疫医生
   plague7: ['gerard', 'ida', 'jakob_child', 'deer'],
-  plague8: ['goat', 'gerard', 'david', 'nicholas', 'ida', 'margaret', 'jakob_child'],   // 山羊 + 三个乐手、红发女人 Ida、船上的奶奶、回忆里的少年 Jakob
+  plague8: ['goat', 'gerard', 'david', 'nicholas', 'ida', 'margaret', 'jakob_child', 'soul'],   // 山羊 + 三个乐手、红发女人 Ida、船上的奶奶、回忆里的少年 Jakob、雾里的黑影
   plague9: ['gerard', 'david', 'ida', 'margaret', 'nicholas'],   // 篝火边的五个人
-  plague10: ['gerard', 'david', 'ida', 'margaret', 'nicholas', 'boar', 'rabbit', 'pigeon', 'deer'],   // 五个家人 + 戴上面具以后的动物头模型
+  plague10: ['gerard', 'david', 'ida', 'margaret', 'nicholas', 'boar', 'rabbit', 'pigeon', 'deer', 'pheasant', 'soul', 'elizabeth_owl'],   // 五个家人 + 戴上面具以后的动物头模型 + 黑影、鹰室里的 Elizabeth
 };
 
 function parse(buf) {

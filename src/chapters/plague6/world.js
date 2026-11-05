@@ -162,6 +162,7 @@ export async function setup(ctx) {
   }
   const doc = person(ctx, 'doctor', 'plague_doctor', ext, at(18, 2.2));
   const pivot = new THREE.Group(); pivot.name = 'doctor_staff_pivot'; pivot.position.set(0.27, 1.12, 0.14); doc.root.add(pivot);
+  if (!doc.placeholder) doc.reach('L', [0.27, 1.12, 0.16]);     // 网格医生的手垂在身侧：抬起左手（画面右边那只）去握法杖
   const heldStaff = makeProp('p6_staff'); heldStaff.position.y = -0.8; pivot.add(heldStaff);
   W.staffPivot = pivot; pointStaff(0.6);
 

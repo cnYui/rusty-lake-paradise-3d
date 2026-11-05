@@ -35,6 +35,20 @@ CFG = {
         shoulder=(0.10, 0.71), elbow=(0.22, 0.83), wrist=(0.33, 0.93), tip=(0.39, 0.98), knee=(0.06, 0.27), ankle=(0.26, 0.05), dress=True, foot=(0.11, 0.08)),
     'deer_humanoid': dict(key='deer', H=1.88, top=0.80, chin=0.545, neck=0.52, waist=0.40, hip=(0.06, 0.365),
         shoulder=(0.09, 0.515), elbow=(0.24, 0.52), wrist=(0.34, 0.525), tip=(0.405, 0.53), knee=(0.175, 0.2125), ankle=(0.29, 0.06), footFollowsLeg=True),
+    # 戴野鸡面具、棕色泡泡袖裙子（第十灾戴上面具的 Ida；第一灾回忆里的 Elizabeth 也是这身）。Tripo 低面版，导入时转了 -90°。
+    # top 取面具里头骨顶的估计（面具顶在 0.995），chin = 面具下沿；腿在裙子里，露出的长袜 + 鞋（0.12 T 以下）整块跟脚走
+    'owl_headed_character': dict(key='pheasant', H=1.58, top=0.97, chin=0.80, neck=0.775, waist=0.60, hip=(0.06, 0.45),
+        shoulder=(0.105, 0.795), elbow=(0.262, 0.827), wrist=(0.385, 0.89), tip=(0.475, 0.945), knee=(0.06, 0.25), ankle=(0.37, 0.045), dress=True, foot=(0.12, 0.12)),
+    # ---- 2026-11-03 第二批（Tripo 低面版，导入时转了 -90°）
+    # 瘟疫医生（第六灾）：黑礼帽 + 乌鸦嘴面具 + 斗篷长袍。top = 帽子下的头骨顶（帽顶在 1.0）；长袍盖住腿，按裙装处理
+    'plague_doctor': dict(key='doctor', H=1.84, top=0.915, chin=0.775, neck=0.745, waist=0.58, hip=(0.06, 0.47),
+        shoulder=(0.115, 0.715), elbow=(0.27, 0.70), wrist=(0.395, 0.69), tip=(0.485, 0.685), knee=(0.06, 0.25), ankle=(0.065, 0.045), dress=True, foot=(0.09, 0.06)),
+    # 黑影 / 灵魂（第一、八、十灾）：全黑长袍的高个子，白眼睛、毛茸茸的边缘。身体是一整根锥形长袍，没有分开的腿
+    'tall_silhouette': dict(key='soul', H=1.97, top=0.995, chin=0.84, neck=0.795, waist=0.62, hip=(0.05, 0.50),
+        shoulder=(0.10, 0.755), elbow=(0.255, 0.753), wrist=(0.39, 0.752), tip=(0.495, 0.745), knee=(0.05, 0.25), ankle=(0.05, 0.03), dress=True, foot=(0.12, 0.03)),
+    # 戴猫头鹰面具的 Elizabeth（第十灾鹰室）：黑长发、浅蓝袖、棕色围裙连衣裙；top 取面具里头骨顶（耳羽到 1.0）
+    'owl_mask_character': dict(key='elizabeth_owl', H=1.31, top=0.97, chin=0.80, neck=0.775, waist=0.60, hip=(0.055, 0.46),
+        shoulder=(0.10, 0.74), elbow=(0.215, 0.735), wrist=(0.31, 0.733), tip=(0.42, 0.732), knee=(0.055, 0.25), ankle=(0.05, 0.04), dress=True, foot=(0.09, 0.08)),
 }
 _ov = os.path.join(OUT, 'cfg_override.json')
 if os.path.exists(_ov):

@@ -118,7 +118,7 @@
 | II 年轻乐手（帽子插羽毛） | `musician_feather` | 网格 `david` + 头骨骼上挂两根羽毛 | 同上 |
 | III 白发乐手（两撇细胡子） | `musician_old` | 网格 `nicholas` | 同上 |
 | 红发女人（白眼，拿到羊眼睛后变金色） | `seer` | 网格 `ida`：眼珠上盖两片白色圆片，`sight_on` 后变金色（位置 `world.js` 的 `IDA_EYES`，射线量的） | 站 |
-| 黑影人（白眼） | `shadow` | 程序化“灵魂”（游戏里原有的黑色毛边人影） | 站 |
+| 黑影人（白眼） | `shadow` | 网格 `soul`（2026-11-03 起，全黑长袍 + 白眼睛；没有模型时回落程序化“灵魂”） | 站 |
 | 老奶奶（船上） | `margaret` | 网格 `margaret`；吹号角时号角挂在头骨骼上贴着嘴（`grandmaHorn`），右手扶着 | 坐 |
 | 回忆：少年 Jakob、母亲 Caroline | `jakob_child`、`mother` | 网格 `jakob_child`、程序化 Caroline（婴儿藏起来） | 坐 |
 

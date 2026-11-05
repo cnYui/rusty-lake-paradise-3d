@@ -52,6 +52,16 @@ function fur() {
   for (let i = 0; i < 5; i++) cone(r, 'fur_tuft', 0.012, 0.05, '#b58424', [(i - 2) * 0.022, 0.06, 0]);
   return r;
 }
+/** 冰中青年戴的松鼠毛帽：单位大小（半径 1 的半球 + 一圈毛边 + 顶上几撮毛），章节按头的大小缩放后挂在头骨骼上。 */
+function furCap() {
+  const r = group('p7_fur_cap');
+  const dome = add(r, new THREE.Mesh(new THREE.SphereGeometry(1, 20, 10, 0, 2 * PI, 0, PI * 0.52), toon('#b58429', FINE)), 'cap_dome', [0, 0, 0]);
+  dome.scale.y = 0.85;
+  const rim = add(r, new THREE.Mesh(new THREE.TorusGeometry(0.96, 0.14, 8, 28), toon('#cf9c3e', FINE)), 'cap_rim', [0, 0.02, 0]);
+  rim.rotation.x = PI / 2;
+  for (let i = 0; i < 9; i++) { const a = i * 0.7 + 0.2, rr = 0.15 + (i % 3) * 0.14; cone(r, 'cap_tuft', 0.09, 0.24, '#c79535', [Math.cos(a) * rr, 0.8, Math.sin(a) * rr]); }
+  return r;
+}
 function horn() {
   const r = group('p7_horn');
   const pts = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.06, 0.08, 0), new THREE.Vector3(0.05, 0.2, 0)];
@@ -388,16 +398,73 @@ function woodpile() {
   r.setStake = (on) => { st.visible = !!on; };
   return r;
 }
+/** 冰块的外形：带点歪的长方块，顶部收窄、边角被削掉，法线按面平铺（一块一块的冰面）。 */
+function iceBlockGeo(w, h, d) {
+  const g = new THREE.BoxGeometry(w, h, d, 2, 4, 2);
+  const pos = g.attributes.position;
+  const hash = (a, b, c) => { const v = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453; return v - Math.floor(v); };
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const k = y / h + 0.5;                                    // 0 底 … 1 顶
+    const taper = 1 - 0.2 * k * k;
+    const j = (s) => (hash(Math.round(x * 50) + s, Math.round(y * 50), Math.round(z * 50)) - 0.5);
+    pos.setXYZ(i, x * taper + j(1) * 0.1, y + (k > 0.8 ? j(2) * 0.28 : j(2) * 0.05), z * taper + j(3) * 0.1);
+  }
+  const flatGeo = g.toNonIndexed();
+  flatGeo.computeVertexNormals();
+  return flatGeo;
+}
+/** 冰里的白霜：划痕、气泡和云雾（带透明度，叠在冰面里面）。 */
+function iceFrostTex() {
+  return tex(256, 256, (g, w, h) => {
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 5; i++) {
+      const x = rnd() * w, y = rnd() * h, r = 40 + rnd() * 50, gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, 'rgba(255,255,255,0.34)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    }
+    g.lineCap = 'round';
+    for (let i = 0; i < 46; i++) {
+      const x = rnd() * w, y = rnd() * h, len = 10 + rnd() * 42, a = -1.2 + rnd() * 0.5 + (i % 3 ? 0 : 1.6);
+      g.strokeStyle = `rgba(255,255,255,${0.25 + rnd() * 0.4})`; g.lineWidth = 0.8 + rnd() * 1.6;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); g.stroke();
+    }
+    for (let i = 0; i < 26; i++) {
+      const x = rnd() * w, y = rnd() * h, r = 1.2 + rnd() * 4;
+      g.strokeStyle = `rgba(255,255,255,${0.35 + rnd() * 0.4})`; g.lineWidth = 1; g.beginPath(); g.arc(x, y, r, 0, 2 * PI); g.stroke();
+    }
+  });
+}
 function iceBlock() {
   const r = group('p7_iceblock');
   const shell = group('ice_shell'); r.add(shell);
-  const geo = new THREE.CylinderGeometry(0.55, 0.75, 2.4, 7, 3);
-  const pos = geo.attributes.position; for (let i = 0; i < pos.count; i++) { const y = pos.getY(i); pos.setX(i, pos.getX(i) * (1 + Math.sin(i * 2.1) * 0.08)); if (y > 1.1) pos.setY(i, y + Math.sin(i * 3.7) * 0.25); }
-  geo.computeVertexNormals();
-  add(shell, new THREE.Mesh(geo, ICE({ opacity: 0.45 })), 'ice_body', [0, 1.2, 0]);
+  const geo = iceBlockGeo(1.25, 2.25, 1.0);
+  // 背面一层：人身后的冰（被人挡住的地方看不到），让冰块有厚度
+  const back = add(shell, new THREE.Mesh(geo, toon('#8fc4dc', { transparent: true, opacity: 0.3, outline: false, depthWrite: false, side: THREE.BackSide })), 'ice_back', [0, 1.1, 0]);
+  back.renderOrder = 1;
+  const body = add(shell, new THREE.Mesh(geo, toon('#a6d3e8', { transparent: true, opacity: 0.5, outline: false, depthWrite: false })), 'ice_body', [0, 1.1, 0]);
+  body.renderOrder = 2;
+  // 里层的霜：略微缩小的同形状，贴白霜贴图（不挡里面的人，透明度低）
+  const frostMat = unlit('#ffffff', { map: iceFrostTex(), transparent: true, opacity: 0.55, depthWrite: false });
+  const frost = add(shell, new THREE.Mesh(geo, frostMat), 'ice_frost', [0, 1.1, 0]); frost.scale.setScalar(0.985); frost.renderOrder = 3;
+  // 棱线：边缘亮一圈，冰块的轮廓才清楚
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 28), new THREE.LineBasicMaterial({ color: '#eefaff', transparent: true, opacity: 0.85, depthWrite: false }));
+  edges.name = 'ice_edges'; edges.position.y = 1.1; edges.renderOrder = 4; edges.material.userData.outlineParameters = { visible: false }; shell.add(edges);
+  // 脚下一圈被冻住的积雪和冰碴
+  for (let i = 0; i < 9; i++) {
+    const a = i * 0.7 + 0.3, rr = 0.62 + (i % 3) * 0.08;
+    const c = box(shell, 'ice_foot', [0.22 + (i % 2) * 0.12, 0.1, 0.18], '#dcecf2', [Math.cos(a) * rr, 0.04, Math.sin(a) * rr * 0.85], ICE({ opacity: 0.8 }));
+    c.rotation.set(0.2 * i, a, 0.15);
+  }
   const cracks = group('ice_cracks'); r.add(cracks);
-  for (let i = 0; i < 5; i++) { const c = box(cracks, 'ice_crack', [0.02, 0.5, 0.01], '#6d8a97', [-0.1 + i * 0.07, 1.0 + (i % 2) * 0.4, 0.72], unlit('#6d8a97')); c.rotation.z = (i % 2 ? 0.6 : -0.5); }
-  const st = stake(); st.position.set(0.05, 0.9, 0.7); st.rotation.x = -PI / 2.4; st.name = 'ice_stake'; r.add(st);
+  // 尖木头戳进冰块的左上角，裂纹从戳点向四周放射
+  const hit = [-0.38, 1.55];
+  for (let i = 0; i < 8; i++) {
+    const a = i * 0.8 + 0.2, len = 0.22 + (i % 3) * 0.1;
+    const c = box(cracks, 'ice_crack', [0.012, len, 0.008], '#eefaff', [hit[0] + Math.cos(a) * len * 0.5, hit[1] + Math.sin(a) * len * 0.5, 0.52], unlit('#eefaff'));
+    c.rotation.z = a - PI / 2;
+  }
+  const st = stake(); st.position.set(hit[0], hit[1], 0.62); st.rotation.x = -PI / 2.4; st.name = 'ice_stake'; r.add(st);
   const chunks = group('ice_chunks'); r.add(chunks);
   for (let i = 0; i < 6; i++) { const c = box(chunks, 'ice_chunk', [0.3, 0.2, 0.25], '#cfe6ee', [Math.cos(i) * 0.9, 0.1, Math.sin(i) * 0.7 + 0.2], ICE({ opacity: 0.7 })); c.rotation.set(i * 0.4, i, 0.2); }
   hitBox(r, 'ice_hit', [1.3, 2.4, 1.3], [0, 1.2, 0]);
@@ -425,7 +492,7 @@ const p7Painting = () => plaguePainting('p7_painting', {
 });
 
 export const FACTORIES = {
-  p7_scarf: scarf, p7_branches: branches, p7_hammer: hammer, p7_stones: stones, p7_pistachio: pistachio, p7_fur: fur,
+  p7_scarf: scarf, p7_branches: branches, p7_hammer: hammer, p7_stones: stones, p7_pistachio: pistachio, p7_fur: fur, p7_fur_cap: furCap,
   p7_horn: horn, p7_strawberry: strawberry, p7_ice_cream_strawberry: () => iceCream('strawberry'), p7_ice_cream_pistachio: () => iceCream('pistachio'),
   p7_hat: hat, p7_carrot: carrot, p7_stake: stake, p7_diamond: diamond, p7_crystal_ball: () => crystalBall(),
   p7_scarf_branch: scarfBranch, p7_vase: vase, p7_squirrel: squirrelTree, p7_icepool: icePool, p7_rink: rink, p7_snowman: snowman,
