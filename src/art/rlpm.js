@@ -6,7 +6,7 @@
 // 原模型是 T 字 / A 字姿势，所以每个关节带一份“绑定姿势”（世界位置 + 绕前向轴的转角），
 // 逆绑定矩阵直接由它算出：休息姿势下手臂自然垂下，之后 rig.pose / IK / 坐姿都照旧工作。
 import * as THREE from 'three';
-import { makeHuman } from './human.js';
+import { makeHuman, hairStrands } from './human.js';
 import { headDeform } from './charkit.js';
 
 const BASE = (() => { try { return new URL('./models/', import.meta.url).href; } catch (e) { return null; } })();
@@ -21,8 +21,8 @@ const MASKED = { david_rabbit: 'rabbit', gerard_boar: 'boar', margaret_pigeon: '
 // 其他单独成模的人物（2026-11-03 第二批）：第六灾瘟疫医生、第一 / 八 / 十灾的黑影（灵魂）
 const OWN = { plague_doctor: 'doctor', soul: 'soul' };
 // 这几个变体和成年模型对不上（换了衣服 / 年龄 / 去掉了帽子胡子，或者要从头部网格里拆耳朵 / 换发型），继续用程序化人物
-// gerard_p7：第七灾玩家要拿走他的帽子，网格 Gerard 的帽子长在头部网格上摘不下来
-const PROCEDURAL = new Set(['gerard_young', 'ida_child', 'nicholas_stand', 'gerard_barber', 'gerard_p7']);
+// （第七灾要摘帽子的 gerard_p7 2026-11-05 起改用网格 Gerard：帽子按贴图颜色从头部网格里拆出来，见文件末尾的 removableHat）
+const PROCEDURAL = new Set(['gerard_young', 'ida_child', 'nicholas_stand', 'gerard_barber']);
 export function modelKeyFor(id) {
   if (MASKED[id]) return MASKED[id];
   if (OWN[id]) return OWN[id];
@@ -211,4 +211,118 @@ function noseTipOf(m, rig) {
     if (!best || z > best.z) best = new THREE.Vector3(0, y, z);
   }
   return best || new THREE.Vector3(0, -ry * 0.2, rig.dims.headR[2]);
+}
+
+// ---------------------------------------------------------------------------
+// 摘帽子（第七灾 Gerard 把帽子送给玩家）：网格人物的帽子和头是同一块网格，没有单独的帽子部件。
+// 按贴图颜色把帽子的三角形拆出来：从帽顶（头骨骼上方 seedY 以上，全是帽子）开始，沿相邻三角形往下“长”，
+// 只经过灰色 / 墨线色的三角形，碰到棕色头发、浅色皮肤就停（帽檐、帽带都是灰的，头发和额头不会被带走）；
+// 低于 minY 的不再长，防止从帽檐的墨线顺着脸上的墨线长下去。摘帽 = 头部网格换成不含这些三角形的索引，
+// 再在原来帽子底下补一顶头发（椭球形发顶，按摘帽后剩下的头发 / 额头边缘拟合大小），把网格的空洞盖住。
+// ---------------------------------------------------------------------------
+
+/** 拆出帽子的三角形（每个模型算一次，缓存在模型上）。返回 { keep: 不含帽子的头部索引, fit: 发顶椭球 } 或 null。 */
+function splitHat(m, { seedY = 0.16, minY = -0.02, plane = [0.047, 0.2] } = {}) {
+  if (m.hatSplit !== undefined) return m.hatSplit;
+  m.hatSplit = null;
+  const img = m.texture && m.texture.image, H = m.headIndex;
+  if (!img || !H || typeof document === 'undefined') return null;
+  const S = 512, cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, S, S);
+  const px = g.getImageData(0, 0, S, S).data;
+  const P = m.position, UV = m.uv, hy = m.hdr.bind.head.p[1];
+  // 顶点颜色分类：0 皮肤 / 白（浅、不饱和），1 头发 / 眉毛 / 胡子（棕、饱和），2 帽子灰，3 墨线（很暗）
+  const cls = (v) => {
+    const x = Math.min(S - 1, Math.max(0, (UV[v * 2] * S) | 0)), y = Math.min(S - 1, Math.max(0, ((1 - UV[v * 2 + 1]) * S) | 0));
+    const i = (y * S + x) * 4, r = px[i] / 255, gg = px[i + 1] / 255, b = px[i + 2] / 255;
+    const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), sat = mx > 0 ? (mx - mn) / mx : 0;
+    if (mx <= 0.18) return 3;
+    if (sat > 0.28) return 1;
+    return mx > 0.7 ? 0 : 2;
+  };
+  const nt = H.length / 3, ty = new Float32Array(nt), tz = new Float32Array(nt), grey = new Uint8Array(nt);
+  const key = (v) => `${Math.round(P[v * 3] * 1e4)},${Math.round(P[v * 3 + 1] * 1e4)},${Math.round(P[v * 3 + 2] * 1e4)}`;
+  const v2t = new Map();
+  for (let t = 0; t < nt; t++) {
+    const n = [0, 0, 0, 0];
+    let y = 0;
+    for (let k = 0; k < 3; k++) {
+      const v = H[t * 3 + k];
+      n[cls(v)]++; y += P[v * 3 + 1] - hy;
+      const kk = key(v); let list = v2t.get(kk); if (!list) v2t.set(kk, (list = [])); list.push(t);
+    }
+    ty[t] = y / 3; tz[t] = (P[H[t * 3] * 3 + 2] + P[H[t * 3 + 1] * 3 + 2] + P[H[t * 3 + 2] * 3 + 2]) / 3;
+    const major = n.indexOf(Math.max(...n));
+    grey[t] = major === 2 || major === 3 ? 1 : 0;
+  }
+  const hat = new Uint8Array(nt), queue = [];
+  for (let t = 0; t < nt; t++) if (ty[t] > seedY) { hat[t] = 1; queue.push(t); }
+  if (!queue.length) return null;
+  for (let qi = 0; qi < queue.length; qi++) {
+    const t = queue[qi];
+    for (let k = 0; k < 3; k++) for (const u of v2t.get(key(H[t * 3 + k]))) {
+      if (hat[u] || !grey[u] || ty[u] <= minY) continue;
+      hat[u] = 1; queue.push(u);
+    }
+  }
+  // 帽子底下剩的头皮 / 额头边缘是锯齿状的：再用一个前高后低的斜面（发际线，y = plane[0] + plane[1]·z）把它切齐，
+  // 斜面以上的三角形一律不画（那里会被补上的头发盖住）。剪口附近（斜面下 1.5 cm 内）剩下的顶点拟合发顶的椭圆。
+  const [p0, k] = plane, keep = [];
+  const box = { x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity };
+  for (let t = 0; t < nt; t++) {
+    if (hat[t] || ty[t] > p0 + k * tz[t]) continue;
+    for (let j = 0; j < 3; j++) {
+      const v = H[t * 3 + j], z = P[v * 3 + 2], d = P[v * 3 + 1] - hy - (p0 + k * z);
+      keep.push(v);
+      if (d < -0.015) continue;
+      box.x0 = Math.min(box.x0, P[v * 3]); box.x1 = Math.max(box.x1, P[v * 3]);
+      box.z0 = Math.min(box.z0, z); box.z1 = Math.max(box.z1, z);
+    }
+  }
+  if (!Number.isFinite(box.x0)) return null;
+  m.hatSplit = { keep: new H.constructor(keep), cut: nt - keep.length / 3, box, plane };
+  return m.hatSplit;
+}
+
+/**
+ * 给网格人物加 setHat(on)：on = false 时帽子三角形不画，换成一顶头发（hair: 颜色 / 墨线 / 发顶高出拟合边缘多少）。
+ * 不是网格人物（没加载模型、?models=0）时什么都不做，调用方继续用 showTag('hat', …)。
+ */
+export function removableHat(rig, key, { color = '#8a5530', line = '#4e2d1c', crown = 0.085, seedY, minY, plane } = {}) {
+  const m = rig.isModel && getModel(key);
+  const head = m && (rig.tags.head || []).find((x) => x.isSkinnedMesh);
+  if (!head) return rig;
+  let hair = null, wearing = true;
+  const build = () => {
+    const split = splitHat(m, { seedY, minY, plane });
+    if (!split) return null;
+    const { box } = split, hb = m.hdr.bind.head.p, [p0, k] = split.plane;
+    const cx = (box.x0 + box.x1) / 2, cz = (box.z0 + box.z1) / 2;
+    const ax = (box.x1 - box.x0) / 2 + 0.006, az = ((box.z1 - box.z0) / 2) * Math.hypot(1, k) + 0.003;
+    // 发顶：半个椭球，赤道贴着斜切的剪口（跟发际线一样前高后低），往上 crown 米是头顶；
+    // 赤道下面多留一截向里收的裙边，塞进头部网格里堵住剪口的缝
+    const geo = new THREE.SphereGeometry(1, 40, 20, 0, Math.PI * 2, 0, Math.PI * 0.62);
+    geo.scale(ax, crown, az);
+    // 贴图从头顶往下平面投影：发丝从前额往后梳，侧面顺着往下，头顶不会出现球面贴图收成一点的“南瓜纹”
+    const pos = geo.attributes.position, uv = geo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) uv.setXY(i, 0.5 + pos.getX(i) / (ax * 2.2), 0.5 + pos.getZ(i) / (az * 2.2));
+    geo.rotateX(-Math.atan(k));
+    geo.translate(cx - hb[0], p0 + k * cz, cz - hb[2]);
+    const mat = rig.mats.toon('#ffffff', { map: hairStrands(color, line, 71), outline: 0.003 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.name = `${rig.id}:hair_under_hat`; mesh.castShadow = true;
+    rig.joints.head.add(mesh);
+    return { split, mesh };
+  };
+  rig.setHat = (on) => {
+    on = !!on;
+    if (on === wearing) return;
+    if (!on && !hair) hair = build();
+    if (!hair) return;      // 拆不出来（贴图没读到）就保持戴着
+    wearing = on;
+    head.geometry.setIndex(new THREE.BufferAttribute(on ? m.headIndex : hair.split.keep, 1));
+    hair.mesh.visible = !on;
+  };
+  return rig;
 }

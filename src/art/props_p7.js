@@ -83,11 +83,15 @@ function iceCream(flavour) {
   ball(r, 'scoop', 0.038, flavour === 'pistachio' ? '#9cc070' : '#efa8b4', [0, 0.14, 0], [1, 0.9, 1], FINE);
   return r;
 }
+// Gerard 送给玩家的帽子：和他头上（网格 Gerard）那顶一样的灰色圆顶礼帽，圆冠、卷边帽檐、深灰帽带
 function hat() {
   const r = group('p7_hat');
-  cyl(r, 'hat_brim', 0.16, 0.012, '#6b4a2e', [0, 0.006, 0], 24, FINE);
-  cyl(r, 'hat_crown', 0.095, 0.11, '#6b4a2e', [0, 0.06, 0], 20, FINE);
-  ring(r, 'hat_band', 0.096, 0.008, '#3b2a1c', [0, 0.03, 0], FINE).rotation.x = PI / 2;
+  const felt = '#948d82', dark = '#5d5750';
+  cyl(r, 'hat_brim', 0.155, 0.01, felt, [0, 0.005, 0], 32, FINE);
+  ring(r, 'hat_brim_roll', 0.15, 0.008, dark, [0, 0.011, 0], FINE).rotation.x = PI / 2;
+  cyl(r, 'hat_crown', 0.092, 0.07, felt, [0, 0.042, 0], 28, FINE);
+  ball(r, 'hat_crown_top', 0.092, felt, [0, 0.077, 0], [1, 0.6, 1], FINE);
+  ring(r, 'hat_band', 0.093, 0.009, dark, [0, 0.02, 0], FINE).rotation.x = PI / 2;
   return r;
 }
 function carrot() {

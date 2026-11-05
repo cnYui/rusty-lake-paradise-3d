@@ -7,7 +7,7 @@ import { toon } from './materials.js';
 import { makeCharacter } from './characters.js';
 import { gerardBody, davidBody, nicholasBody, margaretBody, armsDown, seatedPose, mergePose, STOOP } from './cast.js';
 import { lifeIdle } from './human.js';
-import { getModel } from './rlpm.js';
+import { getModel, removableHat } from './rlpm.js';
 
 const SKIN = '#e7d3bf';
 
@@ -181,11 +181,13 @@ const REAL = {
   margaret: () => withIdle(margaretBody('margaret_seated', { seat: SEAT }), { seated: true }),
   nicholas_deer: deer,
   jakob_child: () => makeCharacter('jakob_child'),
-  // 第七灾：滑冰的红发女人是 Ida，神殿里跪着求情的是母亲 Caroline；Gerard 的帽子要被拿走，用程序化 Gerard
+  // 第七灾：滑冰的红发女人是 Ida，神殿里跪着求情的是母亲 Caroline
   ida, caroline,
   // 冰中青年：David 的身材、光膀子短裤的程序化人物（cast.js 的 buildIceYouth），不需要网格模型
   ice_youth: () => makeCharacter('ice_youth'),
-  gerard_p7: () => withIdle(gerardBody('gerard_p7')),   // 程序化 Gerard（rlpm.js 的 PROCEDURAL）：帽子要能摘下来
+  // 第七灾 Gerard 要把帽子送给玩家：网格 Gerard 的帽子和头是一块网格，removableHat 按贴图颜色把帽子拆出来，
+  // setHat(false) 时不画帽子、补一顶头发；没有模型时是程序化 Gerard，章节照旧用 showTag('hat', …)
+  gerard_p7: () => removableHat(withIdle(gerardBody('gerard_p7')), 'gerard'),
   // 第八灾：门外三个乐手 I / II / III 是 Gerard、David、Nicholas；木屋里的红发白眼女人是 Ida；雾里的黑影是“灵魂”
   musician_fat: () => withIdle(gerardBody('gerard_p8')),
   musician_feather: () => feathered(withIdle(davidBody('david_p8'))),

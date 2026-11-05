@@ -245,7 +245,7 @@
 | 六 | Margaret（奶奶） | `margaret` | 网格 `margaret` | 坐（凳面 0.45 m，微驼背，手搭在大腿上） |
 | 六 | 鹿头人 Nicholas、少年 Jakob（回忆） | `nicholas_deer`、`jakob_child` | 网格 `deer`、`jakob_child` | 站；交出病心后鹿头人把心举到 Jakob 头顶 |
 | 七 | 滑冰的红发女人 Ida | `ida` | 网格 `ida` | 站 |
-| 七 | Gerard | `gerard_p7` | 程序化 Gerard（帽子要被拿走，网格 Gerard 的帽子长在头部网格上摘不下来） | 坐 |
+| 七 | Gerard | `gerard_p7` | 网格 `gerard`（2026-11-05 起；帽子送给玩家后 `rlpm.js` 的 `removableHat` 把帽子从头部网格里拆掉、补一顶姜棕色头发，送出的 `p7_hat` 也改成同样的灰色圆顶礼帽） | 坐 |
 | 七 | 冰中青年 | `ice_youth` | 程序化（`cast.js` 的 `buildIceYouth`，David 身材、光膀子短裤光脚、金发；2026-11-05 起，不用网格模型）；冰块是 `props_p7.js` 的 `iceBlock` | 站（双臂交叉抱胸；解冻后仍是这个姿势，戴上 `p7_fur_cap` 毛帽） |
 | 七 | 雪人变成的老妇人 | —（`props_p7` 里程序化的脸） | — | — |
 | 七 | 少年 Jakob（鸟笼）、鹿头人 | `jakob_child`、`nicholas_deer` | 网格 | 站；鹿头人举右手 |
