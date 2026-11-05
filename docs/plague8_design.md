@@ -114,7 +114,7 @@
 
 | 人物 | id | 用什么 | 姿势 |
 | --- | --- | --- | --- |
-| I 胖乐手（八字胡、山羊胡、灰色礼帽） | `musician_fat` | 2026-11-05 起是用户给的抱琴网格 `musician_fat`（`musician_model.js`）；没有模型时回落网格 `gerard` + 章节挂的曼陀林 | 站，抱曼陀林：身体跟着拍子左右晃、点头，拨弦的前臂上下拨 |
+| I 胖乐手（八字胡、山羊胡、灰色礼帽） | `musician_fat` | 2026-11-05 起是用户给的抱琴网格 `musician_fat`（`musician_model.js`；模型的小腿在地面截平、没有脚，`addFeet` 补一双光脚）；没有模型时回落网格 `gerard` + 章节挂的曼陀林 | 站，抱曼陀林：身体跟着拍子左右晃、点头，拨弦的前臂上下拨 |
 | II 年轻乐手（棕帽插羽毛） | `musician_feather` | 抱琴网格 `musician_feather`（羽毛在模型上）；回落网格 `david` + 头骨骼上挂两根羽毛 | 同上 |
 | III 白发乐手（两撇细胡子，左手拨弦） | `musician_old` | 抱琴网格 `musician_old`；回落网格 `nicholas` | 同上 |
 | 红发女人（白眼，拿到羊眼睛后变金色） | `seer` | 网格 `ida`：眼珠上盖两片白色圆片，`sight_on` 后变金色（位置 `world.js` 的 `IDA_EYES`，射线量的） | 站 |
