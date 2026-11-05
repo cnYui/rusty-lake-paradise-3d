@@ -23,6 +23,7 @@ import { preloadModels, CHAPTER_MODELS } from './art/rlpm.js';
 import { resumeChapter, nextChapter, liveSave, completeFlag } from './core/progress.js';
 import { initHints } from './core/hintflow.js';
 import { nextHint, isDone } from './core/hints.js';
+import { GAME, shareCaps, postClearNote, postClearComment } from './core/share.js';
 
 const q = new URLSearchParams(location.search);
 const AUTOTEST = q.get('autotest') === '1';
@@ -71,6 +72,29 @@ function scheduleSave() {
     state.save();
   };
   saveTimer = setTimeout(tick, 500);
+}
+
+// 通关分享（结尾卡的“发笔记 / 发评论”）用的数据：刚通关的这一章、它的成就拿了几个、开放的章节通关了几章
+function shareInfo() {
+  const cur = CHAPTERS.find((c) => chapter && c.id === chapter.id) || null;
+  const open = CHAPTERS.filter((c) => c.load && !c.wip);
+  const ids = cur && cur.achievements ? Object.keys(cur.achievements) : [];
+  const got = new Set(state.allAchievements());
+  return {
+    game: GAME,
+    chapter: cur ? { id: cur.id, number: cur.number, label: cur.label, title: cur.title } : { id: '', number: 0, label: { zh: '' }, title: { zh: '' } },
+    achGot: ids.filter((id) => got.has(id)).length,
+    achTotal: ids.length,
+    cleared: open.filter((c) => state.isCleared(c.id)).length,
+    total: open.length,
+  };
+}
+
+// 发评论时容器会先关掉小工具：先把存档写完（小红书包的存档层 storage_xhs.js 还要把队列交给原生，最多等 1.5 秒）
+async function saveBeforeLeave() {
+  state.save();
+  const store = window.__RLP_STORE;
+  if (store && typeof store.flush === 'function') await Promise.race([store.flush(), new Promise((r) => setTimeout(r, 1500))]);
 }
 
 // 章节的通关旗标一立起来就记进通关记录（解锁下一章靠它）
@@ -326,6 +350,15 @@ async function boot() {
   ui.on('next', ({ number }) => {
     const n = CHAPTERS.find((c) => c.number === number);
     switchChapter({ number, fresh: !(n && liveSave(n)) });
+  });
+  // 通关分享：只有小红书 App 的小工具容器里有（window.xhs.miniTool），网页版和口袋方舟包的结尾卡没有这一行
+  ui.setEndingShare(async () => {
+    const caps = await shareCaps();
+    if (!caps.note && !caps.comment) return null;
+    return {
+      note: caps.note ? () => postClearNote(shareInfo(), engine) : null,
+      comment: caps.comment ? () => postClearComment(shareInfo(), engine, saveBeforeLeave) : null,
+    };
   });
 
   bootDone();

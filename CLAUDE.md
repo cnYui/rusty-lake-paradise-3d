@@ -12,7 +12,7 @@
 CLAUDE.md  AGENTS.md  README.md  ARCHITECTURE.md   说明文档（本文件 = 目录地图）
 index.html  styles.css  vendor/three/               网页入口、样式、three.js
 src/                                                 游戏本体（会部署）
-├─ core/        公共：引擎、状态与存档、视图、热点、物品栏、界面、音频、触屏、章节进度（progress.js）
+├─ core/        公共：引擎、状态与存档、视图、热点、物品栏、界面、音频、触屏、章节进度（progress.js）、小红书通关分享（share.js）
 ├─ art/         公共：3D 素材。世界、建筑、道具是程序化建模代码；人物 / 山羊 / 牛 / 苍蝇人用 AI 生成的网格模型（models/*.rlpm，rlpm.js 加载，缺失时回退程序化）
 │                 世界与第一灾道具 island/lake/sky/buildings/props_beach|inner|lake/characters …
 │                 人物 cast.js + charkit.js + human.js（各章复用）

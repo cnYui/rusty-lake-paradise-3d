@@ -438,6 +438,14 @@ def main():
             "  h('p', 'set-note', p, '进度、通关记录和成就保存在这台设备的浏览器里，清除浏览器数据或换设备后不会带过去。');",
             "  h('p', 'set-note', p, '进度、通关记录和成就保存在小红书里（不支持时保存在这台设备上），清除缓存或换设备后不会带过去。');",
         )])
+    if a.ark:
+        # 口袋方舟包没有小红书存档层：main.js 的 saveBeforeLeave（发评论前等存档层 flush，见 src/core/share.js）在副本里只留 state.save()，
+        # 不然 game.js 里会出现 __RLP_STORE（下面的断言要求口袋方舟包里没有它）。
+        patch('src/main.js', [(
+            "  const store = window.__RLP_STORE;\n"
+            "  if (store && typeof store.flush === 'function') await Promise.race([store.flush(), new Promise((r) => setTimeout(r, 1500))]);\n",
+            "",
+        )])
 
     # ---- 补丁 3b 生效断言（打包前直接查副本源码）：全景环必须是 async makeRing，buildSky 必须 await 它，循环里要有让出点。
     _sky = rd(os.path.join(WORK, 'src/art/sky.js'))
