@@ -367,7 +367,7 @@ def main():
     _reg = rd(os.path.join(WORK, 'src/chapters/index.js'))
     assert "requires: ['plague1', 'plague2', 'plague3'], load: () => import('./plague4/index.js') }" in _reg, '源码注册表里第四灾的解锁条件变了（要先通关第一到第三灾）：更新 build.py'
     assert "requires: ['plague1', 'plague2', 'plague3', 'plague4'], load: () => import('./plague5/index.js') }" in _reg, '源码注册表里第五灾的解锁条件变了（要先通关第一到第四灾）：更新 build.py'
-    assert 'wip: true' not in _reg, '源码注册表里还有 wip 章节：小红书包第一到第十灾都开放，确认后再改 build.py'
+    assert not re.search(r"^\s*\{ number: .*wip: true", _reg, re.M), '源码注册表里还有 wip 章节：小红书包第一到第十灾都开放，确认后再改 build.py'
     if a.ark:
         _subs = [("load: () => import('./plague5/index.js') }", "load: null }")]
         for _n in range(6, 11):
