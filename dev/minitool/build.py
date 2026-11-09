@@ -159,6 +159,17 @@ def main():
     # 第四灾的“生与死的炼金术”书名已随书改视图翻页（29336f3）从 text.js 里去掉。第四灾进小红书包（2026-10-24 起）：书页里画在画布上的
     # “将会有一个人遇见死亡”同样把“死”改成 S。
     patch('src/art/props_flies_book.js', [("text(g, '遇见死亡', PW / 2, 206, 44);", "text(g, '遇见S亡', PW / 2, 206, 44);")])
+    # 第六到十灾（2026-11-09 起进小红书包）：玩家可见文字里的“血”→x、“死”→S，和第一到第五灾同一套办法。
+    # 整文件替换：这几个文件里的“血 / 死”核对过，全是显示文字或注释（血液、血月、死亡、钉死、长子之死…），没有标识符；口袋方舟包不带这几章。
+    if not a.ark:
+        _files = [os.path.join(WORK, 'src/art/props_p6.js')]
+        for _n in range(6, 11):
+            _d = os.path.join(WORK, 'src/chapters', f'plague{_n}')
+            _files += [os.path.join(_d, _f) for _f in sorted(os.listdir(_d)) if _f.endswith('.js')]
+        for _p in _files:
+            _s = rd(_p)
+            if '血' in _s or '死' in _s:
+                wr(_p, _s.replace('血', 'x').replace('死', 'S'))
 
     # ---- 补丁 3：分段启动。原来的启动（建世界 + 第一次渲染编译着色器）是一条几十秒不让出主线程的长任务：慢手机上页面
     #      整段没响应、load 事件迟迟不触发，容器 / 审核看到的就是“点不了”。改成每一步之间让出一帧（rotate.js 的 __RLP_STAGE
@@ -351,20 +362,17 @@ def main():
     # 第五灾的 setup 是 world.setup + puzzles.setup 两大块（牛、菜地、连线、厨房一次建完）：中间让出一帧
     patch('src/chapters/plague5/index.js', [("await world.setup(ctx);\n    await puzzles.setup(ctx);",
                                              "await world.setup(ctx);\n    if (window.__RLP_STAGE) await window.__RLP_STAGE();\n    await puzzles.setup(ctx);")])
-    # 开放范围：小红书小工具是第一到第五灾（第五灾 2026-10-29 起，解锁顺序同网页版：要先通关第一到第四灾；第五灾真 3D 重做完成、去掉 wip 之后）；
-    # 口袋方舟（233 乐园）包仍是第一到第四灾——第五灾只在小红书包里放开，--ark 这里还是把它的 load 置空（菜单显示“敬请期待”，代码也不进包）。
+    # 开放范围：小红书小工具是第一到第十灾（第五灾 2026-10-29 起，第六到十灾 2026-11-09 起，解锁顺序同网页版：必须按顺序通关）；
+    # 口袋方舟（233 乐园）包仍是第一到第四灾——第五灾起只在小红书包里放开，--ark 这里把第五到十灾的 load 全部置空（菜单显示“敬请期待”，代码也不进包）。
     _reg = rd(os.path.join(WORK, 'src/chapters/index.js'))
     assert "requires: ['plague1', 'plague2', 'plague3'], load: () => import('./plague4/index.js') }" in _reg, '源码注册表里第四灾的解锁条件变了（要先通关第一到第三灾）：更新 build.py'
-    assert "requires: ['plague1', 'plague2', 'plague3', 'plague4'], load: () => import('./plague5/index.js') }" in _reg, '源码注册表里第五灾的解锁条件变了（要先通关第一到第四灾，且不再是 wip）：更新 build.py'
+    assert "requires: ['plague1', 'plague2', 'plague3', 'plague4'], load: () => import('./plague5/index.js') }" in _reg, '源码注册表里第五灾的解锁条件变了（要先通关第一到第四灾）：更新 build.py'
+    assert 'wip: true' not in _reg, '源码注册表里还有 wip 章节：小红书包第一到第十灾都开放，确认后再改 build.py'
     if a.ark:
-        patch('src/chapters/index.js', [("load: () => import('./plague5/index.js') }", "load: null }")])
-    # 第六到十灾（第六、七灾 2026-10-29 起、第八灾 2026-11-01 起、第九、十灾 2026-11-02 起在源码里，注册表标 wip）：小红书 / 口袋方舟包都不带，load 置空（菜单照旧“敬请期待”，代码也不进包）。
-    # 要放开时去掉对应的行，并把文案过一遍审核敏感字（第六灾有“血液”“死亡”）。
-    patch('src/chapters/index.js', [("wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5'], load: () => import('./plague6/index.js') }", "load: null }"),
-                                    ("wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5', 'plague6'], load: () => import('./plague7/index.js') }", "load: null }"),
-                                    ("wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5', 'plague6', 'plague7'], load: () => import('./plague8/index.js') }", "load: null }"),
-                                    ("wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5', 'plague6', 'plague7', 'plague8'], load: () => import('./plague9/index.js') }", "load: null }"),
-                                    ("wip: true, requires: ['plague1', 'plague2', 'plague3', 'plague4', 'plague5', 'plague6', 'plague7', 'plague8', 'plague9'], load: () => import('./plague10/index.js') }", "load: null }")])
+        _subs = [("load: () => import('./plague5/index.js') }", "load: null }")]
+        for _n in range(6, 11):
+            _subs.append((f"load: () => import('./plague{_n}/index.js') }}", "load: null }"))
+        patch('src/chapters/index.js', _subs)
     assert "requires: ['plague1', 'plague2'], load: () => import('./plague3/index.js') }" in rd(os.path.join(WORK, 'src/chapters/index.js')), '源码注册表里第三灾的解锁条件变了（要先通关第一、二灾）：更新 build.py'
 
     # ---- 补丁 4（声音版）：音频输出线路。audio.js 是程序合成（振荡器 / 噪声 / 卷积混响），总线最后一级 comp 原来直连 ac.destination；
