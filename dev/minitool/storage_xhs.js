@@ -21,6 +21,15 @@
 //   - 合并后有变化的键写回 xhs，localStorage 里的旧值保留作兜底。
 // 运行期写入先更新内存并同步写一份 localStorage，攒 300ms 再交给原生（同一个 key 合并，按 key 串行）；
 // 失败记 failures、ok 置 false，键留在队列里等下次重试。切后台 / 关页面时立即 flush。
+//
+// 云存储（内测，客户端 9.51.0+，buildVersion 去掉末 3 位 >= 9510）：在本地存档层之上再加一层，换设备 / 清缓存后能找回进度。
+//   - 只同步 rlp3d.save.<章节> 和 rlp3d.profile（设置、最近章节是设备自己的东西，不上云）；
+//   - collection 'rlp_saves'，一个键一条记录 content = { k: 键名, v: 游戏写的原始字符串, t: 上传时间 }，整条 < 60 KB 才传；
+//   - 启动时本地层就绪后再等云最多 1.2 秒：save 取 savedAt 较大的、profile 取并集（和本地迁移同一套规则），
+//     云上更新的写回本地；本地更新的（或云上没有的）排队上传；超过 1.2 秒云才回来也照样合并，只是菜单已经画完；
+//   - 运行期写入攒 30 秒再上传一次（切后台 / 关页面时马上传）；removeItem（重置进度）也会删云上那条，不然下次启动又被云“复活”；
+//   - 没授权（errCode 1005 / 1006 / 10003）、版本不够、接口缺失、连续失败：云层关掉，只用本地层，不影响游戏；
+//   - 云读失败整次放弃（不当成“云上没有”去覆盖）；写入逐项看 status，FAILED 留着重试，UNKNOWN 先重新查一遍对账再写。
 (function () {
   'use strict';
   try {
@@ -44,6 +53,17 @@
     var chain = Promise.resolve();
     var okFlag = true;              // xhs 模式下最近一次原生写入有没有失败
     var stats = { buildVersion: 0, reason: '', reads: 0, writes: 0, failures: 0, migrated: 0 };
+
+    var CLOUD_MIN_CLIENT = 9510;    // 客户端 9.51.0
+    var CLOUD_COLLECTION = 'rlp_saves';
+    var CLOUD_CALL_MS = 4000;       // 云调用是网络请求，比本地调用等得久一点
+    var CLOUD_WAIT_MS = 1200;       // 启动时本地层就绪后，最多再等云这么久（之后在后台合并）
+    var CLOUD_UPLOAD_MS = 30000;    // 运行期上传的合并窗口
+    var CLOUD_MAX_BYTES = 60000;    // 单条 content（UTF-8）上限 64 KB，留余量
+    var CLOUD_NEEDED = ['addCloudStorage', 'updateCloudStorage', 'queryCloudStorage', 'removeCloudStorage'];
+    var cloud = { enabled: false, on: false, ids: {}, dirty: {}, gone: {}, extra: [], timer: 0, chain: Promise.resolve(), streak: 0, refresh: false };
+    var cloudStats = { reason: '', queried: 0, imported: 0, uploaded: 0, removed: 0, failures: 0, skipped: 0 };
+    var cloudPromise = null;
 
     function tool() { return window.xhs && window.xhs.miniTool; }
     function isManaged(k) { return typeof k === 'string' && k.indexOf(PREFIX) === 0 && !EXCEPT[k]; }
@@ -94,14 +114,14 @@
     }
 
     // ------------------------------------------------------------- 原生调用：带超时，失败 / 没响应都按失败处理
-    function call(name, opts) {
+    function call(name, opts, ms) {
       return new Promise(function (resolve, reject) {
         var done = false;
         var t = setTimeout(function () {
           if (done) return;
           done = true;
           reject(new Error(name + ' 超时'));
-        }, CALL_MS);
+        }, ms || CALL_MS);
         var p;
         try {
           p = tool()[name](opts);
@@ -301,6 +321,210 @@
       return Promise.all(writes);
     }
 
+    // =============================================================================== 云存储
+    function isCloudKey(k) { return isManaged(k) && (k.indexOf(SAVE_PREFIX) === 0 || k === PROFILE_KEY); }
+    function cloudCall(name, opts) { return call(name, opts, CLOUD_CALL_MS); }
+    function utf8Len(str) { try { return unescape(encodeURIComponent(str)).length; } catch (e) { return str.length * 3; } }
+    function cloudFatal(e) {
+      var c = e && e.errCode;
+      return c === 1005 || c === 1006 || c === 10003;
+    }
+    function cloudOff(reason) {
+      cloud.on = false;
+      cloudStats.reason = reason;
+      if (cloud.timer) { clearTimeout(cloud.timer); cloud.timer = 0; }
+    }
+
+    // 两份原始字符串合并（a 是本地，b 是云）：raw 是合并结果，fromCloud = 本地要换成 raw，toCloud = 云要换成 raw
+    function mergeRaw(key, a, b) {
+      var out = { raw: a, fromCloud: false, toCloud: false };
+      if (a === null || a === undefined) { out.raw = b; out.fromCloud = b !== null && b !== undefined; return out; }
+      if (b === null || b === undefined) { out.toCloud = true; return out; }
+      if (key === PROFILE_KEY) {
+        var m = mergeProfile(a, b);
+        if (!m) return out;
+        out.raw = m.raw;
+        var mo = parseObject(m.raw), ao = parseObject(a), bo = parseObject(b);
+        out.fromCloud = !!(mo && ao && stable(mo) !== stable(ao)) || (!ao && !!mo);
+        out.toCloud = !!(mo && bo && stable(mo) !== stable(bo)) || (!bo && !!mo);
+        return out;
+      }
+      var ao2 = parseObject(a), bo2 = parseObject(b);
+      if (!ao2 && !bo2) return out;
+      if (!ao2) { out.raw = b; out.fromCloud = true; return out; }
+      if (!bo2) { out.toCloud = true; return out; }
+      var la = Number(ao2.savedAt) || 0, ca = Number(bo2.savedAt) || 0;
+      if (ca > la) { out.raw = b; out.fromCloud = true; } else if (la > ca) { out.toCloud = true; }
+      return out;
+    }
+
+    // 查出云上的全部记录（分页）；任何一页失败整次 reject，不当成“云上没有”
+    function cloudQueryAll() {
+      var out = [];
+      function page(cursor, n) {
+        var o = { collection: CLOUD_COLLECTION, limit: 100 };
+        if (cursor) o.cursor = cursor;
+        return cloudCall('queryCloudStorage', o).then(function (r) {
+          var items = (r && r.items) || [], i;
+          for (i = 0; i < items.length; i++) out.push(items[i]);
+          cloudStats.queried += items.length;
+          if (r && r.hasMore && r.nextCursor && n < 10) return page(r.nextCursor, n + 1);
+        });
+      }
+      return page(null, 0).then(function () { return out; });
+    }
+
+    // 查云 → 和 cache 合并。返回云上更新、要写回本地的键
+    function cloudMerge(items) {
+      var byKey = {}, i, it, c, k, cur, res;
+      cloud.extra = [];
+      for (i = 0; i < items.length; i++) {
+        it = items[i];
+        c = it && it.content;
+        if (!it || !it.id || !c || typeof c.k !== 'string' || typeof c.v !== 'string' || !isCloudKey(c.k)) continue;
+        k = c.k;
+        if (!byKey[k]) { byKey[k] = { id: it.id, raw: c.v }; continue; }
+        // 同一个键有两条（两台设备同时第一次上传）：合并成一条，多出来的删掉
+        cur = mergeRaw(k, byKey[k].raw, c.v);
+        byKey[k].raw = cur.raw;
+        byKey[k].dirtyDup = true;
+        cloud.extra.push(it.id);
+      }
+      var keys = {}, changed = [];
+      for (k in byKey) if (Object.prototype.hasOwnProperty.call(byKey, k)) keys[k] = 1;
+      cache.forEach(function (v, key) { if (isCloudKey(key)) keys[key] = 1; });
+      for (k in keys) {
+        if (!Object.prototype.hasOwnProperty.call(keys, k)) continue;
+        if (byKey[k]) cloud.ids[k] = byKey[k].id;
+        if (cloud.gone[k] && !cache.has(k)) { cloud.dirty[k] = true; continue; }   // 重置进度时删掉的：不从云上拉回来，反而要删云上的
+        res = mergeRaw(k, cache.has(k) ? cache.get(k) : null, byKey[k] ? byKey[k].raw : null);
+        if (res.fromCloud && res.raw !== null && res.raw !== undefined) {
+          cache.set(k, res.raw);
+          localSet(k, res.raw);
+          changed.push(k);
+          cloudStats.imported++;
+        }
+        if (res.toCloud || (byKey[k] && byKey[k].dirtyDup)) cloud.dirty[k] = true;
+        if (!byKey[k] && cache.has(k)) cloud.dirty[k] = true;
+      }
+      if (cloud.extra.length) cloud.refresh = false;
+      return changed;
+    }
+
+    function cloudInit(bv) {
+      var t = tool();
+      if (Math.floor(bv / 1000) < CLOUD_MIN_CLIENT || !t || !CLOUD_NEEDED.every(function (n) { return typeof t[n] === 'function'; })) {
+        cloudStats.reason = '客户端版本不够或没有云存储接口';
+        return Promise.resolve();
+      }
+      cloud.enabled = true;
+      return cloudQueryAll().then(function (items) {
+        if (mode !== 'xhs') return;
+        var changed = cloudMerge(items);
+        cloud.on = true;
+        return writeMerged(changed).then(function () {
+          if (Object.keys(cloud.dirty).length || cloud.extra.length) cloudSchedule(50);
+        });
+      }).catch(function (e) {
+        cloudStats.failures++;
+        cloudOff(cloudFatal(e) ? ('云存储未授权 errCode ' + (e && e.errCode)) : String((e && (e.errMsg || e.message)) || e || '云存储初始化失败'));
+      });
+    }
+
+    function cloudSchedule(ms) {
+      if (!cloud.on || cloud.timer) return;
+      cloud.timer = setTimeout(function () { cloud.timer = 0; cloudFlushNow(); }, ms);
+    }
+    function cloudFlushNow() {
+      if (cloud.timer) { clearTimeout(cloud.timer); cloud.timer = 0; }
+      cloud.chain = cloud.chain.then(doCloudFlush, doCloudFlush).catch(function () { return false; });
+      return cloud.chain;
+    }
+
+    function doCloudFlush() {
+      if (!cloud.on || mode !== 'xhs') return Promise.resolve();
+      var run = Promise.resolve();
+      if (cloud.refresh) {
+        // 上一次新增的结果不确定（UNKNOWN）：先重新查一遍，把云上已有的记录 id 对上，别重复新增
+        run = cloudQueryAll().then(function (items) {
+          var i, c;
+          for (i = 0; i < items.length; i++) {
+            c = items[i] && items[i].content;
+            if (items[i] && items[i].id && c && typeof c.k === 'string' && isCloudKey(c.k) && !cloud.ids[c.k]) cloud.ids[c.k] = items[i].id;
+          }
+          cloud.refresh = false;
+        });
+      }
+      return run.then(function () {
+        var adds = [], ups = [], rms = [], k, raw, content, i;
+        for (k in cloud.dirty) {
+          if (!Object.prototype.hasOwnProperty.call(cloud.dirty, k)) continue;
+          if (!cache.has(k)) {
+            if (cloud.ids[k]) rms.push(k);
+            else delete cloud.dirty[k];
+            continue;
+          }
+          raw = cache.get(k);
+          content = { k: k, v: raw, t: Date.now() };
+          if (utf8Len(JSON.stringify(content)) > CLOUD_MAX_BYTES) { cloudStats.skipped++; delete cloud.dirty[k]; continue; }
+          if (cloud.ids[k]) ups.push({ k: k, raw: raw, item: { id: cloud.ids[k], content: content } });
+          else adds.push({ k: k, raw: raw, item: { content: content } });
+        }
+        var ops = Promise.resolve();
+        if (adds.length) ops = ops.then(function () { return cloudWrite('addCloudStorage', adds); });
+        if (ups.length) ops = ops.then(function () { return cloudWrite('updateCloudStorage', ups); });
+        if (rms.length || cloud.extra.length) {
+          ops = ops.then(function () {
+            var ids = [], seen = {}, j;
+            for (j = 0; j < rms.length; j++) { if (!seen[cloud.ids[rms[j]]]) { seen[cloud.ids[rms[j]]] = 1; ids.push(cloud.ids[rms[j]]); } }
+            for (j = 0; j < cloud.extra.length; j++) { if (!seen[cloud.extra[j]]) { seen[cloud.extra[j]] = 1; ids.push(cloud.extra[j]); } }
+            if (!ids.length) return;
+            return cloudCall('removeCloudStorage', { collection: CLOUD_COLLECTION, ids: ids }).then(function (r) {
+              var data = (r && r.data) || [], j2, okAll = true;
+              for (j2 = 0; j2 < data.length; j2++) { if (data[j2] && data[j2].status === 'SUCCESS') cloudStats.removed++; else okAll = false; }
+              if (okAll || !data.length) {
+                for (j2 = 0; j2 < rms.length; j2++) { delete cloud.ids[rms[j2]]; if (!cache.has(rms[j2])) delete cloud.dirty[rms[j2]]; }
+                cloud.extra = [];
+              }
+            });
+          });
+        }
+        return ops.then(function () {
+          cloud.streak = 0;
+          if (Object.keys(cloud.dirty).length && cloud.on) cloudSchedule(CLOUD_UPLOAD_MS);
+        });
+      }).catch(function (e) {
+        cloudStats.failures++;
+        if (cloudFatal(e)) { cloudOff('云存储未授权 errCode ' + (e && e.errCode)); return; }
+        cloud.streak++;
+        if (cloud.streak >= 6) { cloudOff('云存储连续失败，本次不再上传：' + String((e && (e.errMsg || e.message)) || e)); return; }
+        cloudSchedule(Math.min(300000, CLOUD_UPLOAD_MS * Math.pow(2, cloud.streak)));
+      });
+    }
+
+    // 一批 add / update：顶层成功不等于每条成功，逐项看 status（SUCCESS 完成 / FAILED 重试 / UNKNOWN 先对账）
+    function cloudWrite(name, list) {
+      var items = [], i;
+      for (i = 0; i < list.length; i++) items.push(list[i].item);
+      return cloudCall(name, { collection: CLOUD_COLLECTION, items: items }).then(function (r) {
+        var data = (r && r.data) || [], st, id;
+        for (i = 0; i < list.length; i++) {
+          st = data[i] && data[i].status;
+          id = data[i] && data[i].id;
+          if (st === 'SUCCESS') {
+            if (id) cloud.ids[list[i].k] = id;
+            cloudStats.uploaded++;
+            if (cache.get(list[i].k) === list[i].raw) delete cloud.dirty[list[i].k];   // 发送期间又写了新的就留着
+          } else if (st === 'UNKNOWN') {
+            if (id) cloud.ids[list[i].k] = id;
+            cloud.refresh = true;
+          } else {
+            cloudStats.failures++;
+          }
+        }
+      });
+    }
+
     // --------------------------------------------------------------------------- 初始化
     function init() {
       return waitSdk().then(function () {
@@ -323,6 +547,7 @@
             if (abandoned) return null;
             mode = 'xhs';
             if (pending.size) schedule();
+            cloudPromise = cloudInit(bv);     // 云层自己吞掉所有错误，永不 reject
           });
         });
       }).catch(function (e) {
@@ -389,6 +614,7 @@
         localSet(k, v);                 // 同步写一份兜底；localStorage 不可用也不影响游戏
         pending.set(k, true);
         schedule();
+        if (isCloudKey(k)) { delete cloud.gone[k]; cloud.dirty[k] = true; cloudSchedule(CLOUD_UPLOAD_MS); }
       } catch (e) { /* 不影响游戏 */ }
     }
     function removeItem(k) {
@@ -399,6 +625,7 @@
         localDel(k);
         pending.set(k, true);
         schedule();
+        if (isCloudKey(k)) { cloud.gone[k] = true; cloud.dirty[k] = true; cloudSchedule(2000); }   // 重置进度：云上那条也要删
       } catch (e) { /* 不影响游戏 */ }
     }
     function allKeys() {
@@ -445,6 +672,7 @@
     var store = {
       ready: null,
       stats: stats,
+      cloud: { stats: cloudStats, on: function () { return cloud.on; }, flush: function () { return cloudFlushNow(); } },
       mode: currentMode,
       ok: ok,
       flush: flushNow,
@@ -467,6 +695,13 @@
     });
     var ready = Promise.race([init(), master]).then(function () {
       if (masterTimer) { clearTimeout(masterTimer); masterTimer = 0; }
+      // 本地层就绪后再等云最多 1.2 秒；云更慢也不拦启动，回来后在后台合并
+      if (mode === 'xhs' && cloudPromise) {
+        return new Promise(function (resolve) {
+          var t = setTimeout(resolve, CLOUD_WAIT_MS);
+          cloudPromise.then(function () { clearTimeout(t); resolve(); }, function () { clearTimeout(t); resolve(); });
+        });
+      }
     }, function () {
       if (masterTimer) { clearTimeout(masterTimer); masterTimer = 0; }
       if (mode !== 'xhs') {
@@ -481,11 +716,11 @@
     try {
       if (typeof document !== 'undefined' && document.addEventListener) {
         document.addEventListener('visibilitychange', function () {
-          try { if (document.hidden) flushNow(); } catch (e) { /* 忽略 */ }
+          try { if (document.hidden) { flushNow(); if (cloud.on && Object.keys(cloud.dirty).length) cloudFlushNow(); } } catch (e) { /* 忽略 */ }
         });
       }
       if (typeof window !== 'undefined' && window.addEventListener) {
-        window.addEventListener('pagehide', function () { flushNow(); });
+        window.addEventListener('pagehide', function () { flushNow(); try { if (cloud.on && Object.keys(cloud.dirty).length) cloudFlushNow(); } catch (e) { /* 忽略 */ } });
       }
     } catch (e) { /* 忽略 */ }
   } catch (e) { /* 存档层出任何问题都不影响游戏：没有 window.__RLP_STORE 时游戏用 localStorage */ }
