@@ -65,7 +65,7 @@ upload/                                              发布包（压缩包），
 | 第九灾 | `src/chapters/plague9/` | `props_p9`（夜空、星月、黄昏天空，第十灾复用），人物 `cast_mock` 的 `makePerson` | `dev/plague9/test_plague9*` | `docs/plague9_10_design.md`，AGENTS.md「第九、十灾」 |
 | 第十灾 | `src/chapters/plague10/` | `props_p10`（木头猫头鹰、井下石室），人物 `makePerson` + 动物头网格模型 | `dev/plague10/test_plague10*` | 同上 |
 
-十灾都已接入；第六到十灾还标着 `wip`（菜单“敬请期待”，`?wip=1` 才能选）。
+十灾都已接入并开放（第六到十灾 2026-11-09 起，小红书包也带；口袋方舟包只有第一到第四灾）。
 
 ## 常用命令（在项目根目录）
 
