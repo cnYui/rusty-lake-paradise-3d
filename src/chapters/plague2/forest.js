@@ -27,12 +27,14 @@ export async function setup(ctx) {
   ctx.hotspots.define({id:'gerard_bowl',views:['gerard'],object:gerard.bowlObj,cursor:'zoom',when:()=>ctx.flag('gerard_bowl'),goto:'gerard_bowl'});
   const bowlKey=gerard.bowlObj.getObjectByName('bowl_key_item');
   ctx.hotspots.define({id:'gerard_key',views:['gerard_bowl'],object:bowlKey,cursor:'grab',when:()=>ctx.flag('gerard_bowl')&&!ctx.flag('key_taken'),onClick:async()=>{ctx.setFlag('key_taken');bowlKey.visible=false;ctx.sfx('key_glint');await ctx.give('key',{from:bowlKey});ctx.achieve('a_rusty_key');}});
-  ctx.hotspots.define({id:'ida',views:['pump_clearing','ida'],object:ida.root,cursor:'talk',onClick:async()=>{
-    if(ctx.state.view!=='ida')return ctx.go('ida');if(!ctx.flag('ida_talked')){ctx.setFlag('ida_talked');ida.play('talk');await ctx.say(T.ida);ida.play('idle');}else if(!ctx.flag('ida_playing')&&!ctx.flag('ida_frog_taken'))await ctx.thought(ida.headTop,'frog_flute');
-  },onItem:{frog_flute:()=>ctx.cutscene(async()=>{if(ctx.flag('ida_playing')||ctx.flag('ida_frog_taken'))return;ctx.take('frog_flute');ctx.setFlag('ida_playing');await ida.holdFlute(true);})}});
-  ctx.hotspots.define({id:'ida_flute',views:['ida'],object:ida.fluteObj,cursor:'pointer',when:()=>ctx.flag('ida_playing')&&numberFlag(ctx,'ida_phrase')<IDA_FINAL_PHRASE,onClick:()=>ctx.cutscene(async()=>{
+  // 吹一个乐句：点笛子、点 Ida 本人都算（笛子只有 2 cm 粗，手机上很难点中，评论里多人反馈“蛙不变色”）
+  const playIdaPhrase=()=>ctx.cutscene(async()=>{
     const phrase=numberFlag(ctx,'ida_phrase')+1;ctx.sfx('flute_phrase');await ida.playPhrase();await ida.setFrogColor(IDA_COLORS[phrase]);ctx.setFlag('ida_phrase',phrase);await ctx.ui.flash('#e8c27a');if(phrase===IDA_FINAL_PHRASE){ctx.setFlag('ida_playing',false);await ida.stopPlaying();}
-  })});
+  });
+  ctx.hotspots.define({id:'ida',views:['pump_clearing','ida'],object:ida.root,cursor:'talk',onClick:async()=>{
+    if(ctx.state.view!=='ida')return ctx.go('ida');if(!ctx.flag('ida_talked')){ctx.setFlag('ida_talked');ida.play('talk');await ctx.say(T.ida);ida.play('idle');}else if(ctx.flag('ida_playing')&&numberFlag(ctx,'ida_phrase')<IDA_FINAL_PHRASE)await playIdaPhrase();else if(!ctx.flag('ida_playing')&&!ctx.flag('ida_frog_taken'))await ctx.thought(ida.headTop,'frog_flute');
+  },onItem:{frog_flute:()=>ctx.cutscene(async()=>{if(ctx.flag('ida_playing')||ctx.flag('ida_frog_taken'))return;ctx.take('frog_flute');ctx.setFlag('ida_playing');await ida.holdFlute(true);ctx.hintOnce('ida_play_hint',ctx.ui.touchMode?'轻点 Ida 或她手里的笛子，让她吹奏':'点 Ida 或她手里的笛子，让她吹奏');})}});
+  ctx.hotspots.define({id:'ida_flute',views:['ida'],object:ida.fluteObj,cursor:'pointer',when:()=>ctx.flag('ida_playing')&&numberFlag(ctx,'ida_phrase')<IDA_FINAL_PHRASE,onClick:playIdaPhrase});
   ctx.hotspots.define({id:'ida_frog',views:['ida'],object:ida.frog,cursor:'grab',when:()=>!ctx.flag('ida_frog_taken'),onClick:async()=>{
     if(numberFlag(ctx,'ida_phrase')<IDA_FINAL_PHRASE){ctx.sfx('frog_croak');return ida.croak();}ctx.setFlag('ida_frog_taken');ida.showFrog(false);await ctx.give('frog_orange',{from:ida.frog});
   }});

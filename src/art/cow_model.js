@@ -30,7 +30,8 @@ export function attachCowSpots(root, body) {
   const dots = SPOTS.map(([x, y], i) => {
     const d = group(`cow_spot_${i}`);
     const sore = ball(d, 'cow_lesion', 0.082, COLORS[SPOT_COLORS[i]], [0, 0, 0], [1, 1, 0.5]);
-    ring(d, 'cow_sore_ring', 0.092, 0.012, '#5a2a22', [0, 0, -0.004], { outline: false });
+    // 圈用浅色：牛皮上的大块棕斑和深褐色的圈同色，蓝 / 紫色的斑点落在棕斑里就看不出来了（评论反馈“另一个蓝色被棕色块挡住了”）
+    ring(d, 'cow_sore_ring', 0.094, 0.016, '#f4ead2', [0, 0, -0.004], { outline: false });
     const sel = ring(d, 'cow_selected', 0.15, 0.016, '#f0c95e', [0, 0, 0.02], { outline: false, emissive: '#f0c95e' }); sel.visible = false;
     // 看不见的大一圈的点击区：疫斑本身只有 13 cm，从 5 米外点太费劲
     const hit = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), new THREE.MeshBasicMaterial({ visible: false }));
