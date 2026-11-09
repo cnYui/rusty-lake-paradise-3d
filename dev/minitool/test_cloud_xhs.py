@@ -81,6 +81,7 @@ MOCK = r"""
     }
   };
   if (cfg.noCloudApi) delete mt.queryCloudStorage;
+  if (cfg.noXhs) return;
   window.xhs = { miniTool: mt, launchOptions: env };
 })();
 """
