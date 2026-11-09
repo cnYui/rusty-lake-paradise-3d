@@ -7,6 +7,9 @@ import { toon } from './materials.js';
 import { makeCharacter } from './characters.js';
 import { gerardBody, davidBody, nicholasBody, margaretBody, armsDown, seatedPose, mergePose, STOOP } from './cast.js';
 import { lifeIdle } from './human.js';
+import { getModel, removableHat } from './rlpm.js';
+import { buildMusicianModel } from './musician_model.js';
+import { PATIENT_BACK_Y } from './p6_patient_surface.js';
 
 const SKIN = '#e7d3bf';
 
@@ -174,32 +177,40 @@ function feathered(rig) {
 
 const REAL = {
   // 第六灾：病人 Gerard、凳子上的奶奶、回忆里的鹿头人和少年 Jakob（第八灾小船上的奶奶、回忆里的少年 Jakob 同样用这几个）
-  gerard_patient: () => withIdle(gerardBody('gerard_p6')),
+  // 瘟疫医生：有网格模型（doctor.rlpm：黑礼帽、乌鸦嘴面具、斗篷长袍）就用它，没有就回落到占位人物（返回 null）
+  plague_doctor: () => (getModel('doctor') ? makeCharacter('plague_doctor') : null),
+  gerard_patient: () => makeCharacter('gerard_patient'),
   margaret: () => withIdle(margaretBody('margaret_seated', { seat: SEAT }), { seated: true }),
   nicholas_deer: deer,
   jakob_child: () => makeCharacter('jakob_child'),
-  // 第七灾：滑冰的红发女人是 Ida，神殿里跪着求情的是母亲 Caroline；Gerard 的帽子要被拿走，用程序化 Gerard
+  // 第七灾：滑冰的红发女人是 Ida，神殿里跪着求情的是母亲 Caroline
   ida, caroline,
-  gerard_p7: () => withIdle(gerardBody('gerard_p7')),   // 程序化 Gerard（rlpm.js 的 PROCEDURAL）：帽子要能摘下来
+  // 冰中青年：David 的身材、光膀子短裤的程序化人物（cast.js 的 buildIceYouth），不需要网格模型
+  ice_youth: () => makeCharacter('ice_youth'),
+  // 第七灾 Gerard 要把帽子送给玩家：网格 Gerard 的帽子和头是一块网格，removableHat 按贴图颜色把帽子拆出来，
+  // setHat(false) 时不画帽子、补一顶头发；没有模型时是程序化 Gerard，章节照旧用 showTag('hat', …)
+  gerard_p7: () => removableHat(withIdle(gerardBody('gerard_p7')), 'gerard'),
   // 第八灾：门外三个乐手 I / II / III 是 Gerard、David、Nicholas；木屋里的红发白眼女人是 Ida；雾里的黑影是“灵魂”
-  musician_fat: () => withIdle(gerardBody('gerard_p8')),
-  musician_feather: () => feathered(withIdle(davidBody('david_p8'))),
-  musician_old: () => withIdle(nicholasBody('nicholas_p8').rig),
+  // 乐手 2026-11-05 起用自己抱着曼陀林的网格模型（musician_model.js）；没有模型时回落到程序化 / 网格 Gerard、David、Nicholas，琴由章节的 holdMandolin 挂上
+  musician_fat: () => buildMusicianModel('musician_fat') || withIdle(gerardBody('gerard_p8')),
+  musician_feather: () => buildMusicianModel('musician_feather') || feathered(withIdle(davidBody('david_p8'))),
+  musician_old: () => buildMusicianModel('musician_old') || withIdle(nicholasBody('nicholas_p8').rig),
   seer: ida,
   mother: caroline,
-  shadow: () => makeCharacter('soul'),
+  shadow: () => makeCharacter('soul'),   // 网格黑影（soul.rlpm），没有模型时是程序化黑影
   // 第九灾：篝火边的五个人（Gerard、David、Ida、坐在树墩上的奶奶、Nicholas；Ida 和奶奶沿用上面的 ida / margaret）
   gerard_p9: () => withIdle(gerardBody('gerard_p9')),
   david_p9: () => withIdle(davidBody('david_p9')),
   nicholas_p9: () => withIdle(nicholasBody('nicholas_p9').rig),
   // 第十灾：猎人 Gerard、白桦树前的 David、敲鼓的 Nicholas（Ida、奶奶、黑影沿用上面的）；
-  // 戴上面具以后换成记忆里的动物头模型（野猪 / 兔子 / 鸽子 / 鹿），Ida 没有野鸡头模型，章节里给她 setMask('pheasant')
+  // 戴上面具以后换成记忆里的动物头模型（野猪 / 兔子 / 鸽子 / 鹿），Ida 换成戴野鸡面具的网格模型（pheasant）
   gerard_p10: () => withIdle(gerardBody('gerard_p10')),
   david_p10: () => withIdle(davidBody('david_p10')),
   nicholas_p10: () => withIdle(nicholasBody('nicholas_p10').rig),
   gerard_boar: () => makeCharacter('gerard_boar'),
   david_rabbit: () => makeCharacter('david_rabbit'),
   margaret_pigeon: () => makeCharacter('margaret_pigeon'),
+  ida_pheasant: () => makeCharacter('ida_pheasant'),   // 网格模型自带野鸡面具；没有模型时是程序化 Ida 戴面具
 };
 const OWN_POSE = new Set(['shadow']);   // 保留构建函数自己的站姿（灵魂是驼着背的黑影）
 
@@ -222,6 +233,12 @@ function addPoses(rig, id, stand) {
   const sit = rig.solve(sitLegs, { L: { pos: [0.12, lap, 0.24], pole: [1, -0.4, -0.5] }, R: { pos: [-0.12, lap, 0.24], pole: [-1, -0.4, -0.5] } });
   // 躺（脸朝上、头朝 -Z）：整个人绕髋关节转 90°，脚底留在 root 原点，背贴着 root 的 y = 0（床面）
   const lie = mergePose(stand, { body: [-Math.PI / 2, 0, 0], 'body.p': [0, 0.13 - D.hipY, -D.hipY] });
+  if (id === 'gerard_patient') Object.assign(lie, armsDown(rig, { spread: 0.075, bend: 0.025 }), {
+    'body.p': [0, PATIENT_BACK_Y - D.hipY, -D.hipY], armL: [0, 0, 0.09], armR: [0, 0, -0.09],
+    // 后脑由枕头托住；手掌朝内，手背轻靠床面，避免双臂悬空。
+    'head.p': [0, 0, 0.045], 'armL.p': [0, 0, -0.036], 'armR.p': [0, 0, -0.036],
+    handL: [0, -0.12, 0.02], handR: [0, 0.12, -0.02],
+  });
   // 跪：大腿竖直、小腿平放在地上，双手在胸前合拢
   const kneelLegs = mergePose(stand, {
     'body.p': [0, D.thigh + 0.06 - D.hipY, -0.02], torso: [0.12, 0, 0], head: [0.1, 0, 0],
@@ -256,7 +273,8 @@ function finishAdapt(rig, base) {
 /** 第六到八灾的人物：有正式模型的用模型（见 REAL），没有的回落到占位人物。 */
 export function makePerson(id) {
   const make = REAL[id];
-  if (!make) return makeMockPerson(id);
-  return adapt(make(), id);
+  const rig = make ? make() : null;
+  if (!rig) return makeMockPerson(id);
+  return rig.adapted ? rig : adapt(rig, id);   // 抱琴的乐手模型自带接口（见 musician_model.js）
 }
 

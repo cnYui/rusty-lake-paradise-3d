@@ -1,5 +1,6 @@
 // 第六灾复用岛屿与室内布景（布局沿用第五灾），模型显示始终由存档状态推导。
 import * as THREE from 'three';
+import { PATIENT_CHEST_Y, PATIENT_BACK_Y } from '../../art/p6_patient_surface.js';
 import { makeProp } from '../../art/props.js';
 import { makePerson } from '../../art/cast_mock.js';
 import { doctorFaceTexture } from '../../art/props_p6.js';
@@ -121,7 +122,7 @@ function defineViews(ctx) {
   ctx.views.define({ id: 'p6_chest', zone: 'house_int', closeup: true, look: 0, back: 'p6_room', onEnter: () => { if (!ctx.flag('boils_done')) ctx.hintOnce('p6_boils_hint', T.boilsHint); }, cam: () => {
     W.chest.updateWorldMatrix(true, false);
     const p = W.chest.getWorldPosition(new THREE.Vector3());
-    return cam([p.x - 0.42, p.y + 0.5, p.z + 0.02], [p.x, p.y, p.z], 44);
+    return cam([p.x, p.y + 1.04, p.z + 0.27], [p.x, p.y + 0.13, p.z - 0.08], 44);
   } });
   close('p6_mouth', [0, 1.45, 1.95], [0, 1.45, 0], 'p6_room', 'p6_mouth', 44, () => ctx.hintOnce('p6_teeth_hint', T.teethHint));
   close('p6_memory', [500, 1.55, 3.3], [500, 1.15, -0.6], 'p6_room', 'memory', 48, () => ctx.hintOnce('p6_memory_hint', T.memoryHint));
@@ -162,6 +163,7 @@ export async function setup(ctx) {
   }
   const doc = person(ctx, 'doctor', 'plague_doctor', ext, at(18, 2.2));
   const pivot = new THREE.Group(); pivot.name = 'doctor_staff_pivot'; pivot.position.set(0.27, 1.12, 0.14); doc.root.add(pivot);
+  if (!doc.placeholder) doc.reach('L', [0.27, 1.12, 0.16]);     // 网格医生的手垂在身侧：抬起左手（画面右边那只）去握法杖
   const heldStaff = makeProp('p6_staff'); heldStaff.position.y = -0.8; pivot.add(heldStaff);
   W.staffPivot = pivot; pointStaff(0.6);
 
@@ -175,7 +177,8 @@ export async function setup(ctx) {
   // 病人：头朝后墙（-Z）躺在床上，脚底在床尾；胸口模型挂在他身上（躯干中心离脚底 1.15 m）
   const patient = person(ctx, 'patient', 'gerard_patient', house, [K + ROOM.bed[0], 0.52, ROOM.bed[1] + 0.95]);
   patient.setPose('lie');
-  W.chest = makeProp('p6_chest'); W.chest.position.set(0, 0.352, -1.15); patient.root.add(W.chest);
+  W.chest = makeProp('p6_chest'); W.chest.position.set(0, PATIENT_BACK_Y, -PATIENT_CHEST_Y); patient.root.add(W.chest);
+  W.chest.onWound = (open) => patient.setChestOpen(open);
   place(ctx, 'stool', 'p6_stool', house, r('grandma'));
   person(ctx, 'grandma', 'margaret', house, r('grandma'), Math.PI / 2).setPose('sit');
   place(ctx, 'table', 'p6_round_table', house, r('table'));
@@ -222,7 +225,7 @@ export async function setup(ctx) {
   hs('p6_trunk_zoom', ['p6_room'], W.trunk, { goto: 'p6_trunk' });
   hs('p6_patient', ['p6_room'], W.patientRig.parts.body, { goto: 'p6_chest' });
   // 点击盒要把整颗头（含网格 Gerard 的帽檐、胡子）包在里面，否则射线先打到头部网格（它在胸口特写里不是热点）
-  hs('p6_patient_face', ['p6_room', 'p6_chest'], proxy([0.44, 0.54, 0.46], [0, 0.03, 0.05], W.patientRig.joints.head), {
+  hs('p6_patient_face', ['p6_room', 'p6_chest'], proxy([0.27, 0.36, 0.30], [0, 0.015, 0.015], W.patientRig.joints.head), {
     when: () => !!ctx.flag('medicine_given'), goto: 'p6_mouth',
   });
   const door = wpos(ctx, 'temple.door');
@@ -253,6 +256,7 @@ export function sync(ctx) {
   W.pepper.visible = !f('pepper_taken');
   W.cabinet.setState({ open: !!f('cabinet_open'), bottles: !f('bottles_taken') });
   W.chest.setState({ popped: f('boils_popped') || [], done: !!f('boils_done'), cut: !!f('chest_cut'), heartTaken: !!f('heart_taken'), clock: !!f('clock_heart_placed'), sewn: !!f('chest_sewn') });
+  W.patientRig.setEyes(!!f('medicine_given'));
   W.mouth.setState(f('teeth_order') || TOOTH_LOWER_START, f('teeth_selected') ?? null, !!f('teeth_done'));
   W.clock.setHands(f('clock_x') ?? CLOCK_START.x, f('clock_dots') ?? CLOCK_START.dots);
   W.clock.setOpen(!!f('clock_open')); W.clock.setHeart(!!f('clock_open') && !f('clock_heart_taken'));

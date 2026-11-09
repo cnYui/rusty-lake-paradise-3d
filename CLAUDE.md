@@ -13,11 +13,11 @@ CLAUDE.md  AGENTS.md  README.md  ARCHITECTURE.md   说明文档（本文件 = �
 index.html  styles.css  vendor/three/               网页入口、样式、three.js
 src/                                                 游戏本体（会部署）
 ├─ core/        公共：引擎、状态与存档、视图、热点、物品栏、界面、音频、触屏、章节进度（progress.js）、小红书通关分享（share.js）
-├─ art/         公共：3D 素材。世界、建筑、道具是程序化建模代码；人物 / 山羊 / 牛 / 苍蝇人用 AI 生成的网格模型（models/*.rlpm，rlpm.js 加载，缺失时回退程序化）
+├─ art/         公共：3D 素材。世界、建筑、道具是程序化建模代码；人物 / 山羊 / 牛 / 苍蝇人 / 第八灾的乐手和螳螂用 AI 生成的网格模型（models/*.rlpm，rlpm.js 加载，缺失时回退程序化）
 │                 世界与第一灾道具 island/lake/sky/buildings/props_beach|inner|lake/characters …
 │                 人物 cast.js + charkit.js + human.js（各章复用）
 │                 章节专属道具 props_p2_*（第二灾）、props_p3_* + cast_p3*（第三灾）、props_flies（第四灾）、props_p5（第五灾）、props_p6 / props_p7（第六、七灾）、props_p8（第八灾）、props_p9 / props_p10（第九、十灾）
-│                 第六到十灾的人物入口 cast_mock.js（makePerson：网格 / 程序化人物，瘟疫医生和冰中青年还是占位）
+│                 第六到十灾的人物入口 cast_mock.js（makePerson：网格 / 程序化人物，瘟疫医生已有网格模型，冰中青年是 cast.js 里用代码做的光膀子青年）
 └─ chapters/    每章一个文件夹，只放这一章的逻辑
    ├─ index.js      章节注册表（标题、前置章节 requires、wip、achievements、load）
    └─ plague1 … plague10/  index.js（setup / start / sync / walkthrough）+ 各区域文件 + text.js + puzzles.js
@@ -29,6 +29,7 @@ dev/                                                 开发期材料（不部署
 │   ├─ ref/        参考视频 P01–P10（B 站实况，本地，2.5 GB）+ 各章分析笔记（p2/analysis、plague3/code_core.md）
 │   ├─ shot.py     无头浏览器截图 + 本地静态服务（所有浏览器验收都用它的 serve()）
 │   ├─ demo_recorder.py   录像器（CDP 录屏 + WebAudio 录声音），各章 record_*.py 共用
+│   ├─ record_walkthrough.py   通用真人输入通关录像：读章节自己的 walkthrough，自己找路、走路、点击，第六到十灾用它录（用法见文件头）
 │   ├─ viewer.html|js  cast.html|js  buildings_test.html|js   模型 / 人物 / 建筑查看器
 │   ├─ models/     网格人物 / 动物的 Blender 流水线（减面、烘贴图、绑骨骼、导出 .rlpm）和 README
 │   ├─ test_progress_browser.py   存档、解锁、章节衔接（跨章节）
@@ -74,6 +75,7 @@ python dev/plague3/test_plague3_browser.py          # 其他章同理：dev/plag
 python dev/common/test_progress_browser.py          # 存档 / 解锁 / 章节衔接
 python dev/common/shot.py "index.html?chapter=3&view=beach_mid" out.png     # 截图
 python dev/plague3/record_plague3_demo.py [--fast]  # 真人输入通关并录像（--fast 只验证流程）
+python dev/common/record_walkthrough.py 6 [--fast --norender]  # 任意章节通用录像（云端无显卡只能加 --fast --norender 验证流程）
 python dev/minitool/build.py --release              # 小红书小工具打包，zip 写到 upload/xhs-minitool/
 bash dev/common/deploy_mac.sh                       # 公网部署（私有脚本，仅本机有）
 ```

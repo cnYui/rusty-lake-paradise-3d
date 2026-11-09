@@ -6,6 +6,7 @@ import { toon, unlit, flat, canvasTexture } from './materials.js';
 import { animate, Ease } from '../core/tween.js';
 import { PI, group, add, box, ball, cyl, ring, label, rod, clear } from './p5_kit.js';
 import { BOILS, BOIL_EDGES, BOIL_COLOR_HEX, HUMOR_COLOR, TOOTH_UPPER, TOOTH_MARKS, TRUNK_LETTERS } from '../chapters/plague6/rules.js';
+import { chestPoint } from './p6_patient_surface.js';
 
 const FINE = { outline: 0.0022 };
 const GLASS = (opts = {}) => toon('#dfe9ea', { transparent: true, opacity: 0.38, depthWrite: false, outline: false, ...opts });
@@ -238,8 +239,35 @@ function bed() {
   box(r, 'bed_frame', [0.85, 0.12, 2.05], '#a99f92', [0, 0.36, 0]);
   for (const x of [-0.38, 0.38]) for (const z of [-0.95, 0.95]) box(r, 'bed_leg', [0.07, 0.32, 0.07], '#8a8176', [x, 0.16, z]);
   box(r, 'bed_mattress', [0.8, 0.1, 1.98], '#d9d4ca', [0, 0.47, 0]);
-  ball(r, 'bed_pillow', 0.2, '#ece7dd', [0, 0.56, -0.82], [1.6, 0.4, 0.8]);
-  box(r, 'bed_blanket', [0.82, 0.04, 0.9], '#a33b2e', [0, 0.53, 0.52]);
+  ball(r, 'bed_pillow', 0.2, '#ece7dd', [0, 0.535, -0.78], [1.6, 0.28, 0.8]);
+  // 红布从腰口盖到脚外，中央随髋和腿隆起，两侧垂过床沿；肚腩和肚脐留在外面。
+  const p = [], uv = [], ix = [], cols = 64, rows = 64;
+  for (let i = 0; i <= rows; i++) {
+    const t = i / rows, z = -0.07 + t * 1.30;
+    const foot = Math.exp(-(((t - 0.83) / 0.12) ** 2));
+    const endDrop = 0.34 * Math.pow(Math.max(0, (t - 0.88) / 0.12), 1.3);
+    const crown = 0.805 - 0.060 * Math.sin(t * PI * 0.85) + 0.080 * foot - endDrop;
+    for (let j = 0; j <= cols; j++) {
+      const u = j / cols * 2 - 1, x = u * 0.49, a = Math.abs(x);
+      const edge = Math.max(0, (a - 0.19) / 0.30);
+      const y = crown - (crown - 0.35) * Math.pow(edge, 0.58)
+        + 0.008 * Math.sin(u * 22 + t * 7) * Math.sin(t * PI)
+        + 0.007 * Math.cos(u * 15) * Math.exp(-t * 18);
+      p.push(x, y, z + 0.012 * Math.cos(u * 9) * Math.exp(-t * 20)); uv.push(j / cols, t);
+      if (i < rows && j < cols) { const a = i * (cols + 1) + j; ix.push(a, a + cols + 1, a + 1, a + 1, a + cols + 1, a + cols + 2); }
+    }
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(ix); geo.computeVertexNormals();
+  const blanketMap = tex(512, 512, (g) => {
+    g.fillStyle = '#873a32'; g.fillRect(0, 0, 512, 512);
+    for (const [x, end] of [[48, 420], [138, 180], [275, 115], [369, 230], [462, 460]]) {
+      g.strokeStyle = 'rgba(62,25,23,0.46)'; g.lineWidth = 2.5; g.beginPath();
+      g.moveTo(x, 0); g.bezierCurveTo(x - 12, 60, x + 18, end * 0.6, x + 4, end); g.stroke();
+    }
+    g.fillStyle = '#6d302b'; g.fillRect(0, 0, 512, 7);
+  });
+  add(r, new THREE.Mesh(geo, toon('#ffffff', { map: blanketMap, side: THREE.DoubleSide, outline: 0.0018 })), 'bed_blanket');
   return r;
 }
 function stool() {
@@ -289,29 +317,61 @@ function book() {
 // 面板法线朝 +Y，头朝 -Z；章节把它挂到躺着的病人身上。
 function chest() {
   const r = group('p6_chest');
-  const skin = ball(r, 'chest_skin', 0.24, '#ddd5c8', [0, -0.02, 0.02], [1, 0.12, 1.15]);
-  skin.material = toon('#e4d6c4');
-  const at = (b) => [b.x, 0.012, -b.y + 0.04];
+  // 保留旧热点名称，只有随胸肌曲面弯曲的不可见代理，不再绘制米色椭圆板。
+  const geo = new THREE.PlaneGeometry(0.35, 0.24, 24, 24); geo.rotateX(-PI / 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) pos.setY(i, chestPoint(pos.getX(i), pos.getZ(i), 0.001).y);
+  geo.computeVertexNormals();
+  const skin = add(r, new THREE.Mesh(geo, HIT), 'chest_skin'); skin.userData.proxy = true;
+  const at = (b) => chestPoint(b.x * 0.9, -b.y * 0.86 - 0.04, 0.003).toArray();
   const veins = new THREE.Group(); veins.name = 'chest_veins'; r.add(veins);
-  for (const [a, b] of BOIL_EDGES) rod(veins, new THREE.Vector3(...at(BOILS[a])).setY(0.009), new THREE.Vector3(...at(BOILS[b])).setY(0.009), 0.0018, '#b65a55');
+  for (const [a, b] of BOIL_EDGES) {
+    const from = new THREE.Vector3(...at(BOILS[a])), to = new THREE.Vector3(...at(BOILS[b]));
+    for (let i = 0; i < 8; i++) {
+      const p = from.clone().lerp(to, i / 8), q = from.clone().lerp(to, (i + 1) / 8);
+      rod(veins, chestPoint(p.x, p.z, 0.002), chestPoint(q.x, q.z, 0.002), 0.00065, '#ad746c');
+    }
+  }
   const boils = BOILS.map((b, i) => {
     const g = new THREE.Group(); g.name = `chest_boil_${i}`; g.position.fromArray(at(b)); r.add(g);
-    const bump = ball(g, 'boil_bump', 0.016, BOIL_COLOR_HEX[b.c], [0, 0.004, 0], [1, 0.6, 1], FINE);
-    const burst = ring(g, 'boil_burst', 0.014, 0.004, '#a3282a', [0, 0.003, 0], FINE); burst.rotation.x = PI / 2;
-    const hit = hitBox(g, 'boil_hit', [0.042, 0.03, 0.042]);
+    const bump = ball(g, 'boil_bump', 0.013, BOIL_COLOR_HEX[b.c], [0, 0.003, 0], [1, 0.6, 1], FINE);
+    const burst = ring(g, 'boil_burst', 0.011, 0.002, '#a3282a', [0, 0.002, 0], FINE); burst.rotation.x = PI / 2;
+    const hit = hitBox(g, 'boil_hit', [0.036, 0.025, 0.036]);
     g.userData = { bump, burst, hit };
     return g;
   });
-  const mark = new THREE.Group(); mark.name = 'chest_cross'; mark.position.set(0.03, 0.012, 0.0); r.add(mark);
+  const mark = new THREE.Group(); mark.name = 'chest_cross'; mark.position.copy(chestPoint(0.085, 0.005, 0.003)); r.add(mark);
   for (const s of [-1, 1]) box(mark, 'cross_bar', [0.08, 0.002, 0.008], '#a3282a', [0, 0, 0]).rotation.y = s * PI / 4;
   const crossHit = hitBox(mark, 'cross_hit', [0.1, 0.02, 0.1]);
-  const slit = box(r, 'chest_slit', [0.012, 0.004, 0.12], '#5e1414', [0.03, 0.012, 0]);
-  const heart = ball(r, 'chest_heart', 0.038, '#9b2a2a', [0.03, 0.02, 0], [1, 0.8, 1.2], FINE);
-  const hole = ball(r, 'chest_hole', 0.05, '#7a1214', [0.03, 0.006, 0], [0.8, 0.12, 1.3]);
-  const cheart = clockHeart(); cheart.name = 'chest_clock_heart'; cheart.position.set(0.03, 0.0, 0.01); cheart.rotation.x = -PI / 2; cheart.scale.setScalar(0.8); r.add(cheart);
+  // 梭形开口：边缘贴肤，内壁逐渐沉入胸腔；人体网格同步挖掉开口。
+  const wound = (name, color, width, inset) => {
+    const p = [], ix = [], rows = 32;
+    for (let i = 0; i <= rows; i++) {
+      const t = i / rows, z = -0.06 + t * 0.13, w = Math.sin(t * PI) * width;
+      for (let j = 0; j <= 12; j++) {
+        // 外圈唇边略高于皮肤，遮住挖洞后按三角形留下的锯齿；内侧再沉入胸腔。
+        const u = j / 12 * 2 - 1, depth = Math.max(0, 1 - (u / 0.72) ** 2);
+        const v = chestPoint(0.085 + u * w, z, 0.003 - inset * depth * Math.sin(t * PI));
+        p.push(...v.toArray());
+        if (i < rows && j < 12) { const a = i * 13 + j; ix.push(a, a + 13, a + 1, a + 1, a + 13, a + 14); }
+      }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); g.setIndex(ix); g.computeVertexNormals();
+    return add(r, new THREE.Mesh(g, toon(color, { outline: false, side: THREE.DoubleSide })), name);
+  };
+  const slit = wound('chest_slit', '#452221', 0.030, 0.019);
+  const hole = wound('chest_hole', '#9b2528', 0.024, 0.014);
+  const hp = chestPoint(0.085, 0.005, -0.002).toArray();
+  const heart = ball(r, 'chest_heart', 0.029, '#9b2a2a', hp, [0.78, 0.55, 1.5], FINE);
+  const cheart = clockHeart(); cheart.name = 'chest_clock_heart'; cheart.position.copy(chestPoint(0.085, 0.005, 0.004)); cheart.rotation.x = -PI / 2; cheart.scale.setScalar(0.60); r.add(cheart);
   const stitches = new THREE.Group(); stitches.name = 'chest_stitches'; r.add(stitches);
-  for (let i = 0; i < 6; i++) box(stitches, 'stitch', [0.04, 0.003, 0.004], '#231c18', [0.03, 0.016, -0.06 + i * 0.024]).rotation.y = (i % 2 ? 0.5 : -0.5);
-  box(stitches, 'stitch_line', [0.004, 0.003, 0.13], '#7a2a24', [0.03, 0.015, 0]);
+  for (let i = 0; i < 7; i++) {
+    const z = -0.048 + i * 0.017;
+    const a = chestPoint(0.074, z - 0.003, 0.004), b = chestPoint(0.096, z + 0.003, 0.004);
+    rod(stitches, a, a.clone().lerp(b, 0.5).add(new THREE.Vector3(0, 0.003, 0)), 0.0012, '#44372b');
+    rod(stitches, a.clone().lerp(b, 0.5).add(new THREE.Vector3(0, 0.003, 0)), b, 0.0012, '#44372b');
+    if (i < 6) rod(stitches, chestPoint(0.085, z, 0.002), chestPoint(0.085, z + 0.017, 0.002), 0.0009, '#955951');
+  }
   r.userData = { ...r.userData, boils, cross: mark, crossHit, heart, hole, slit, clockHeart: cheart };
   r.setState = ({ popped = [], done = false, cut = false, heartTaken = false, clock = false, sewn = false } = {}) => {
     const set = new Set(popped);
@@ -322,11 +382,12 @@ function chest() {
     });
     veins.visible = !done;
     mark.visible = done && !cut;
-    slit.visible = cut && !heartTaken;
-    heart.visible = cut && !heartTaken;
-    hole.visible = heartTaken && !clock;
-    cheart.visible = clock;
+    slit.visible = cut && !sewn;
+    heart.visible = cut && !heartTaken && !sewn;
+    hole.visible = heartTaken && !clock && !sewn;
+    cheart.visible = clock && !sewn;
     stitches.visible = sewn;
+    r.onWound?.(cut && !sewn);
   };
   r.setState();
   return r;

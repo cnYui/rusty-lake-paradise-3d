@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { makeProp } from '../../art/props.js';
 import { makePerson } from '../../art/cast_mock.js';
 import { makeCharacter, makeMaskModel } from '../../art/characters.js';
+import { getModel } from '../../art/rlpm.js';
 import { P, SETS } from '../../art/layout.js';
 import { BUILDING_DIMS } from '../../art/buildings.js';
 import { groundHeight } from '../../art/island.js';
@@ -253,7 +254,7 @@ function setupFamily(ctx, ext, house) {
     W.torches[p] = place(ctx, `torch_${p}`, makeProp('p10_torch'), ext, at(x, z));
   }
   W.masked = {};
-  for (const [p, mock] of [['gerard', 'gerard_boar'], ['david', 'david_rabbit'], ['margaret', 'margaret_pigeon'], ['nicholas', 'nicholas_deer']]) {
+  for (const [p, mock] of [['gerard', 'gerard_boar'], ['david', 'david_rabbit'], ['ida', 'ida_pheasant'], ['margaret', 'margaret_pigeon'], ['nicholas', 'nicholas_deer']]) {
     const plain = W.rigs[p];
     const rig = makePerson(mock);
     plain.root.parent.add(rig.root);
@@ -278,11 +279,16 @@ function setupUnder(ctx) {
   });
   const sx = UX + CRYPT.sideX, z = CRYPT.backZ;
   const shadow = person(ctx, 'shadow', 'shadow', under, [sx + 0.1, 0, z - 1.05], -Math.PI / 2 + 0.45);
-  const liz = makeCharacter('elizabeth_pheasant');
-  liz.setMask(null);
-  for (const t of liz.headTags || ['head', 'face', 'hair', 'hat']) liz.showTag(t, false);
-  if (liz.face?.mesh) liz.face.mesh.visible = false;
-  const owlMask = makeProp('p10_owl_mask'); owlMask.scale.setScalar((liz.dims?.headR?.[0] || 0.09) / 0.115); liz.parts.head.add(owlMask);
+  // 戴猫头鹰面具的 Elizabeth：有网格模型（elizabeth_owl，面具和头发都在网格上）就直接用；没有就是程序化小女孩 + 头骨骼上挂 p10_owl_mask
+  let liz;
+  if (getModel('elizabeth_owl')) liz = makeCharacter('elizabeth_owl');
+  else {
+    liz = makeCharacter('elizabeth_pheasant');
+    liz.setMask(null);
+    for (const t of liz.headTags || ['head', 'face', 'hair', 'hat']) liz.showTag(t, false);
+    if (liz.face?.mesh) liz.face.mesh.visible = false;
+    const owlMask = makeProp('p10_owl_mask'); owlMask.scale.setScalar((liz.dims?.headR?.[0] || 0.09) / 0.115); liz.parts.head.add(owlMask);
+  }
   liz.root.position.set(sx + 0.1, 0, z + 1.05); liz.root.rotation.y = -Math.PI / 2 - 0.45; under.add(liz.root);
   ctx.register('char', 'p10_elizabeth', liz);
   W.rigs.elizabeth = liz;
@@ -473,7 +479,6 @@ function syncFamily(ctx) {
     W.torches[p].setState({ lit: on });
     const show = alt && on ? alt : plain;
     if (alt) { plain.root.visible = !on; alt.root.visible = on; }
-    if (p === 'ida') plain.setMask(on ? 'pheasant' : null);
     const home = W.home[p];
     if (gateOpen) {
       const [lx, lz] = OWL_SPOTS[p];

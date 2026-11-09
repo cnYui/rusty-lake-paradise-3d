@@ -141,7 +141,8 @@ function defineViews(ctx) {
   const tb = R('table');
   close('p7_table', [tb[0], 1.75, 0.55], [tb[0], 1.35, -1.2], 'p7_room', 'house_int', 50);
   const gr = R('gerard');
-  close('p7_gerard', [gr[0] + 1.25, 1.35, gr[2] + 0.55], [gr[0], 1.15, gr[2]], 'p7_room', 'house_int', 44);
+  // 网格 Gerard 坐着时帽顶约 1.6 m：镜头框住整顶帽子到膝盖（送出帽子前后都看得见头顶）
+  close('p7_gerard', [gr[0] + 1.5, 1.42, gr[2] + 0.62], [gr[0], 1.2, gr[2]], 'p7_room', 'house_int', 44);
   const mc = R('machine');
   close('p7_machine', [mc[0] - 0.15, 1.5, mc[2] + 1.75], [mc[0], 0.98, mc[2]], 'p7_room', 'house_int', 44);
   const dm = R('dome');
@@ -206,9 +207,16 @@ export async function setup(ctx) {
   // ---- 湖岸：冰块里的年轻人 ----
   place(ctx, 'iceblock', 'p7_iceblock', ext, at(24.4, -31.4));
   const youth = person(ctx, 'youth', 'ice_youth', ext, at(24.4, -31.4), 0.5);
-  // 双臂抱在胸前（原作 10:47 冰里的人）
-  for (const [k, s] of [['armL', -1], ['armR', 1]]) { youth.parts[k].rotation.set(-1.25, 0, -s * 0.95); }
-  W.youthHat = makeProp('p7_fur'); W.youthHat.scale.setScalar(2.2); W.youthHat.position.y = 1.72; youth.root.add(W.youthHat);
+  // 双臂交叉抱在胸前（原作 10:47 冰里的人）：两只手分别搭到对侧的上臂前面
+  const Yc = youth.Y.chest;
+  youth.setPose(youth.solve(youth.POSES.stand, {
+    L: { pos: [-0.12, Yc - 0.04, 0.15], pole: [1, -0.7, 0.2], hand: [0, 0, 0] },
+    R: { pos: [0.12, Yc - 0.01, 0.18], pole: [-1, -0.7, 0.2], hand: [0, 0, 0] },
+  }));
+  // 松鼠毛做的毛帽挂在头骨骼上（解冻后给他取暖时才显示）
+  const [hrx, hry, hrz = hrx] = youth.dims.headR;
+  W.youthHat = makeProp('p7_fur_cap'); W.youthHat.scale.set(hrx * 1.12, hry * 0.95, hrz * 1.12);
+  W.youthHat.position.set(0, hry * 0.3, -0.01); W.youthHat.rotation.x = -0.12; youth.joints.head.add(W.youthHat);
 
   // ---- 神殿：锤子冻在冰里；鸟笼、跪着的母亲 Caroline、鹿头人（放水晶球后出现）；吊架 / 圣水盆 / 画 ----
   const tp = (k, y = 0) => [400 + TEMPLE[k][0], y, TEMPLE[k][1]];
@@ -287,7 +295,9 @@ export function sync(ctx) {
   W.table.setState({ icicles: Number(f('icicles_used')) || 0, ice: !!f('bucket_ice'), snowball: !!f('snowball') });
   W.dome.setBerries(!f('strawberry_taken'));
   W.machine.setState({ diamonds: (f('machine_diamonds') || []).length, ball: !f('ball_taken') });
-  W.gerardRig.showTag('hat', !f('hat_taken'));   // 程序化 Gerard 的软呢帽（网格 Gerard 的帽子摘不下来，见 cast_mock.js）
+  // 网格 Gerard：setHat 把帽子从头部网格里拿掉、补上头发（cast_mock.js 的 gerard_p7）；程序化 Gerard 只隐藏帽子部件
+  if (W.gerardRig.setHat) W.gerardRig.setHat(!f('hat_taken'));
+  else W.gerardRig.showTag('hat', !f('hat_taken'));
   // 湖岸冰块
   W.iceblock.setState(f('youth_free') ? 'free' : f('ice_cracked') ? 'cracked' : 'frozen');
   W.youthHat.visible = !!f('youth_warm');

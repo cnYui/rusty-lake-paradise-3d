@@ -50,7 +50,10 @@ RENAMED = {
     'historical_judge_character': '锈湖天堂岛-尼古拉斯', 'historical_character': '锈湖天堂岛-杰拉德', 'cartoon_man': '锈湖天堂岛-少年雅各布',
     'rabbit_character': '锈湖天堂岛-兔头大卫', 'boar_man': '锈湖天堂岛-野猪头杰拉德', 'pigeon_humanoid': '锈湖天堂岛-鸽子头玛格丽特',
     'deer_humanoid': '锈湖天堂岛-鹿头尼古拉斯', 'owl_headed_character': '锈湖天堂岛-猫头鹰头伊丽莎白',
+    # 2026-11-03 第二批：第六灾瘟疫医生、第八 / 十灾黑影（灵魂）、第十灾鹰室里戴猫头鹰面具的 Elizabeth
+    'plague_doctor': '锈湖天堂岛-瘟疫医生', 'tall_silhouette': '锈湖天堂岛-黑影', 'owl_mask_character': '锈湖天堂岛-猫头鹰面具伊丽莎白',
 }
+ROTZ = {}     # 名字 → 导入后绕 z 转的角度（度）；不写就按两臂方向自动判断
 for key, stem in RENAMED.items():
     if key not in files and os.path.exists(os.path.join(GLB_DIR, stem + '.glb')): files[key] = os.path.join(GLB_DIR, stem + '.glb')
 for name in NAMES:
@@ -60,6 +63,15 @@ for name in NAMES:
     hi = [o for o in bpy.context.scene.objects if o.type == 'MESH'][0]
     bpy.context.view_layer.objects.active = hi; hi.select_set(True)
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    # Tripo 低面版 GLB（2026-11-02 那批）是侧着的：面朝 +x、两臂沿 y 张开；后面的绑骨要“面朝 -y、两臂沿 x”，绕 z 转 -90°。
+    # 两臂张开的大字型 y 向比 x 向宽得多，按这个自动判断；判断不了的在 ROTZ 里写死角度
+    vs = [v.co for v in hi.data.vertices]
+    ex, ey = max(v.x for v in vs) - min(v.x for v in vs), max(v.y for v in vs) - min(v.y for v in vs)
+    rz = ROTZ.get(name, -90 if ey > 1.25 * ex else 0)
+    if rz:
+        hi.rotation_mode = 'XYZ'      # glTF 导入的物体是四元数模式，不改的话 rotation_euler 不起作用
+        hi.rotation_euler = (0, 0, math.radians(rz)); bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+        log(name, 'rotated', rz, 'extent x/y', round(ex, 3), round(ey, 3))
     hi.name = name + '_hi'
     # 发光烘焙：把基础色贴图接到 Emission，烘出来就是原色（没有光照）
     nt = hi.active_material.node_tree
