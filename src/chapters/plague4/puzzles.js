@@ -1,6 +1,18 @@
 // 寄居蟹的导向规则独立于画面，存档只需保存轮次和贝壳坐标。
 export const DIRECTIONS = { up: [0, -1], right: [1, 0], down: [0, 1], left: [-1, 0] };
 export const WINDOW_SOLUTION = [1, 3, 8, 10];
+export const WINDOW_SLOTS = 12;
+
+/** 把一枚滑片移到某个刻度；返回新数组，不修改入参。非法输入返回 null。 */
+export function moveTab(values, tab, slot) {
+  if (!Array.isArray(values) || values.length !== 4) return null;
+  for (let i = 0; i < 4; i++) if (!Number.isInteger(values[i])) return null;
+  if (!Number.isInteger(tab) || tab < 0 || tab > 3) return null;
+  if (!Number.isInteger(slot) || slot < 1 || slot > WINDOW_SLOTS) return null;
+  const next = [...values];
+  next[tab] = slot;
+  return next;
+}
 
 export const CRAB_LEVELS = [
   {

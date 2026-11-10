@@ -40,9 +40,9 @@ export function groundHeight(x, z) {
   if (rough > 0) h += rough * (fbm2(hNoise, x * 0.35, z * 0.35, 3) - 0.38) * 0.9;
   // tower hill: a rocky plateau that bulges out into the lake on the west
   const dT = Math.hypot(x - TOWER[0], z - TOWER[2]);
-  if (dT < 12) {
-    const hill = -1.2 + (TOWER[1] + 1.2) * smooth(11.5, 4.4, dT);
-    const n = (fbm2(hNoise, x * 0.4 + 30, z * 0.4, 3) - 0.5) * 1.4 * smooth(4.4, 7, dT) * smooth(12, 9, dT);
+  if (dT < 16) {   // 平台半径 7.5（石塔底面半径 6.8），向外 15 m 缓降入湖
+    const hill = -1.2 + (TOWER[1] + 1.2) * smooth(15, 7.5, dT);
+    const n = (fbm2(hNoise, x * 0.4 + 30, z * 0.4, 3) - 0.5) * 1.4 * smooth(7.5, 10, dT) * smooth(16, 13, dT);
     h = Math.max(h, hill + n);
   }
   return h;
@@ -955,7 +955,7 @@ function buildForest() {
     if (!onIsland(x, z)) return true;
     if (shoreDistance(x, z) > -1.6 - R) return true;
     if (z > 38.6 - R) return true;                                   // palisade / beach
-    if (Math.hypot(x - TOWER[0], z - TOWER[2]) < 9.5 + R) return true; // tower hill
+    if (Math.hypot(x - TOWER[0], z - TOWER[2]) < 12.5 + R) return true; // tower hill
     if (Math.abs(x) < 2.6 + R && z > 25) return true;                // F corridor
     if (Math.hypot(x - P.shoreTree.pos[0], z - P.shoreTree.pos[2]) < 2.6 + R) return true;
     if (ell(x, z, 1.5, 19.5, 12.8 + R, 9.2 + R)) return true;          // clearing G
@@ -1204,8 +1204,8 @@ function buildRocks() {
     [-8.0, -1.0, 5.2, 2.4, 1.6, 2.4],
   ];
   hillRocks.forEach(([dx, dy, dz, sx, sy, sz], i) => {
-    const x = tx + dx, z = tz + dz;
-    addRock(x, groundHeight(x, z) + dy + sy * 0.25, z, sx, sy, sz, r() * 6, i % 2 ? grey : greyD, i * 3.1);
+    const x = tx + dx * 1.35, z = tz + dz * 1.35;   // 石塔变大了：岩石环也跟着放大一圈
+    addRock(x, groundHeight(x, z) + dy + sy * 0.25, z, sx * 1.2, sy * 1.2, sz * 1.2, r() * 6, i % 2 ? grey : greyD, i * 3.1);
   });
   // low rocks along the non-beach shore
   for (let k = 0; k < 220 && k >= 0; k++) {

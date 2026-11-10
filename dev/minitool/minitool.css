@@ -29,7 +29,7 @@
 /* 竖屏时容器里没有“请把手机横过来”的余地，游戏自己转，不再弹提示 */
 .rotate-hint { display: none !important; }
 
-/* 载入页：上面转圈（只用 transform 的动画由合成线程跑，主线程忙着建世界时也照转，看得出页面没死），下面是 rotate.js 写的阶段文字 */
+/* 载入页：上面转圈（只用 transform 的动画由合成线程跑，主线程忙着建世界时也照转，看得出页面没停），下面是 rotate.js 写的阶段文字 */
 #boot { flex-direction: column; gap: 1.1em; text-align: center; padding: 0 2em; }
 #boot::before {
   content: '';
@@ -41,6 +41,31 @@
 /* Chrome 84 以前 flex 的 gap 不生效（compat.js 判定后给 <html> 加 no-flexgap）：转圈和文字之间的间距改用 margin（::before 不是元素，build.py 生成的 "> * + *" 兜底管不到它） */
 html.no-flexgap #boot::before { margin-bottom: 1.1em; }
 @keyframes rlp-spin { to { transform: rotate(360deg); } }
+/* 标题菜单提前出现（build.py 给 main.js 的补丁 3c）：世界还在搭的时候菜单已经能点。载入提示缩成菜单状态行下面的一行小字，
+   画布先藏起来、画面框里垫一层和菜单色调一致的底色（菜单的标题字是深色的，垫黑底就看不见了）；世界搭好后 main.js 去掉 .boot-early。 */
+#stage.boot-early .vp { background: #a9b9bf; }
+#stage.boot-early #game { visibility: hidden; }
+#stage.boot-early #boot:not(.error) {
+  top: 61%; bottom: auto; left: 0; right: 0; height: auto; padding: 0;   /* 菜单状态行（54%）下面一点，不压着章节格子 */
+  background: transparent; color: #26343a; flex-direction: row; gap: 0.7em; font-size: 0.95em; letter-spacing: 0.12em;
+  pointer-events: none;
+}
+#stage.boot-early #boot:not(.error)::before { width: 1.1em; height: 1.1em; border-width: 0.16em; border-color: rgba(30, 40, 44, 0.25); border-top-color: rgba(30, 40, 44, 0.8); }
+html.no-flexgap #stage.boot-early #boot:not(.error)::before { margin-bottom: 0; margin-right: 0.7em; }
+/* 玩家已经选了章节、世界还在后台搭：把载入提示放大成盖住整个画面框的深色遮罩，文字和转圈改成白色，
+   并吃掉这段时间里的点击，避免看起来“点了没反应”。#boot.error 仍走原来的报错样式，不受影响。 */
+#stage.boot-early.boot-queued #boot:not(.error) {
+  inset: 0; z-index: 50; height: auto; padding: 0;
+  background: rgba(20, 24, 26, 0.62); color: #fff;
+  flex-direction: column; gap: 1.1em; font-size: 1.7em; letter-spacing: 0.12em; text-align: center;
+  pointer-events: auto; text-shadow: 0 0.08em 0.5em rgba(0, 0, 0, 0.55);
+}
+#stage.boot-early.boot-queued #boot:not(.error)::before {
+  width: 3.2em; height: 3.2em; border-width: 0.24em;
+  border-color: rgba(255, 255, 255, 0.28); border-top-color: #fff;
+}
+html.no-flexgap #stage.boot-early.boot-queued #boot:not(.error)::before { margin-bottom: 1.1em; margin-right: 0; }
+
 
 /* 报错横幅 / 排查面板（rotate.js 建在 #rot 里，跟着游戏一起转） */
 .rlp-err {

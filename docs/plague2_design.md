@@ -1,8 +1,8 @@
 # 第二灾 · 蛙灾 —— 3D 复刻设计（实现契约）
 
-> 依据：参考视频 `dev/ref/P02_第二灾-蛙灾_BV1bo4y1y7fm.mp4`（849 秒）逐帧分析 `dev/ref/p2/analysis/video_*.md`，
-> 引擎接入说明 `dev/ref/p2/analysis/core_engine_guide.md`，环境 / 角色 / 道具复用清单
-> `dev/ref/p2/analysis/world-env_reuse.md`、`chars-props_reuse.md`。帧号 f_NNNN = 第 NNNN−1 秒。
+> 依据：参考视频 `dev/common/ref/P02_第二灾-蛙灾_BV1bo4y1y7fm.mp4`（849 秒）逐帧分析 `dev/common/ref/p2/analysis/video_*.md`，
+> 引擎接入说明 `dev/common/ref/p2/analysis/core_engine_guide.md`，环境 / 角色 / 道具复用清单
+> `dev/common/ref/p2/analysis/world-env_reuse.md`、`chars-props_reuse.md`。帧号 f_NNNN = 第 NNNN−1 秒。
 > 本文是第二灾各模块之间的**约定**：道具、角色、章节逻辑按这里的 id、方法名和旗标名写。
 
 ## 1. 总体

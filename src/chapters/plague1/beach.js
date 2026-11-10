@@ -13,6 +13,8 @@ const add = (parent, id, pos, scale = 1) => {
   return obj;
 };
 const view = (ctx, id, pose, rest = {}) => ctx.views.define({ id, zone: 'exterior', cam: pose, ...rest });
+// 静默记一个成就（不弹提示）：只用在读档补发
+const grantQuiet = (c, id) => { const d = c.achievementDefs[id]; if (d) c.state.achieve(id, { zh: d.zh, en: d.en, ch: c.state.chapter }); };
 // 提示按当前操作方式选文字：触屏界面用触屏版
 const hint = (c, key, name) => c.hintOnce(key, c.ui.touchMode ? T[`${name}Touch`] : T[name]);
 
@@ -112,7 +114,7 @@ export async function setup(ctx) {
   });
   ctx.hotspots.define({
     id: 'gate_shrimp', views: ['beach_mid'], object: S.props.gate, cursor: 'use', when: () => ctx.flag('hand_out') && !ctx.flag('gate_unlocked'),
-    onItem: { shrimp: async () => { ctx.take('shrimp'); await S.props.gate.handTake(makeProp('shrimp')); await S.props.gate.openDoors(); ctx.setFlag('gate_unlocked'); ctx.setFlag('gate_open'); await ctx.go('forest_path'); } },
+    onItem: { shrimp: async () => { ctx.take('shrimp'); await S.props.gate.handTake(makeProp('shrimp')); await S.props.gate.openDoors(); ctx.setFlag('gate_unlocked'); ctx.setFlag('gate_open'); ctx.achieve('welcome_to_paradise', { anchor: S.props.gate }); await ctx.go('forest_path'); } },
   });
 
   // 鱼竿：木棍 + 线 → 系着线的竹竿；+ 鱼钩 → 鱼竿；+ 虫子 → 挂好鱼饵的鱼竿。
@@ -137,6 +139,8 @@ export function sync(ctx) {
   if (ctx.flag('fruit_chops')) S.props.fruit.chop(ctx.flag('fruit_chops'), { instant: true });
   if ((ctx.flag('fruit_chops') || 0) >= 5) S.props.fruit.showWorm(false, { instant: true });
   if (ctx.flag('gate_unlocked')) S.props.gate.openDoors({ instant: true });
+  // 旧存档补发：这个成就以前没有发放点，门已经开了的存档静默补上（不弹提示）
+  if (ctx.flag('gate_unlocked')) grantQuiet(ctx, 'welcome_to_paradise');
   if (ctx.flag('hand_out') && !ctx.flag('gate_unlocked')) { S.props.gate.openHatch('up', { instant: true }); S.props.gate.openHatch('low', { instant: true }); S.props.gate.extendHand({ instant: true }); }
 }
 

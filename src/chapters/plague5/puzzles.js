@@ -17,8 +17,9 @@ function setupCow(ctx) {
   pickup(ctx, 'p5_lettuce', ['p5_gate'], W.plant, 'lettuce', 'lettuce_taken');
   pickup(ctx, 'p5_bucket', ['p5_forest'], W.bucket, 'empty_bucket', 'bucket_taken');
   pickup(ctx, 'p5_knife', ['p5_kitchen'], W.knife, 'knife', 'knife_taken');
+  // 疫斑就长在真实的牛模型上：点牛身侧面推近镜头，再按颜色把斑点两两配对
   define(ctx, 'p5_cow_skin', ['p5_cow'], W.cow.getObjectByName('cow_body'), { cursor: 'zoom', when: () => !ctx.flag('cow_cured'), goto: 'p5_skin' });
-  W.skin.userData.dots.forEach((dot, index) => define(ctx, `p5_skin_dot_${index}`, ['p5_skin'], dot, {
+  W.cow.userData.dots.forEach((dot, index) => define(ctx, `p5_skin_dot_${index}`, ['p5_skin'], dot, {
     when: () => !ctx.flag('cow_cured') && !(ctx.flag('cow_pairs') || []).includes(index),
     onClick: async () => {
       const selected = ctx.flag('cow_selected'), cleared = ctx.flag('cow_pairs') || [];
@@ -63,10 +64,12 @@ function setupCow(ctx) {
 function setupField(ctx) {
   const round = () => Math.min(count(ctx, 'field_round'), FIELD_LEVELS.length - 1);
   const positions = () => ctx.flag('field_positions') || FIELD_LEVELS[round()].pieces.map(() => null);
-  W.field.userData.trays.forEach((tray, index) => define(ctx, `p5_field_tray_${index}`, ['p5_field'], tray, {
-    when: () => !ctx.flag('field_solved') && index < FIELD_LEVELS[round()].pieces.length,
-    onClick: () => { ctx.setFlag('field_selected', ctx.flag('field_selected') === index ? null : index); refresh(ctx); },
-  }));
+  const choose = (index) => () => { ctx.setFlag('field_selected', ctx.flag('field_selected') === index ? null : index); refresh(ctx); };
+  const choosable = (index) => () => !ctx.flag('field_solved') && index < FIELD_LEVELS[round()].pieces.length;
+  W.field.userData.trays.forEach((tray, index) => define(ctx, `p5_field_tray_${index}`, ['p5_field'], tray, { when: choosable(index), onClick: choose(index) }));
+  // 田里的菜苗本身也是热点：点苗选中它，再点田格挪过去
+  // 已经选着一株时关掉这个热点：点田格要落到田格上，不能被前排菜苗的影子挡住
+  W.field.userData.slots.forEach((slot, index) => define(ctx, `p5_field_plant_${index}`, ['p5_field'], slot, { when: () => choosable(index)() && !Number.isInteger(ctx.flag('field_selected')), onClick: choose(index) }));
   W.field.userData.cells.forEach((cell, index) => define(ctx, `p5_field_cell_${index}`, ['p5_field'], cell, {
     when: () => !ctx.flag('field_solved'), onClick: async () => {
       const level = FIELD_LEVELS[round()], selected = ctx.flag('field_selected');
@@ -123,10 +126,20 @@ function setupThreads(ctx) {
 }
 
 function setupKitchen(ctx) {
+  // 把食材放上砧板，奶奶举刀剁三下（原作 6:20），每剁一下砧板上的食材换一个样子，最后成品飞进物品栏
   const process = (input, output, flag) => async () => {
     if (!ctx.state.has('knife')) { ctx.state.select(null); return ctx.say(T.needKnife); }
     if (ctx.flag(flag)) return;
-    ctx.take(input); await ctx.give(output, { from: W.cutboard }); ctx.setFlag(flag); refresh(ctx); ctx.sfx('cut');
+    await ctx.cutscene(async () => {
+      ctx.take(input); W.cutboard.beginCut(input);
+      for (let n = 1; n <= 3; n++) {
+        const swing = W.grandmotherRig.chop?.() || ctx.wait(900);
+        await ctx.wait(330); W.cutboard.cut(n); ctx.sfx('cut'); await swing;
+      }
+      ctx.setFlag(flag);
+      await ctx.give(output, { from: W.cutboard.userData.stage });
+      W.cutboard.clearStage(); refresh(ctx);
+    });
   };
   const cutting = {
     raw_meat: process('raw_meat', 'ground_meat', 'meat_ground'),
@@ -155,7 +168,7 @@ function setupKitchen(ctx) {
 }
 
 function setupDining(ctx) {
-  define(ctx, 'p5_buns', ['p5_dining'], W.bunTop, { cursor: 'grab', when: () => !ctx.flag('buns_taken'), onClick: async () => {
+  define(ctx, 'p5_buns', ['p5_table'], W.bunTop, { cursor: 'grab', when: () => !ctx.flag('buns_taken'), onClick: async () => {
     await ctx.give('bun_bottom', { from: W.bunBottom }); await ctx.give('bun_top', { from: W.bunTop }); ctx.setFlag('buns_taken'); refresh(ctx);
   } });
   const onItem = Object.fromEntries(BURGER_ORDER.map((id) => [id, () => {
@@ -165,14 +178,14 @@ function setupDining(ctx) {
     if (next.length === BURGER_ORDER.length) ctx.setFlag('burger_complete');
     refresh(ctx); ctx.sfx('click');
   }]));
-  define(ctx, 'p5_plate', ['p5_dining'], W.plate, { cursor: 'use', when: () => !ctx.flag('burger_complete'), onClick: () => ctx.say(T.plate), onItem });
-  pickup(ctx, 'p5_burger_pickup', ['p5_dining'], W.burger, 'burger', 'burger_taken', () => !!ctx.flag('burger_complete'));
+  define(ctx, 'p5_plate', ['p5_table'], W.plate, { cursor: 'use', when: () => !ctx.flag('burger_complete'), onClick: () => ctx.say(T.plate), onItem });
+  pickup(ctx, 'p5_burger_pickup', ['p5_table'], W.burger, 'burger', 'burger_taken', () => !!ctx.flag('burger_complete'));
   define(ctx, 'p5_gerard', ['p5_dining'], W.gerard, {
     cursor: 'talk', when: () => !ctx.flag('gerard_fed'), onClick: () => ctx.say(T.gerard),
     onItem: { burger: () => ctx.cutscene(async () => {
       // 原作 17:36：Gerard 双手捧起汉堡大口吃完，然后去了厕所
       ctx.take('burger');
-      const burger = makeProp('p5_burger'); burger.setLayers?.(BURGER_ORDER); burger.scale.setScalar(0.7);
+      const burger = makeProp('p5_burger'); burger.setLayers?.(BURGER_ORDER);
       await W.gerardRig.eatBurger(burger);
       ctx.setFlag('gerard_fed'); refresh(ctx); await ctx.say(T.gerardFed);
     }) },
@@ -240,9 +253,9 @@ export const walkthrough = [
   { back: true }, { go: 'p5_house' }, { click: 'p5_house_entry' }, { click: 'p5_cutboard_zoom' },
   { use: 'raw_meat', on: 'p5_cutboard' }, { use: 'tomato', on: 'p5_cutboard' }, { use: 'cucumber', on: 'p5_cutboard' },
   { back: true }, { click: 'p5_pot_zoom' }, { use: 'ground_meat', on: 'p5_pot' }, { click: 'p5_pot' },
-  { back: true }, { click: 'p5_dining_entry' }, { click: 'p5_dining_menu' }, { click: 'p5_buns' },
+  { back: true }, { click: 'p5_dining_entry' }, { click: 'p5_dining_menu' }, { click: 'p5_plate_zoom' }, { click: 'p5_buns' },
   ...BURGER_ORDER.map((id) => ({ use: id, on: 'p5_plate' })),
-  { expectFlag: 'burger_complete' }, { click: 'p5_burger_pickup' }, { use: 'burger', on: 'p5_gerard' },
+  { expectFlag: 'burger_complete' }, { click: 'p5_burger_pickup' }, { back: true }, { use: 'burger', on: 'p5_gerard' },
   { back: true }, { click: 'p5_kitchen_exit' }, { click: 'p5_toilet_entry' }, { click: 'p5_memory_disk' }, { click: 'p5_black_cube' },
   { expectFlag: 'cube_taken' }, { back: true }, { back: true }, { go: 'p5_temple' }, { click: 'p5_temple_entry' },
   { click: 'p5_altar_entry' }, { click: 'p5_holder' }, { use: 'black_cube', on: 'p5_holder' }, { click: 'p5_font' }, { click: 'p5_holder' },

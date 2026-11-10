@@ -50,6 +50,24 @@
     });
   }
 
+  // ---- Object.fromEntries（Chrome 73）：cast.js 模块顶层、第三灾 cast_p3.js / props_p3_placeholders.js / forest.js / grove.js / temple.js 都直接调用，
+  //      Android 8 / Chrome 60 上没有它就在建世界时抛 TypeError（口袋方舟兼容要求按 Chrome 60 验收）。参数是 [键, 值] 的可迭代对象。
+  if (typeof Object.fromEntries !== 'function') {
+    Object.defineProperty(Object, 'fromEntries', {
+      value: function fromEntries(iterable) {
+        if (iterable == null) throw new TypeError('fromEntries 需要一个可迭代对象');
+        var list = Array.from(iterable), out = {};
+        for (var i = 0; i < list.length; i++) {
+          var e = list[i];
+          if (Object(e) !== e) throw new TypeError('fromEntries 的每一项都必须是 [键, 值]');
+          Object.defineProperty(out, e[0], { value: e[1], writable: true, enumerable: true, configurable: true });
+        }
+        return out;
+      },
+      writable: true, configurable: true
+    });
+  }
+
   // ---- Canvas 2D 的 roundRect（Chrome 99）：游戏里 3 处画贴图用到，参数都是数字半径。按标准的写法补上：数字 / 1~4 个半径的数组 / {x, y} 取 x；
   //      半径过大时等比缩小；宽高为负时翻转。用 arcTo 拼，不需要 Path2D。
   if (typeof CanvasRenderingContext2D === 'function' && !CanvasRenderingContext2D.prototype.roundRect) {

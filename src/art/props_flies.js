@@ -1,264 +1,179 @@
-// 第四灾的昆虫、贝壳与机关；所有贴图均由画布生成，不依赖参考视频素材。
-import * as THREE from 'three';
-import { toon, unlit, canvasTexture, rng } from './materials.js';
+// 第四灾的道具与机关；生物在 props_flies_creatures.js，书与窗在 props_flies_book.js。
+// 所有贴图均由画布生成，不依赖参考视频素材。
+import {
+  THREE, toon, unlit, canvasTexture, ink, TAU, group, mesh, ball, bar, taperedTube, merged, placed, label, bake,
+} from './props_flies_kit.js';
+import { rng } from './materials.js';
+import { makeBook, makeWindow, BOOK_SPREADS, WINDOW_GLYPHS } from './props_flies_book.js';
+import {
+  makeFlyMan, makeCocoon, makeCrab, makeUrchin, makeShell, makeGoal, makeRabbit, makeBird, spiralShell,
+} from './props_flies_creatures.js';
 
-const ink = '#191b18', TAU = Math.PI * 2;
-const group = (name) => { const g = new THREE.Group(); g.name = name; return g; };
-const mesh = (parent, geo, mat, pos = [0, 0, 0], name = '') => {
-  const m = new THREE.Mesh(geo, mat); m.position.fromArray(pos); m.name = name; parent.add(m); return m;
-};
-const ball = (parent, pos, size, mat, name) => {
-  const m = mesh(parent, new THREE.SphereGeometry(1, 20, 14), mat, pos, name); m.scale.fromArray(size); return m;
-};
-const bar = (parent, a, b, radius, mat) => {
-  const va = new THREE.Vector3(...a), vb = new THREE.Vector3(...b), d = vb.clone().sub(va);
-  const m = mesh(parent, new THREE.CylinderGeometry(radius * 0.8, radius, d.length(), 10), mat);
-  m.position.copy(va.add(vb).multiplyScalar(0.5)); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); return m;
+export {
+  label, makeBook, makeWindow, BOOK_SPREADS, WINDOW_GLYPHS,
+  makeFlyMan, makeCocoon, makeCrab, makeUrchin, makeShell, makeGoal, makeRabbit, makeBird, spiralShell,
 };
 
-export function label(text, width = 1, height = 0.2, { color = ink, background = '#d1c4a0' } = {}) {
-  const tex = canvasTexture(1024, Math.round(1024 * height / width), (g, w, h) => {
-    g.fillStyle = background; g.fillRect(0, 0, w, h);
-    g.strokeStyle = '#64583e'; g.lineWidth = 5; g.strokeRect(3, 3, w - 6, h - 6);
-    g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = `${Math.min(h * 0.58, w / (text.length * 0.95))}px "Microsoft YaHei", sans-serif`;
-    g.fillText(text, w / 2, h / 2);
-  });
-  return new THREE.Mesh(new THREE.PlaneGeometry(width, height), unlit('#ffffff', { map: tex, side: THREE.DoubleSide }));
-}
-
-export function makeFlyMan() {
-  const root = group('p4_flyman'), body = group('fly_body'); root.add(body);
-  const dark = toon('#242923'), skin = toon('#d9d6be'), cloth = toon('#6b6b52'), boot = toon('#322e23');
-  ball(body, [0, 0.85, -0.12], [0.28, 0.44, 0.24], dark);
-  for (let i = 0; i < 7; i++) ball(body, [0, 0.56 + i * 0.065, -0.25], [0.26 - i * 0.012, 0.08, 0.14], dark);
-  ball(body, [0, 1.25, 0.1], [0.27, 0.25, 0.24], dark, 'fly_head');
-  const eyes = toon('#cdcda0');
-  for (const side of [-1, 1]) {
-    ball(body, [side * 0.155, 1.3, 0.27], [0.105, 0.135, 0.055], eyes);
-    ball(body, [side * 0.155, 1.3, 0.315], [0.06, 0.09, 0.017], toon('#abae84'));
-    bar(body, [side * 0.12, 1.44, 0.09], [side * 0.21, 1.65, 0.14], 0.015, dark);
-    bar(body, [side * 0.21, 1.65, 0.14], [side * 0.19, 1.75, 0.23], 0.012, dark);
-    bar(body, [side * 0.22, 1.1, 0.02], [side * 0.4, 0.75, 0.22], 0.067, skin);
-    bar(body, [side * 0.4, 0.75, 0.22], [side * 0.25, 0.43, 0.48], 0.045, skin);
-    ball(body, [side * 0.24, 0.42, 0.49], [0.07, 0.035, 0.08], skin);
-    bar(body, [side * 0.12, 0.55, -0.04], [side * 0.25, 0.23, 0.15], 0.085, cloth);
-    bar(body, [side * 0.25, 0.23, 0.15], [side * 0.21, 0.08, -0.25], 0.067, cloth);
-    ball(body, [side * 0.21, 0.08, -0.3], [0.08, 0.07, 0.17], boot);
-  }
-  bar(body, [0, 1.2, 0.27], [0, 0.86, 0.65], 0.029, toon('#8b8860'));
-  const wings = [];
-  const veinTex = canvasTexture(256, 512, (g, w, h) => {
-    g.fillStyle = '#d8d7ae'; g.fillRect(0, 0, w, h); g.strokeStyle = '#656955'; g.lineWidth = 2;
-    for (let i = 0; i < 7; i++) {
-      g.beginPath(); g.moveTo(w * 0.5, h); g.bezierCurveTo(w * (0.1 + i * 0.13), h * 0.65, w * (0.06 + i * 0.14), h * 0.28, w * (0.08 + i * 0.14), 0); g.stroke();
+// ---------------------------------------------------------------------------
+// 心脏：兔和鸟是红色的心；蟹是一段粉红的蟹肉。
+function buildHeart(kind = 'rabbit') {
+  const root = group(`p4_${kind}_heart`);
+  if (kind === 'crab') {
+    const meat = toon('#e49682'), seam = toon('#c4705f');
+    for (let i = 0; i < 6; i++) {
+      const u = i / 5, a = -0.9 + u * 1.8;
+      ball(root, [Math.sin(a) * 0.09, 0.05 + 0.02 * Math.cos(a * 2), Math.cos(a) * 0.05 - 0.03], [0.05 - u * 0.012, 0.042, 0.04 - u * 0.008], i % 2 ? seam : meat);
     }
-    for (let i = 1; i < 9; i++) { g.beginPath(); g.moveTo(0, i * h / 9); g.lineTo(w, (i + 0.4) * h / 9); g.stroke(); }
-  });
-  for (const s of [-1, 1]) {
-    const pivot = group('fly_wing'); pivot.position.set(s * 0.12, 1.11, -0.18); body.add(pivot);
-    const wing = ball(pivot, [s * 0.29, 0.5, -0.15], [0.21, 0.65, 0.018],
-      toon('#ffffff', { map: veinTex, transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
-    wing.rotation.z = -s * 0.48; wings.push([pivot, s]);
+    bar(root, [0.09, 0.05, -0.04], [0.14, 0.07, -0.01], 0.012, toon('#e8b9a6'));
+    return root;
   }
-  root.update = (dt, t) => { for (const [p, s] of wings) p.rotation.y = s * (0.2 + Math.sin(t * 55) * 0.38); body.position.y = Math.sin(t * 3.7) * 0.045; };
+  const mat = toon(kind === 'bird' ? '#a32e2a' : '#8f3029'), vessel = toon('#c9564a');
+  ball(root, [-0.05, 0.11, 0], [0.08, 0.09, 0.07], mat);
+  ball(root, [0.055, 0.115, 0], [0.075, 0.085, 0.065], mat);
+  const bottom = mesh(root, new THREE.ConeGeometry(0.1, 0.19, 18), mat, [0, 0.04, 0]); bottom.rotation.z = Math.PI;
+  for (const [a, b] of [[[0.0, 0.17, 0], [0.02, 0.25, -0.01]], [[0.04, 0.18, 0.01], [0.09, 0.24, 0.02]], [[-0.04, 0.17, 0.01], [-0.08, 0.23, 0.0]]]) bar(root, a, b, 0.017, vessel, 0.012);
+  ball(root, [-0.07, 0.14, 0.05], [0.025, 0.018, 0.01], toon('#d9776b'));
   return root;
 }
 
-export function makeCocoon() {
-  const root = group('p4_cocoon'), halves = [], mat = toon('#ad8b77');
-  for (const s of [-1, 1]) {
-    const half = group('cocoon_half'); root.add(half); halves.push([half, s]);
-    for (let i = 0; i < 8; i++) {
-      const r = 0.33 * (1 - i / 10);
-      const geo = new THREE.SphereGeometry(1, 18, 12, s < 0 ? Math.PI : 0, Math.PI);
-      const m = mesh(half, geo, mat, [-0.62 + i * 0.18, r * 0.6, 0]); m.scale.set(0.15, r, r);
-    }
-  }
-  root.setOpen = (open) => { for (const [h, s] of halves) { h.position.z = open ? s * 0.2 : 0; h.rotation.x = open ? s * 0.45 : 0; } };
-  return root;
-}
-
-export function makeCrab() {
-  const root = group('p4_crab'), mat = toon('#a77355'), shell = toon('#c5ba9c');
-  ball(root, [0, 0.11, 0], [0.14, 0.1, 0.12], mat);
-  ball(root, [0, 0.15, -0.09], [0.13, 0.13, 0.17], shell);
-  for (const side of [-1, 1]) {
-    for (let i = 0; i < 3; i++) {
-      bar(root, [side * 0.07, 0.11, -0.1 + i * 0.07], [side * 0.23, 0.015, -0.14 + i * 0.11], 0.012, mat);
-    }
-    bar(root, [side * 0.08, 0.13, 0.05], [side * 0.19, 0.1, 0.2], 0.02, mat);
-    ball(root, [side * 0.2, 0.11, 0.22], [0.05, 0.03, 0.06], mat);
-    ball(root, [side * 0.05, 0.2, 0.1], [0.017, 0.035, 0.017], toon(ink));
-  }
-  return root;
-}
-
-export function makeUrchin() {
-  const root = group('p4_urchin'), mat = toon('#343e3d');
-  ball(root, [0, 0.08, 0], [0.11, 0.08, 0.11], mat);
-  for (let i = 0; i < 13; i++) {
-    const a = i / 13 * TAU;
-    bar(root, [0, 0.06, 0], [Math.cos(a) * 0.22, i % 3 === 0 ? 0.24 : 0.035, Math.sin(a) * 0.22], 0.011, mat);
-  }
-  return root;
-}
-
-export function makeShell(dir) {
-  const root = group('p4_shell'), colors = { up: '#c6ceaf', right: '#e5d8b5', down: '#b8c1c7', left: '#cfafb5' };
-  const mat = toon(colors[dir]);
-  for (let i = 0; i < 5; i++) {
-    const r = 0.12 * (1 - i / 6);
-    ball(root, [0, 0.09, -0.12 + i * 0.05], [r, r * 0.8, 0.052], mat);
-  }
-  const arrow = label('↑', 0.22, 0.22, { background: colors[dir] }); arrow.rotation.x = -Math.PI / 2; arrow.position.set(0, 0.205, -0.015); root.add(arrow);
-  root.rotation.y = { up: 0, right: -Math.PI / 2, down: Math.PI, left: Math.PI / 2 }[dir];
-  root.setSelected = (selected) => { mat.emissive.set(selected ? '#857238' : '#000000'); root.scale.setScalar(selected ? 1.14 : 1); };
-  return root;
-}
-
-export function makeHeart(kind = 'rabbit') {
-  const root = group(`p4_${kind}_heart`), mat = toon('#873b32');
-  ball(root, [-0.055, 0.11, 0], [0.08, 0.09, 0.065], mat);
-  ball(root, [0.055, 0.11, 0], [0.08, 0.09, 0.065], mat);
-  const bottom = mesh(root, new THREE.ConeGeometry(0.095, 0.18, 16), mat, [0, 0.035, 0]); bottom.rotation.z = Math.PI;
-  bar(root, [0, 0.15, 0], [0.025, 0.23, -0.015], 0.025, mat);
-  if (kind === 'crab') for (let i = 0; i < 3; i++) bar(root, [-0.06 + i * 0.06, 0.02, 0.058], [-0.08 + i * 0.06, 0.16, 0.055], 0.009, toon('#d0b39b'));
-  return root;
-}
-
+// 绿色宝石：切面分明的菱形，嵌在猫头鹰胸口和石门上。
 export function makeGem() {
   const root = group('p4_gem');
-  const stone = mesh(root, new THREE.IcosahedronGeometry(0.13, 0), toon('#afca8c', { emissive: '#1d3513' }), [0, 0.13, 0]);
-  const ring = mesh(root, new THREE.TorusGeometry(0.13, 0.012, 8, 24), toon('#746746'), [0, 0.13, 0]); ring.rotation.x = Math.PI / 2;
-  root.update = (dt, t) => { stone.rotation.y = t * 0.3; }; return root;
+  const stone = mesh(root, new THREE.OctahedronGeometry(0.13, 0), toon('#9fcb86', { emissive: '#20431a' }), [0, 0.14, 0]);
+  stone.scale.set(1, 1.3, 0.8);
+  const ring = mesh(root, new THREE.TorusGeometry(0.115, 0.014, 8, 24), toon('#7a6c49'), [0, 0.14, -0.02]);
+  root.update = (dt, t) => { stone.rotation.y = Math.sin(t * 0.8) * 0.35; }; return root;
 }
 
+// 蜡烛：黄铜小碟带环形把手，蜡身有一滴蜡泪，火苗轻轻晃。
 export function makeCandle() {
-  const root = group('p4_candle');
-  mesh(root, new THREE.CylinderGeometry(0.12, 0.14, 0.025, 24), toon('#9b997e'), [0, 0.012, 0]);
-  mesh(root, new THREE.CylinderGeometry(0.038, 0.045, 0.21, 18), toon('#ded4aa'), [0, 0.13, 0]);
-  const flame = ball(root, [0, 0.29, 0], [0.022, 0.058, 0.018], unlit('#edbf72'));
-  root.update = (dt, t) => { flame.scale.y = 0.053 + Math.sin(t * 9) * 0.007; }; return root;
-}
-
-export function makeCarrot() {
-  const root = group('p4_carrot');
-  const carrot = mesh(root, new THREE.ConeGeometry(0.06, 0.4, 16), toon('#c48336'), [0, 0.2, 0]); carrot.rotation.z = Math.PI;
-  for (let i = 0; i < 4; i++) bar(root, [0, 0.4, 0], [(i - 1.5) * 0.04, 0.54, 0.015], 0.014, toon('#6f824e'));
+  const root = group('p4_candle'), brass = toon('#a89358'), wax = toon('#e8dfba');
+  const dish = mesh(root, new THREE.CylinderGeometry(0.115, 0.095, 0.03, 24), brass, [0, 0.015, 0]);
+  const handle = mesh(root, new THREE.TorusGeometry(0.05, 0.012, 8, 16), brass, [0.17, 0.02, 0]); handle.rotation.x = Math.PI / 2;
+  mesh(root, new THREE.CylinderGeometry(0.038, 0.042, 0.2, 18), wax, [0, 0.13, 0]);
+  ball(root, [0.034, 0.17, 0.01], [0.012, 0.045, 0.012], wax);
+  bar(root, [0, 0.23, 0], [0, 0.255, 0], 0.004, toon(ink));
+  const flame = ball(root, [0, 0.29, 0], [0.024, 0.06, 0.02], unlit('#f0c27a'));
+  const core = ball(root, [0, 0.282, 0.012], [0.012, 0.035, 0.008], unlit('#fff0c8'));
+  root.update = (dt, t) => { flame.scale.y = 0.056 + Math.sin(t * 9) * 0.007; flame.scale.x = 0.022 + Math.sin(t * 7.3) * 0.003; core.scale.y = flame.scale.y * 0.6; };
   return root;
 }
 
-export function makePit() {
-  const root = group('p4_pit');
-  mesh(root, new THREE.CylinderGeometry(0.64, 0.64, 0.028, 40), toon('#695b43'), [0, 0.015, 0]);
-  mesh(root, new THREE.CylinderGeometry(0.53, 0.53, 0.032, 40), unlit('#141b15'), [0, 0.03, 0]); return root;
+// 胡萝卜：带环纹的橙色圆锥加一撮羽状绿叶。
+function buildCarrot() {
+  const root = group('p4_carrot');
+  const tex = canvasTexture(64, 256, (g, w, h) => {
+    const r = rng(3); g.fillStyle = '#d68a3c'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(140,76,24,0.5)'; g.lineWidth = 3;
+    for (let y = 18; y < h; y += 26 + r() * 12) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y + 4); g.stroke(); }
+  });
+  const body = mesh(root, new THREE.ConeGeometry(0.065, 0.42, 18), toon('#ffffff', { map: tex }), [0, 0.21, 0]); body.rotation.z = Math.PI;
+  for (let i = 0; i < 5; i++) root.add(taperedTube([[0, 0.41, 0], [(i - 2) * 0.03, 0.5, 0.01 * (i % 2)], [(i - 2) * 0.055, 0.6, 0.02]], 0.012, 0.004, toon('#6f8a4e'), { radial: 5, segments: 6 }));
+  return root;
 }
 
-export function makeTrap() {
-  const root = group('p4_trap'), lid = group('trap_lid'), metal = toon('#a5aaa1'); root.add(lid);
-  const disc = mesh(lid, new THREE.CylinderGeometry(0.44, 0.46, 0.045, 40), metal, [0, 0, 0]);
-  disc.position.y = 0.045;
-  const support = bar(root, [0.3, 0.03, 0], [0.3, 0.6, 0], 0.025, toon('#886d49')); support.name = 'trap_branch';
-  const bait = ball(root, [0.03, 0.055, 0], [0.09, 0.025, 0.025], toon('#bc9f7e')); bait.name = 'trap_bait';
+// 坑口：土黄色的坑沿加一圈浅色边，里面是深色的洞。
+function buildPit() {
+  const root = group('p4_pit');
+  mesh(root, new THREE.CylinderGeometry(0.7, 0.7, 0.02, 44), toon('#a79a78'), [0, 0.01, 0]);
+  mesh(root, new THREE.CylinderGeometry(0.64, 0.64, 0.028, 44), toon('#6f5f43'), [0, 0.02, 0]);
+  mesh(root, new THREE.CylinderGeometry(0.53, 0.53, 0.032, 44), unlit('#141b15'), [0, 0.03, 0]); return root;
+}
+
+// 盖在坑口的木板：1.4 × 0.2 m 的宽板、木纹和钉子，长轴沿 X。
+export function makePlank() {
+  const root = group('p4_plank');
+  const tex = canvasTexture(256, 64, (g, w, h) => {
+    const r = rng(41); g.fillStyle = '#a08c6c'; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(70,56,38,0.5)'; g.lineWidth = 2;
+    for (let y = 8; y < h; y += 11) { g.beginPath(); g.moveTo(0, y); g.bezierCurveTo(w * 0.3, y + (r() - 0.5) * 6, w * 0.7, y + (r() - 0.5) * 6, w, y + (r() - 0.5) * 4); g.stroke(); }
+    g.fillStyle = 'rgba(60,46,30,0.55)'; g.beginPath(); g.ellipse(w * 0.62, h * 0.4, 9, 5, 0, 0, TAU); g.fill();
+    for (let i = 0; i < 80; i++) { g.fillStyle = 'rgba(50,38,26,0.18)'; g.fillRect(r() * w, r() * h, 3 + r() * 14, 1); }
+  });
+  mesh(root, new THREE.BoxGeometry(1.4, 0.04, 0.2), toon('#ffffff', { map: tex }), [0, 0, 0]);
+  for (const x of [-0.58, 0.58]) mesh(root, new THREE.CylinderGeometry(0.014, 0.014, 0.012, 8), toon('#3a3730'), [x, 0.026, 0]);
+  return root;
+}
+
+// 捕鸟盘：一块灰石板，一端用树枝支起来，板下放着虫子。
+function buildTrap() {
+  const root = group('p4_trap'), lid = group('trap_lid'), stone = toon('#9aa09c'); root.add(lid);
+  lid.position.set(-0.42, 0.04, 0);
+  const shape = new THREE.Shape();
+  [[0, -0.28], [0.35, -0.31], [0.78, -0.24], [0.9, -0.05], [0.84, 0.2], [0.5, 0.3], [0.12, 0.27], [-0.02, 0.1]].forEach(([x, y], i) => (i ? shape.lineTo(x, y) : shape.moveTo(x, y)));
+  const slabGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.02, bevelSegments: 2 });
+  slabGeo.rotateX(-Math.PI / 2); slabGeo.translate(0, 0.0, 0);
+  mesh(lid, slabGeo, stone, [0, 0, 0], 'trap_slab');
+  // 石板翘起 0.5 rad（setState），板头在 x≈0.37：树枝要正好顶在翘起的板底（x=0.27、高 0.40），不能立在板外
+  const support = bar(root, [0.27, 0.0, 0.0], [0.27, 0.41, 0.0], 0.022, toon('#7c6343'), 0.016); support.name = 'trap_branch';
+  const bait = group('trap_bait'); bait.position.set(0.1, 0.02, 0.0); root.add(bait);
+  bait.add(taperedTube([[-0.07, 0, 0], [-0.02, 0.012, 0.025], [0.03, 0.01, -0.02], [0.08, 0.004, 0.01]], 0.013, 0.008, toon('#d6a39a'), { radial: 6, segments: 10 }));
   root.setState = (propped, baited, caught) => {
-    lid.rotation.z = propped && !caught ? -0.7 : 0; lid.position.y = propped && !caught ? 0.31 : 0;
-    support.visible = propped && !caught; bait.visible = baited && !caught;
+    const up = propped && !caught;
+    lid.rotation.z = up ? 0.5 : 0; lid.position.y = 0.04;
+    support.visible = up; bait.visible = baited && !caught;
   }; return root;
 }
 
-export function makeRabbit() {
-  const root = group('p4_rabbit'), mat = toon('#e2ded0');
-  ball(root, [0, 0.2, 0], [0.22, 0.2, 0.3], mat); ball(root, [0, 0.38, 0.18], [0.14, 0.15, 0.14], mat);
-  for (const s of [-1, 1]) {
-    ball(root, [s * 0.07, 0.63, 0.15], [0.045, 0.22, 0.045], mat);
-    ball(root, [s * 0.113, 0.4, 0.26], [0.018, 0.018, 0.012], toon(ink));
-  }
-  ball(root, [0, 0.15, -0.3], [0.08, 0.08, 0.08], mat); return root;
-}
-
-export function makeBird() {
-  const root = group('p4_bird'), mat = toon('#c4bfa4');
-  ball(root, [0, 0.19, 0], [0.13, 0.13, 0.22], mat); ball(root, [0, 0.31, 0.16], [0.085, 0.085, 0.085], mat);
-  for (const s of [-1, 1]) {
-    bar(root, [s * 0.05, 0.12, 0], [s * 0.05, 0.02, 0.03], 0.012, toon('#5b5342'));
-    ball(root, [s * 0.07, 0.33, 0.2], [0.012, 0.012, 0.01], toon(ink));
-  }
-  bar(root, [0, 0.29, 0.21], [0, 0.29, 0.33], 0.028, toon('#8c7853')); return root;
-}
-
+// 木箱：竖向木板纹、铁箍和锁扣。
 export function makeChest() {
-  const root = group('p4_chest'), wood = toon('#8c7150');
+  const root = group('p4_chest');
+  const grain = canvasTexture(128, 128, (g, w, h) => {
+    const r = rng(21); g.fillStyle = '#8f7452'; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(70,50,30,0.5)'; g.lineWidth = 2;
+    for (let x = 0; x < w; x += 22) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + (r() - 0.5) * 3, h); g.stroke(); }
+    for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(60,40,24,0.25)'; g.fillRect(r() * w, r() * h, 1 + r() * 4, 1); }
+  });
+  const wood = toon('#ffffff', { map: grain }), iron = toon('#4a4636');
   mesh(root, new THREE.BoxGeometry(0.75, 0.52, 0.53), wood, [0, 0.26, 0]);
   const lid = group('chest_lid'); lid.position.set(0, 0.56, -0.265); root.add(lid);
   mesh(lid, new THREE.BoxGeometry(0.79, 0.07, 0.56), wood, [0, 0, 0.265]);
-  for (const x of [-0.25, 0.25]) mesh(root, new THREE.BoxGeometry(0.038, 0.56, 0.56), toon('#524a36'), [x, 0.28, 0]);
+  mesh(lid, new THREE.BoxGeometry(0.06, 0.05, 0.03), iron, [0, -0.02, 0.55]);
+  for (const x of [-0.25, 0.25]) { mesh(root, new THREE.BoxGeometry(0.04, 0.56, 0.56), iron, [x, 0.28, 0]); mesh(lid, new THREE.BoxGeometry(0.045, 0.085, 0.58), iron, [x, 0, 0.265]); }
+  mesh(root, new THREE.BoxGeometry(0.1, 0.1, 0.03), toon('#a89358'), [0, 0.46, 0.275]);
   root.setOpen = (open) => { lid.rotation.x = open ? -1.05 : 0; }; return root;
 }
 
+// 大锅：铁锅、斜靠着的锅盖、下面一圈木柴和跳动的火苗。
 export function makeCauldron() {
-  const root = group('p4_cauldron'), metal = toon('#80776e');
+  const root = group('p4_cauldron'), metal = toon('#807770');
   const points = [[0.18, 0.2], [0.44, 0.35], [0.52, 0.7], [0.41, 0.9], [0.4, 1.02], [0.46, 1.05]];
   mesh(root, new THREE.LatheGeometry(points.map((p) => new THREE.Vector2(...p)), 32), metal);
   mesh(root, new THREE.CylinderGeometry(0.39, 0.39, 0.025, 32), toon('#424a31'), [0, 0.92, 0]);
+  const rim = mesh(root, new THREE.TorusGeometry(0.435, 0.025, 8, 32), toon('#615a54'), [0, 1.03, 0]); rim.rotation.x = Math.PI / 2;
+  for (const s of [-1, 1]) { const ear = mesh(root, new THREE.TorusGeometry(0.06, 0.016, 8, 14), toon('#615a54'), [s * 0.47, 0.98, 0]); ear.rotation.y = Math.PI / 2; }
+  mesh(root, new THREE.CylinderGeometry(0.5, 0.5, 0.05, 28), toon('#6a5339'), [0, 0.03, 0]);
   for (let i = 0; i < 5; i++) {
     const a = i / 5 * TAU;
-    bar(root, [-Math.cos(a) * 0.5, 0.05, -Math.sin(a) * 0.5], [Math.cos(a) * 0.5, 0.18, Math.sin(a) * 0.5], 0.045, toon('#6a4f35'));
+    bar(root, [-Math.cos(a) * 0.5, 0.06, -Math.sin(a) * 0.5], [Math.cos(a) * 0.5, 0.2, Math.sin(a) * 0.5], 0.045, toon('#6a4f35'));
   }
+  const flames = [0, 1, 2].map((i) => { const f = ball(root, [(i - 1) * 0.16, 0.16, 0.0], [0.05, 0.12, 0.05], unlit(i === 1 ? '#f4a24a' : '#e57a34')); f.userData.phase = i * 2; return f; });
+  const lid = mesh(root, new THREE.CylinderGeometry(0.42, 0.42, 0.04, 30), metal, [0.85, 0.42, 0.55]); lid.rotation.set(Math.PI / 2 - 0.2, 0, 0.5);
+  const lidHandle = mesh(lid, new THREE.TorusGeometry(0.1, 0.017, 8, 16), toon('#615a54'), [0, 0.03, 0]); lidHandle.rotation.x = Math.PI / 2;
+  root.update = (dt, t) => { for (const f of flames) f.scale.y = 0.11 + Math.sin(t * 8 + f.userData.phase) * 0.025; };
   return root;
 }
 
+// 石门：刻着拱形凹纹的石板，中间嵌宝石的凹槽。
 export function makeStoneDoor() {
-  const root = group('p4_stone_door'), stone = toon('#777c74');
-  const slab = mesh(root, new THREE.BoxGeometry(1.62, 2.45, 0.17), stone, [0, 1.22, 0], 'stone_slab');
+  const root = group('p4_stone_door'), stone = toon('#7f847c');
+  const tex = canvasTexture(256, 384, (g, w, h) => {
+    const r = rng(15); g.fillStyle = '#808578'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 700; i++) { g.fillStyle = r() > 0.5 ? 'rgba(40,46,40,0.18)' : 'rgba(210,214,200,0.16)'; g.fillRect(r() * w, r() * h, 2 + r() * 8, 1 + r() * 2); }
+    g.strokeStyle = 'rgba(30,34,30,0.7)'; g.lineWidth = 6;
+    g.beginPath(); g.moveTo(24, h - 10); g.lineTo(24, 150); g.arc(w / 2, 150, w / 2 - 24, Math.PI, 0); g.lineTo(w - 24, h - 10); g.stroke();
+    g.strokeStyle = 'rgba(230,232,218,0.3)'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(34, h - 10); g.lineTo(34, 150); g.arc(w / 2, 150, w / 2 - 34, Math.PI, 0); g.lineTo(w - 34, h - 10); g.stroke();
+    g.strokeStyle = 'rgba(30,34,30,0.45)'; g.lineWidth = 2;
+    for (let i = 0; i < 3; i++) { const x = r() * w, y = r() * h; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 70, y + r() * 60); g.stroke(); }
+  });
+  const slab = mesh(root, new THREE.BoxGeometry(1.62, 2.45, 0.17), toon('#ffffff', { map: tex }), [0, 1.22, 0], 'stone_slab');
   for (const s of [-1, 1]) mesh(root, new THREE.BoxGeometry(0.2, 2.65, 0.28), toon('#aaa897'), [s * 0.92, 1.32, 0]);
   mesh(root, new THREE.BoxGeometry(2.02, 0.2, 0.28), toon('#aaa897'), [0, 2.62, 0]);
-  mesh(slab, new THREE.CylinderGeometry(0.13, 0.13, 0.035, 8).rotateX(Math.PI / 2), unlit('#26352a'), [0, 0.28, 0.105], 'gem_socket');
+  const socket = mesh(slab, new THREE.CylinderGeometry(0.15, 0.15, 0.035, 12).rotateX(Math.PI / 2), unlit('#26352a'), [0, 0.28, 0.105], 'gem_socket');
+  const socketRim = mesh(slab, new THREE.TorusGeometry(0.16, 0.022, 8, 20), toon('#5e6258'), [0, 0.28, 0.105]);
   root.setOpen = (open) => { slab.visible = !open; }; return root;
 }
 
-export function makeWindow() {
-  const root = group('p4_window'), shutters = group('window_shutters'); root.add(shutters);
-  const view = canvasTexture(512, 640, (g, w, h) => {
-    const sky = g.createLinearGradient(0, 0, 0, h); sky.addColorStop(0, '#c5c4a2'); sky.addColorStop(1, '#d7d5b8');
-    g.fillStyle = sky; g.fillRect(0, 0, w, h);
-    for (let layer = 0; layer < 3; layer++) {
-      g.fillStyle = ['#999d96', '#7d8a83', '#68756a'][layer]; g.beginPath(); g.moveTo(0, h);
-      for (let x = 0; x <= w; x += 8) g.lineTo(x, h * (0.48 + layer * 0.065) - Math.abs(Math.sin(x * 0.013 + layer) * Math.cos(x * 0.025)) * 90);
-      g.lineTo(w, h); g.fill();
-    }
-    g.fillStyle = '#a6b0a5'; g.fillRect(0, h * 0.7, w, h * 0.3);
-    g.strokeStyle = '#d3d6ba'; g.lineWidth = 2;
-    for (let i = 0; i < 11; i++) { g.beginPath(); g.moveTo(i * 43 - 30, h * 0.72 + i * 15); g.lineTo(i * 43 + 90, h * 0.72 + i * 15); g.stroke(); }
-  });
-  mesh(root, new THREE.PlaneGeometry(1.7, 1.9), unlit('#ffffff', { map: view }), [0, 0, -0.03]);
-  for (const s of [-1, 1]) {
-    const panel = mesh(shutters, new THREE.BoxGeometry(0.84, 1.9, 0.06), toon('#a6a99a'), [s * 0.43, 0, 0]);
-    for (let i = 0; i < 3; i++) bar(panel, [-0.3 + i * 0.3, -0.9, 0.04], [-0.3 + i * 0.3, 0.9, 0.04], 0.008, toon('#6c7168'));
-  }
-  for (const s of [-1, 1]) mesh(root, new THREE.BoxGeometry(0.08, 2.1, 0.11), toon('#5b5c50'), [s * 0.94, 0, 0.02]);
-  for (const y of [-1, 1]) mesh(root, new THREE.BoxGeometry(1.95, 0.1, 0.11), toon('#5b5c50'), [0, y, 0.02]);
-  const crest = ['猫头鹰', '火焰', '方块', '湖'];
-  const dials = crest.map((s, i) => { const g = group(`window_dial_${i}`); g.position.set(-0.66 + i * 0.44, -0.22, 0.1); shutters.add(g); return g; });
-  const values = [];
-  root.setState = (numbers, open) => {
-    shutters.visible = !open;
-    const confirm = root.getObjectByName('window_confirm'); if (confirm) confirm.visible = !open;
-    numbers.forEach((n, i) => {
-      if (values[i] === n) return;
-      while (dials[i].children.length) { const c = dials[i].children[0]; c.geometry.dispose(); c.material.map.dispose(); c.material.dispose(); dials[i].remove(c); }
-      dials[i].add(label(`${crest[i]} ${n}`, 0.4, 0.26)); values[i] = n;
-    });
-  };
-  root.dials = dials; return root;
-}
-
-export function makeBook() {
-  const root = group('p4_book');
-  mesh(root, new THREE.BoxGeometry(0.43, 0.055, 0.55), toon('#70503b'), [0, 0.025, 0]);
-  const cover = label('记忆属于湖', 0.38, 0.48, { background: '#c4a268' }); cover.rotation.x = -Math.PI / 2; cover.position.y = 0.057; root.add(cover); return root;
-}
-
+// 神殿后的预兆画：沉进湖里的记忆，窗外的风景。
 export function makeOmen() {
   const root = group('p4_omen'), tex = canvasTexture(640, 540, (g, w, h) => {
     const r = rng(44); g.fillStyle = '#babca1'; g.fillRect(0, 0, w, h);
@@ -276,6 +191,17 @@ export function makeOmen() {
   mesh(root, new THREE.BoxGeometry(1.08, 0.94, 0.04), toon('#b9b5a5'));
   mesh(root, new THREE.PlaneGeometry(0.98, 0.84), unlit('#ffffff', { map: tex }), [0, 0, 0.025]); return root;
 }
+
+
+/** 可拾取的小物件：按 0.45 倍放到约 0.14 m（真实心脏更小，但至少 0.1 m 才好点）。 */
+export const makeHeart = (kind = 'rabbit') => bake(buildHeart(kind), 0.45);
+
+export const makeCarrot = () => bake(buildCarrot(), 0.6);   // 约 0.36 m，含叶子
+
+/** 坑口，k = 缩放系数（兔洞 0.3、地洞 0.8），世界里 scale 仍为 1。 */
+export const makePit = (k = 1) => bake(buildPit(), k);
+
+export const makeTrap = () => bake(buildTrap(), 0.55);   // 石板约 0.5 m，和 0.2 m 的鸟相称
 
 export const FLY_FACTORIES = {
   candle: makeCandle, carrot: makeCarrot, gem: makeGem,

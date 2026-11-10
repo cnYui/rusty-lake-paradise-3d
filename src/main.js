@@ -4,7 +4,9 @@
 //
 // URL flags: ?autotest=1 (no menu, RLP.ready after boot, nothing started) · ?debug=1 ·
 //            ?chapter=1&skipIntro=1&view=beach_mid[&keep=1] · &flags=a,b=3,c=hook · &give=x,y ·
-//            ?demo=1 (boot the core demo chapter instead of plague 1)
+//            ?demo=1 (boot the core demo chapter instead of plague 1) · ?fresh=1 (启动时清空本机存档 / 成就历史 / 通关记录) ·
+//            ?unlock=1 (菜单里不看“前置章节通关”的锁)
+// 存档、成就历史和通关记录跨启动保留在本机（src/core/state.js）；?autotest=1 / ?demo=1 每次启动都从空白开始。
 import { ctx, initContext } from './core/context.js';
 import { Engine } from './core/engine.js';
 import { state } from './core/state.js';
@@ -17,6 +19,11 @@ import { touch } from './core/touch.js';
 import { installDebug } from './core/debug.js';
 import { CHAPTERS } from './chapters/index.js';
 import { P } from './art/layout.js';
+import { preloadModels, CHAPTER_MODELS } from './art/rlpm.js';
+import { resumeChapter, nextChapter, liveSave, completeFlag } from './core/progress.js';
+import { initHints } from './core/hintflow.js';
+import { nextHint, isDone } from './core/hints.js';
+import { GAME, shareCaps, postClearNote, postClearComment } from './core/share.js';
 
 const q = new URLSearchParams(location.search);
 const AUTOTEST = q.get('autotest') === '1';
@@ -34,6 +41,67 @@ function takeSwitch() {
   } catch { return null; }
 }
 const SWITCH = AUTOTEST || DEMO ? null : takeSwitch();
+
+// 换章：把选择记进 sessionStorage 再重载页面（存档和通关记录在 localStorage，不受重载影响）。
+// 标题菜单选了另一章、通关结尾“进入下一灾”都走这里。choice: { number, fresh }
+function switchChapter(choice) {
+  let stored = false;
+  try { sessionStorage.setItem(SWITCH_KEY, JSON.stringify(choice)); stored = true; } catch { /* 隐私模式等 */ }
+  state.save();
+  if (stored) location.reload();
+  else location.search = `?chapter=${choice.number}${choice.fresh === false ? '&keep=1' : ''}`;
+}
+
+// 启动时先装载哪一章：?chapter / 换章带来的选择优先；否则猜玩家多半会点 ▶ 的那一章（最近玩的没打完的章节，
+// 通关第一灾后就是第二灾），回来继续第二灾的玩家就不用先装载第一灾、选了再重载一次（手机上装载一章要好几秒）。测试页固定第一章。
+function bootChapterNumber() {
+  if (DEMO) return 1;
+  if (q.get('chapter')) return Number(q.get('chapter'));
+  if (SWITCH) return SWITCH.number;
+  if (AUTOTEST) return 1;
+  try { const r = resumeChapter(CHAPTERS); return (r && r.number) || 1; } catch { return 1; }
+}
+
+// 自动存档：状态一变就排一次（500 ms 合并）；过场 / 谜题动画进行中（ui.locked）等它结束再存，免得存下半截状态。
+let saveTimer = 0;
+function scheduleSave() {
+  if (saveTimer || !state.saving) return;
+  const tick = () => {
+    saveTimer = 0;
+    if (ui.locked) { saveTimer = setTimeout(tick, 800); return; }
+    state.save();
+  };
+  saveTimer = setTimeout(tick, 500);
+}
+
+// 通关分享（结尾卡的“发笔记 / 发评论”）用的数据：刚通关的这一章、它的成就拿了几个、开放的章节通关了几章
+function shareInfo() {
+  const cur = CHAPTERS.find((c) => chapter && c.id === chapter.id) || null;
+  const open = CHAPTERS.filter((c) => c.load && !c.wip);
+  const ids = cur && cur.achievements ? Object.keys(cur.achievements) : [];
+  const got = new Set(state.allAchievements());
+  return {
+    game: GAME,
+    chapter: cur ? { id: cur.id, number: cur.number, label: cur.label, title: cur.title } : { id: '', number: 0, label: { zh: '' }, title: { zh: '' } },
+    achGot: ids.filter((id) => got.has(id)).length,
+    achTotal: ids.length,
+    cleared: open.filter((c) => state.isCleared(c.id)).length,
+    total: open.length,
+  };
+}
+
+// 发评论时容器会先关掉小工具：先把存档写完（小红书包的存档层 storage_xhs.js 还要把队列交给原生，最多等 1.5 秒）
+async function saveBeforeLeave() {
+  state.save();
+  const store = window.__RLP_STORE;
+  if (store && typeof store.flush === 'function') await Promise.race([store.flush(), new Promise((r) => setTimeout(r, 1500))]);
+}
+
+// 章节的通关旗标一立起来就记进通关记录（解锁下一章靠它）
+function watchClear(ch) {
+  const flag = completeFlag(ch);
+  state.on('flag', ({ key, value }) => { if (key === flag && value) state.markCleared(ch.id); });
+}
 
 let engine = null;
 let world = null;
@@ -92,9 +160,11 @@ function ensureChapter(n) {
   chapterPromise = (async () => {
     chapter = await loadChapter(n);
     ctx.chapter = chapter;
+    if (!DEMO) watchClear(chapter);
     if (!setupDone.has(chapter.id)) {
       setupDone.add(chapter.id);
       state.chapter = chapter.id;
+      await preloadModels(CHAPTER_MODELS[chapter.id] || []);   // 网格人物 / 动物模型（失败时自动回退程序化模型）
       await chapter.setup(ctx);
     }
     return chapter;
@@ -140,6 +210,7 @@ async function startChapter(n = 1, opts = {}) {
   const devFlags = opts.flags !== undefined ? opts.flags : q.get('flags');
   const devGive = opts.give !== undefined ? opts.give : q.get('give');
   if (devFlags || devGive) applyDevState(devFlags, devGive);
+  if (state.flag(completeFlag(ch))) state.markCleared(ch.id);
 
   const introWillPlay = !skipIntro && !state.flag('intro_done') && !view;
   if (introWillPlay) {
@@ -172,11 +243,7 @@ async function titleMenu() {
   audio.unlock();
   await ui.fade(1, 450);
   if (choice.number !== chapterNumber) {
-    let stored = false;
-    try { sessionStorage.setItem(SWITCH_KEY, JSON.stringify(choice)); stored = true; } catch { /* 隐私模式等 */ }
-    state.save();
-    if (stored) location.reload();
-    else location.search = `?chapter=${choice.number}`;
+    switchChapter(choice);
     return;
   }
   ui.menu.hide();
@@ -217,11 +284,20 @@ async function boot() {
     getChapter: () => chapter,
   });
   RLP.bootTimes = bootTimes;
+  // 提示（233 乐园版）：测试用，next() = 此刻该提示哪一条，tasks() = 每条任务的完成情况
+  RLP.hints = {
+    next: () => { const h = nextHint(chapter, state); return { status: h.status, id: h.task ? h.task.id : null, text: h.text }; },
+    tasks: () => ((chapter && chapter.hints) || []).map((t) => ({ id: t.id, after: t.after || [], done: isDone(t, state) })),
+  };
   mark('core');
 
-  // 开放世界改版从初始进度开始，清除旧版固定镜头流程留下的章节存档。
-  // 从菜单换章节引起的重载除外：那时的存档是本次会话刚写的（菜单里可能选了“继续游戏”）。
-  if (!SWITCH) state.wipeAll();
+  // 存档、成就历史和通关记录跨启动保留在本机（localStorage，见 src/core/state.js）；测试页和 ?fresh=1 每次从空白开始。
+  // 旧版（启动即清档的时代）留下的存档版本对不上，state.js 读不到它们，不会污染这一版。
+  if (AUTOTEST || DEMO || q.get('fresh') === '1') state.wipeAll();
+  // 标题菜单期间不写存档（空章节的存档会让菜单误以为有进度）；startChapter 一开始就恢复
+  state.saving = false;
+  for (const evt of ['flag', 'inventory', 'view', 'achievement']) state.on(evt, scheduleSave);
+  window.addEventListener('pagehide', () => { if (state.saving && !ui.locked) state.save(); });
 
   // first user gesture unlocks WebAudio（手机浏览器只认抬起手指 / touchend 这类“激活”事件）
   const unlock = () => audio.unlock();
@@ -235,6 +311,7 @@ async function boot() {
   } else {
     const { buildWorld } = await import('./art/world.js');
     mark('worldImport');
+    await preloadModels(['tower']);   // 岛上的石塔是网格模型，世界建好之前先加载（失败回退程序化塔）
     world = buildWorld(engine);
   }
   mark('buildWorld');
@@ -250,7 +327,7 @@ async function boot() {
   views.setCamera(P.overviewCam);
   views.setZone('exterior');
 
-  await ensureChapter(DEMO ? 1 : Number(q.get('chapter') || (SWITCH && SWITCH.number) || 1));
+  await ensureChapter(bootChapterNumber());
   mark('chapterSetup');
   if (engine.renderEnabled) engine.render(); // compile shaders up front
   mark('firstRender');
@@ -261,6 +338,27 @@ async function boot() {
     // Returning to the title: the save is already on disk; a reload gives a pristine world.
     state.save();
     location.reload();
+  });
+  initHints({ ui, state, ctx });   // 灯泡按钮的流程（按钮本身只在 233 乐园版显示）
+  // 通关结尾：有下一灾（编号 +1 且已解锁）就多一个“进入下一灾”并倒数自动进入，没有就只回主菜单。测试页不自动跳走。
+  ui.autoAdvance = !AUTOTEST && !DEMO;
+  ui.setEndingNext(DEMO ? null : () => {
+    const cur = CHAPTERS.find((c) => chapter && c.id === chapter.id);
+    const n = cur ? nextChapter(cur, CHAPTERS) : null;
+    return n ? { number: n.number, label: n.label, title: n.title } : null;
+  });
+  ui.on('next', ({ number }) => {
+    const n = CHAPTERS.find((c) => c.number === number);
+    switchChapter({ number, fresh: !(n && liveSave(n)) });
+  });
+  // 通关分享：只有小红书 App 的小工具容器里有（window.xhs.miniTool），网页版和口袋方舟包的结尾卡没有这一行
+  ui.setEndingShare(async () => {
+    const caps = await shareCaps();
+    if (!caps.note && !caps.comment) return null;
+    return {
+      note: caps.note ? () => postClearNote(shareInfo(), engine) : null,
+      comment: caps.comment ? () => postClearComment(shareInfo(), engine, saveBeforeLeave) : null,
+    };
   });
 
   bootDone();
