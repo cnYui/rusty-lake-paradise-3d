@@ -246,24 +246,46 @@ function apple() {
   ball(r, 'apple_body', 0.04, '#9cc25a', [0, 0.04, 0], [1, 0.92, 1], FINE);
   ball(r, 'apple_blush', 0.025, '#b8d470', [0.018, 0.05, 0.022], [1, 0.8, 0.6], { outline: false });
   cyl(r, 'apple_stem', 0.003, 0.025, '#5a4030', [0, 0.085, 0], 6, FINE);
+  const calyx = toon('#547a2e', FINE);
+  for (let i = 0; i < 5; i++) {
+    const a = i * 2 * PI / 5;
+    const leaf = add(r, new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.025, 5), calyx), 'apple_calyx', [Math.cos(a) * 0.009, 0.083, Math.sin(a) * 0.009]);
+    leaf.rotation.z = Math.PI / 2;
+    leaf.rotation.y = a;
+  }
   const leaf = add(r, new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 6), toon('#5f8a3a', FINE)), 'apple_leaf', [0.012, 0.088, 0]); leaf.scale.set(1.4, 0.25, 0.7); leaf.rotation.z = -0.4;
   return r;
 }
 function worm() {
   const r = group('p10_worm');
   for (let i = 0; i < 7; i++) ball(r, 'worm_seg', 0.009 - Math.abs(i - 3) * 0.0008, i % 2 ? '#d98c8c' : '#e6a0a0', [-0.045 + i * 0.015, 0.009, Math.sin(i * 0.9) * 0.01], [1.15, 1, 1], { outline: 0.0015 });
+  const head = ball(r, 'worm_head', 0.0105, '#cf777c', [0.052, 0.009, Math.sin(6 * 0.9) * 0.01], [1.05, 0.9, 1], FINE);
+  for (const s of [-1, 1]) ball(head, 'worm_eye', 0.0013, '#24191a', [0.006, 0.005, s * 0.006], [1, 1, 0.7], { outline: false });
+  const seam = toon('#b86369', { outline: false });
+  for (let i = 1; i < 7; i++) {
+    const radius = 0.009 - Math.abs(i - 3) * 0.0008;
+    add(r, new THREE.Mesh(new THREE.TorusGeometry(radius * 0.98, 0.0004, 5, 16).rotateY(PI / 2), seam), 'worm_ring', [-0.045 + i * 0.015, 0.009, Math.sin(i * 0.9) * 0.01]);
+  }
   return r;
 }
 function brush() {
   const r = group('p10_brush');
   stick(r, 'brush_handle', [-0.11, 0.008, 0], [0.04, 0.008, 0], 0.006, toon('#6e4b30', FINE));
   cyl(r, 'brush_ferrule', 0.008, 0.025, '#b8b2a8', [0.052, 0.008, 0], 10, FINE).rotation.z = PI / 2;
+  cyl(r, 'brush_head', 0.008, 0.012, '#8e8980', [0.069, 0.008, 0], 10, FINE).rotation.z = PI / 2;
+  for (let i = -2; i <= 2; i++) {
+    stick(r, 'brush_bristle_row', [0.076, 0.008 + i * 0.0026, 0.003], [0.105 - Math.abs(i) * 0.002, 0.008 + i * 0.0006, 0.0007], 0.0005, toon(i % 2 ? '#80603e' : '#a07e50', { outline: false }));
+  }
   const bristle = add(r, new THREE.Mesh(new THREE.ConeGeometry(0.009, 0.04, 10), toon('#2a201a', FINE)), 'brush_bristle', [0.083, 0.008, 0]); bristle.rotation.z = -PI / 2;
   return r;
 }
 function egg() {
   const r = group('p10_egg');
   ball(r, 'egg_shell', 0.022, '#f1e8d6', [0, 0.028, 0], [1, 1.3, 1], FINE);
+  for (const dir of [[-0.35, 0.5, 0.8], [0.35, 0.2, 0.9], [0.2, -0.25, -0.9]]) {
+    const n = new THREE.Vector3(...dir).normalize();
+    ball(r, 'egg_speck', 0.0014, '#c9b38f', [n.x * 0.022, 0.028 + n.y * 0.0286, n.z * 0.022], [1, 0.7, 1], { outline: false });
+  }
   return r;
 }
 function chick() {
@@ -273,6 +295,11 @@ function chick() {
   const b = add(r, new THREE.Mesh(new THREE.ConeGeometry(0.006, 0.014, 6), toon('#e08a2a', FINE)), 'chick_beak', [0, 0.064, 0.045]); b.rotation.x = PI / 2;
   for (const s of [-1, 1]) add(r, new THREE.Mesh(new THREE.SphereGeometry(0.0035, 6, 4), unlit('#1a1714')), 'chick_eye', [s * 0.01, 0.072, 0.039]);
   for (const s of [-1, 1]) ball(r, 'chick_wing', 0.014, '#e8bf3c', [s * 0.03, 0.032, -0.002], [0.4, 0.8, 1.1], FINE);
+  for (const s of [-1, 1]) {
+    cyl(r, 'chick_leg', 0.0025, 0.018, '#d58a2b', [s * 0.012, 0.006, 0.01], 6, FINE);
+    for (const dx of [-0.006, 0, 0.006]) stick(r, 'chick_toe', [s * 0.012, 0.001, 0.012], [s * 0.012 + dx, 0.001, 0.028 - Math.abs(dx) * 0.5], 0.0012, toon('#d58a2b', { outline: false }));
+  }
+  for (const x of [-0.018, 0, 0.018]) { const t = add(r, new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.018, 6), toon('#e0b840', FINE)), 'chick_tail', [x, 0.038, -0.03]); t.rotation.x = -0.9; }
   return r;
 }
 function bow() {

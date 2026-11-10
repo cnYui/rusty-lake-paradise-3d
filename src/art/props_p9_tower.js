@@ -208,6 +208,7 @@ function orrery() {
   cyl(r, 'table_foot', 0.22, 0.03, '#5a4230', [0, 0.015, 0], 18, FINE);
   const base = group('orrery'); base.position.y = 0.76; r.add(base);
   cyl(base, 'orrery_base', 0.24, 0.025, '#b08a3e', [0, 0.012, 0], 32, FINE);
+  for (const rr of [0.11, 0.18]) ring(base, 'orrery_orbit', rr, 0.004, '#d8b65a', [0, 0.028, 0], FINE).rotation.x = PI / 2;
   // 底座上刻 8 个位置的小点
   for (let i = 0; i < 8; i++) ball(base, 'orrery_mark', 0.008, '#5a4320', [Math.sin(i * PI / 4) * 0.21, 0.027, Math.cos(i * PI / 4) * 0.21], [1, 0.5, 1], FINE);
   cyl(base, 'orrery_column', 0.012, 0.22, '#c9a043', [0, 0.12, 0], 8, FINE);
@@ -222,6 +223,11 @@ function orrery() {
   box(moonArm, 'moon_rod', [0.005, 0.005, 0.07], '#c9a043', [0, 0.012, 0.035], toon('#c9a043', FINE));
   const moonMat = toon('#d9d6cc', FINE);
   const moon = add(moonArm, new THREE.Mesh(new THREE.SphereGeometry(0.016, 14, 10), moonMat), 'orrery_moon', [0, 0.012, 0.075]);
+  for (let i = 0; i < 3; i++) {
+    const normal = new THREE.Vector3((i - 1) * 0.4, 0.2 + (i % 2) * 0.4, 1).normalize();
+    const crater = add(moon, new THREE.Mesh(new THREE.CircleGeometry(0.0025 + i * 0.0004, 10), unlit('#aaa69c')), `moon_crater_${i}`, normal.clone().multiplyScalar(0.0158).toArray());
+    crater.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+  }
   const earthHit = hitBox(earthArm, 'earth_hit', [0.09, 0.09, 0.09], [0, 0.01, 0.2]);
   const moonHit = hitBox(moonArm, 'moon_hit', [0.06, 0.06, 0.06], [0, 0.012, 0.078]);
   r.userData.earth = earthHit; r.userData.moon = moonHit;

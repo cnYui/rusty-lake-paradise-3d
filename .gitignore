@@ -13,3 +13,7 @@ docs/ai/context/20261008-115228-public-deploy-aaccx.md
 __pycache__/
 *.pyc
 Thumbs.db
+
+# 本地建模验收与可重新生成的发布包
+.logs/
+upload/**/*.zip

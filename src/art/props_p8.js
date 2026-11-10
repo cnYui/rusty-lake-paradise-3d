@@ -117,10 +117,15 @@ function boards() {
 function mandolin() {
   const r = group('p8_mandolin');
   ball(r, 'mandolin_body', 0.13, '#8a4a22', [0, 0, 0], [1, 1.25, 0.45], FINE);
+  ring(r, 'mandolin_rim', 0.123, 0.004, '#d29b55', [0, 0, 0.022], FINE).scale.y = 1.25;
   add(r, new THREE.Mesh(new THREE.CircleGeometry(0.032, 16), unlit('#2a1a10')), 'mandolin_hole', [0, 0.04, 0.06]);
   box(r, 'mandolin_neck', [0.045, 0.3, 0.025], '#5b3a22', [0, 0.28, 0.03], toon('#5b3a22', FINE));
   box(r, 'mandolin_head', [0.06, 0.08, 0.02], '#3e2716', [0, 0.46, 0.03], toon('#3e2716', FINE));
-  for (let i = 0; i < 4; i++) box(r, 'mandolin_string', [0.002, 0.5, 0.002], '#e8e2cc', [(i - 1.5) * 0.008, 0.2, 0.063], unlit('#e8e2cc'));
+  box(r, 'mandolin_bridge', [0.08, 0.014, 0.012], '#c39b62', [0, 0.02, 0.064], toon('#c39b62', FINE));
+  box(r, 'mandolin_tailpiece', [0.06, 0.045, 0.012], '#4b301d', [0, -0.09, 0.064], toon('#4b301d', FINE));
+  for (let i = 0; i < 4; i++) box(r, 'mandolin_string', [0.002, 0.5, 0.002], '#e8e2cc', [(i - 1.5) * 0.008, 0.2, 0.067], unlit('#e8e2cc'));
+  for (let i = 0; i < 4; i++) box(r, 'mandolin_fret', [0.055, 0.006, 0.006], '#b58b52', [0, 0.13 + i * 0.055, 0.056], toon('#b58b52', FINE));
+  for (const s of [-1, 1]) cyl(r, 'mandolin_tuner', 0.009, 0.035, '#c9a043', [s * 0.045, 0.49, 0.03], 8, FINE).rotation.z = PI / 2;
   return r;
 }
 // 乐谱：五线谱，最下面的线是第 1 档、最上面的线是第 5 档；左边画一只蝗虫当谱号
@@ -258,10 +263,15 @@ function insect(name, L, color, dark) {
   ball(body, 'abdomen', L * 0.09, color, [0, y0, -L * 0.2], [1, 0.95, 3.0], FINE);
   ball(body, 'thorax', L * 0.1, color, [0, y0 + L * 0.02, L * 0.1], [1, 1.1, 1.35], FINE);
   ball(body, 'head', L * 0.085, color, [0, y0 + L * 0.04, L * 0.3], [0.95, 1.15, 1.05], FINE);
+  for (let i = 0; i < 4; i++) {
+    const z = -L * 0.36 + i * L * 0.1, t = (z + L * 0.2) / (L * 0.27);
+    ring(body, 'abdomen_ring', L * 0.09 * Math.sqrt(1 - t * t), L * 0.002, dark, [0, y0, z], { outline: false }).scale.y = 0.95;
+  }
   for (const s of [-1, 1]) {
     ball(body, 'eye', L * 0.03, '#2b2418', [s * L * 0.065, y0 + L * 0.08, L * 0.33], [1, 1.2, 1], FINE);
     limb(body, 'antenna', [s * L * 0.03, y0 + L * 0.1, L * 0.36], [s * L * 0.12, y0 + L * 0.32, L * 0.62], L * 0.006, dark);
     ball(body, 'wing', L * 0.06, dark, [s * L * 0.035, y0 + L * 0.08, -L * 0.12], [0.6, 0.22, 4.2], FINE);
+    limb(body, 'wing_vein', [s * L * 0.035, y0 + L * 0.092, -L * 0.3], [s * L * 0.035, y0 + L * 0.092, L * 0.06], L * 0.002, '#9b9a64', { outline: false });
   }
   const hind = [];
   for (const s of [-1, 1]) {
@@ -320,6 +330,7 @@ function eggCase() {
   const whole = group('egg_whole'); r.add(whole);
   ball(whole, 'egg_body', 0.16, '#a07a4e', [0, 0.16, 0], [1, 1.4, 0.75]);
   for (let i = 0; i < 6; i++) ring(whole, 'egg_band', 0.12 - Math.abs(i - 2.5) * 0.015, 0.012, '#8a6640', [0, 0.04 + i * 0.05, 0.02], {}).rotation.x = PI / 2;
+  for (let i = 0; i < 9; i++) ball(whole, 'egg_spot', 0.012, i % 2 ? '#c59c63' : '#775738', [(i % 3 - 1) * 0.07, 0.08 + (i % 5) * 0.04, (i % 2 ? 1 : -1) * 0.08], [1, 0.7, 0.5], { outline: false });
   const husk = group('egg_husk'); r.add(husk);
   for (const s of [-1, 1]) { const h = ball(husk, 'egg_half', 0.16, '#8f6c45', [s * 0.07, 0.15, 0], [0.5, 1.3, 0.7]); h.rotation.z = s * 0.5; }
   hitBox(r, 'egg_hit', [0.4, 0.5, 0.3], [0, 0.2, 0]);
@@ -576,6 +587,12 @@ function boat() {
   const rig = group('boat_rig'); r.add(rig);
   const hull = add(rig, new THREE.Mesh(new THREE.SphereGeometry(1, 24, 10, 0, 2 * PI, PI / 2, PI / 2), toon('#6e4c30', { side: THREE.DoubleSide })), 'boat_hull');
   hull.scale.set(0.68, 0.38, 1.55);
+  // 原作小船近景有明显的尖艏、龙骨和船舷颜色分层，补上这些轮廓件。
+  const keel = cyl(rig, 'boat_keel', 0.035, 2.35, '#4b301f', [0, -0.28, 0], 8); keel.rotation.x = PI / 2;
+  for (const z of [-1.25, 1.2]) {
+    const prow = cone(rig, 'boat_prow', 0.16, 0.38, '#805733', [0, -0.03, z]);
+    prow.rotation.x = z > 0 ? PI / 2 : -PI / 2;
+  }
   add(rig, new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 6, 32), toon('#5a3d26')), 'boat_rim').scale.set(0.68, 1.55, 1);
   rig.getObjectByName('boat_rim').rotation.x = PI / 2;
   for (const z of [-0.6, 0.55]) box(rig, 'boat_bench', [1.2, 0.04, 0.22], '#7d5a3a', [0, -0.1, z]);

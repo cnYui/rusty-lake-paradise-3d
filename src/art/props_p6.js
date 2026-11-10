@@ -21,12 +21,44 @@ const plane = (g, name, w, h, map, p, opts = {}) => add(g, new THREE.Mesh(new TH
 // ---------- 牛头骨（天堂门前地上）：眼窝里能渗出血 ----------
 function skull() {
   const r = group('p6_skull');
-  ball(r, 'skull_cranium', 0.13, '#e7e0cf', [0, 0.11, -0.05], [1, 0.75, 1.1]);
-  ball(r, 'skull_snout', 0.075, '#e2dac7', [0, 0.07, 0.17], [0.9, 0.7, 1.6]);
+  // 原作是收窄的鼻骨与空眼窝；用带孔的骨壳保留尖长轮廓。
+  const shape = new THREE.Shape();
+  shape.moveTo(-0.1, 0.12); shape.bezierCurveTo(-0.15, 0.08, -0.13, -0.01, -0.105, -0.07);
+  shape.lineTo(-0.055, -0.19); shape.lineTo(-0.025, -0.285);
+  shape.quadraticCurveTo(0, -0.305, 0.025, -0.285); shape.lineTo(0.055, -0.19);
+  shape.lineTo(0.105, -0.07); shape.bezierCurveTo(0.13, -0.01, 0.15, 0.08, 0.1, 0.12);
+  shape.quadraticCurveTo(0, 0.155, -0.1, 0.12);
   for (const s of [-1, 1]) {
-    ball(r, 'skull_eye', 0.03, '#3a3029', [s * 0.065, 0.14, 0.07], [1, 1.2, 0.6]);
-    const pts = [new THREE.Vector3(s * 0.1, 0.16, -0.08), new THREE.Vector3(s * 0.3, 0.2, -0.12), new THREE.Vector3(s * 0.42, 0.34, -0.02)];
-    add(r, new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, 0.026, 8), toon('#d9d1bd')), 'skull_horn');
+    const hole = new THREE.Path(); hole.absellipse(s * 0.067, -0.015, 0.026, 0.034, 0, 2 * PI, true); shape.holes.push(hole);
+  }
+  const shell = new THREE.ExtrudeGeometry(shape, { depth: 0.065, bevelEnabled: true, bevelThickness: 0.009, bevelSize: 0.007, bevelSegments: 2, steps: 1, curveSegments: 16 });
+  shell.rotateX(-PI / 2);
+  const positions = shell.attributes.position;
+  for (let i = 0; i < positions.count; i++) {
+    const z = positions.getZ(i), taper = 1 - 0.65 * THREE.MathUtils.clamp((z - 0.02) / 0.28, 0, 1);
+    positions.setY(i, positions.getY(i) * taper + 0.045 + Math.max(0, 0.12 - z) * 0.16);
+  }
+  shell.computeVertexNormals();
+  add(r, new THREE.Mesh(shell, toon('#e7e0cf', FINE)), 'skull_cranium');
+  const ridge = rod(r, new THREE.Vector3(0, 0.153, -0.05), new THREE.Vector3(0, 0.081, 0.27), 0.009, '#d0c7b5', toon('#d0c7b5', FINE)); ridge.name = 'skull_snout';
+  for (const s of [-1, 1]) {
+    ball(r, 'skull_nostril', 0.011, '#382d28', [s * 0.021, 0.092, 0.19], [0.65, 0.25, 1.4], { outline: false });
+    const orbit = ring(r, 'skull_orbit', 0.028, 0.003, '#b9af9b', [s * 0.067, 0.133, 0.015], FINE); orbit.rotation.x = PI / 2; orbit.scale.y = 1.2;
+  }
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < 5; i++) box(r, 'skull_tooth', [0.012, 0.019, 0.015], '#f2ead8', [s * (0.085 - i * 0.007), 0.04, 0.105 + i * 0.017], toon('#f2ead8', FINE));
+    ball(r, 'skull_eye', 0.028, '#3a3029', [s * 0.067, 0.12, 0.015], [1, 0.2, 1.2], { outline: false });
+    const path = new THREE.CatmullRomCurve3([new THREE.Vector3(s * 0.105, 0.135, -0.07), new THREE.Vector3(s * 0.25, 0.16, -0.12), new THREE.Vector3(s * 0.37, 0.24, -0.1), new THREE.Vector3(s * 0.42, 0.34, -0.06)]);
+    const horn = new THREE.TubeGeometry(path, 24, 0.032, 8, false), pos = horn.attributes.position;
+    for (let i = 0; i <= 24; i++) {
+      const t = i / 24, center = path.getPointAt(t), taper = 0.03 + 0.97 * Math.pow(1 - t, 0.7);
+      for (let j = 0; j <= 8; j++) { const n = i * 9 + j, p = new THREE.Vector3().fromBufferAttribute(pos, n).sub(center).multiplyScalar(taper).add(center); pos.setXYZ(n, p.x, p.y, p.z); }
+    }
+    horn.computeVertexNormals(); add(r, new THREE.Mesh(horn, toon('#d9d1bd', FINE)), 'skull_horn');
+    for (const t of [0.18, 0.35, 0.52, 0.68, 0.82]) {
+      const band = ring(r, 'skull_horn_seam', 0.032 * (0.03 + 0.97 * Math.pow(1 - t, 0.7)), 0.001, '#9f9686', path.getPointAt(t).toArray(), { outline: false });
+      band.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), path.getTangentAt(t));
+    }
   }
   const drip = cyl(r, 'skull_blood', 0.008, 0.07, '#9b1f22', [0.065, 0.1, 0.09], 8);
   const pool = cyl(r, 'skull_blood_pool', 0.05, 0.004, '#8a1c1c', [0.07, 0.003, 0.14], 16);
@@ -39,9 +71,13 @@ function skull() {
 function vial({ humor = null, cork = true } = {}) {
   const r = group('p6_vial');
   cyl(r, 'vial_glass', 0.026, 0.09, '#dfe9ea', [0, 0.045, 0], 16).material = GLASS();
+  ring(r, 'vial_shoulder', 0.024, 0.003, '#eef8f5', [0, 0.078, 0], FINE).rotation.x = PI / 2;
   cyl(r, 'vial_neck', 0.011, 0.03, '#dfe9ea', [0, 0.105, 0], 12).material = GLASS();
+  ring(r, 'vial_lip', 0.013, 0.003, '#eef8f5', [0, 0.12, 0], FINE).rotation.x = PI / 2;
   if (cork) cyl(r, 'vial_cork', 0.012, 0.018, '#a87a4f', [0, 0.124, 0], 10, FINE);
   if (humor) cyl(r, 'vial_liquid', 0.022, 0.065, HUMOR_COLOR[humor], [0, 0.036, 0], 16, FINE);
+  const labelMat = unlit(humor ? HUMOR_COLOR[humor] : '#f1e7cf', { transparent: true, opacity: 0.82, side: THREE.DoubleSide });
+  add(r, new THREE.Mesh(new THREE.PlaneGeometry(0.039, 0.022), labelMat), 'vial_label', [0, 0.047, 0.027]);
   return r;
 }
 function bottles(n = 3) {
@@ -113,10 +149,12 @@ function cave() {
 function staff() {
   const r = group('p6_staff');
   cyl(r, 'staff_rod', 0.014, 1.5, '#4a4642', [0, 0.75, 0], 8);
+  cyl(r, 'staff_grip', 0.022, 0.16, '#6e5140', [0, 0.35, 0], 8, FINE);
   ring(r, 'staff_band', 0.02, 0.006, GOLD, [0, 1.38, 0]).rotation.x = PI / 2;
   ball(r, 'staff_palm', 0.04, '#d8d2c6', [0, 1.55, 0], [1, 1.2, 0.45]);
   for (let i = 0; i < 4; i++) cyl(r, 'staff_finger', 0.009, 0.07, '#d8d2c6', [-0.03 + i * 0.02, 1.62, 0], 6).rotation.z = (i - 1.5) * 0.12;
   cyl(r, 'staff_thumb', 0.009, 0.05, '#d8d2c6', [0.05, 1.56, 0], 6).rotation.z = -0.9;
+  for (const x of [-0.024, 0.024]) box(r, 'staff_knuckle', [0.008, 0.018, 0.01], '#9d968a', [x, 1.59, 0.022], toon('#9d968a', FINE));
   return r;
 }
 
@@ -156,7 +194,23 @@ function grandfatherClock() {
   box(r, 'clock_trunk', [0.42, 1.2, 0.32], body, [0, 0.88, 0]);
   box(r, 'clock_door', [0.26, 0.9, 0.02], '#f0e2d8', [0, 0.86, 0.17]);
   box(r, 'clock_hood', [0.56, 0.52, 0.38], body, [0, 1.74, 0]);
-  box(r, 'clock_crown', [0.62, 0.08, 0.42], '#d8c3b5', [0, 2.04, 0]);
+  const crown = new THREE.Shape();
+  crown.moveTo(-0.31, 0); crown.lineTo(-0.31, 0.045); crown.lineTo(-0.235, 0.045);
+  crown.lineTo(-0.235, 0.11); crown.quadraticCurveTo(-0.235, 0.225, 0, 0.225);
+  crown.quadraticCurveTo(0.235, 0.225, 0.235, 0.11); crown.lineTo(0.235, 0.045);
+  crown.lineTo(0.31, 0.045); crown.lineTo(0.31, 0); crown.closePath();
+  add(r, new THREE.Mesh(new THREE.ExtrudeGeometry(crown, { depth: 0.38, bevelEnabled: false, curveSegments: 16 }), toon(body, FINE)), 'clock_crown', [0, 1.94, -0.19]);
+  const carving = (name, points, radius = 0.004, z = 0.197) => add(r, new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(([x, y]) => new THREE.Vector3(x, y, z))), 40, radius, 5, false), toon('#a88d7e', { outline: false })), name);
+  carving('clock_crown_inlay', [[-0.28, 1.965], [-0.21, 1.98], [-0.205, 2.065], [-0.13, 2.125], [0, 2.145], [0.13, 2.125], [0.205, 2.065], [0.21, 1.98], [0.28, 1.965]]);
+  for (const s of [-1, 1]) {
+    carving('clock_scroll', [[s * 0.12, 1.99], [s * 0.085, 2.01], [s * 0.08, 2.065], [s * 0.12, 2.08], [s * 0.145, 2.05], [s * 0.12, 2.035]], 0.003);
+    box(r, 'clock_flute', [0.012, 1.15, 0.012], '#b9a292', [s * 0.18, 0.88, 0.168], toon('#b9a292', { outline: false }));
+    for (const y of [1.54, 1.93]) ring(r, 'clock_rosette', 0.013, 0.003, '#a88d7e', [s * 0.235, y, 0.198], FINE);
+  }
+  carving('clock_door_inlay', [[0, 1.28], [-0.065, 1.21], [-0.075, 1.08], [-0.025, 0.94], [0.055, 0.81], [0.065, 0.63], [0, 0.46], [-0.065, 0.55], [-0.065, 0.73], [0.025, 0.9], [0.075, 1.08], [0.065, 1.21], [0, 1.28]], 0.004, 0.183);
+  ball(r, 'clock_door_knob', 0.012, '#a88d7e', [0.09, 0.91, 0.19], [1, 1, 0.7], FINE);
+  carving('clock_base_wave', [[-0.23, 0.21], [-0.16, 0.23], [-0.11, 0.17], [-0.055, 0.23], [0, 0.17], [0.055, 0.23], [0.11, 0.17], [0.16, 0.23], [0.23, 0.21]], 0.004, 0.203);
+  for (const x of [-0.18, 0.18]) cyl(r, 'clock_foot', 0.035, 0.08, '#a88d7e', [x, 0.03, 0], 10, FINE);
   const face = new THREE.Group(); face.name = 'clock_face_door'; face.position.set(-0.19, 1.74, 0.195); r.add(face);
   const disc = add(face, new THREE.Mesh(new THREE.CircleGeometry(0.19, 40), unlit('#ffffff', { map: clockFaceTexture() })), 'clock_face', [0.19, 0, 0.004]);
   disc.userData.face = true;
@@ -166,8 +220,11 @@ function grandfatherClock() {
   handX.position.z = 0.012; hands.add(handX, handDots);
   ball(hands, 'clock_hub', 0.012, GOLD, [0, 0, 0.018], [1, 1, 0.5], FINE);
   // 钟面后面的小格子：放发条心
-  box(r, 'clock_cavity', [0.3, 0.3, 0.04], '#3b2a20', [0, 1.74, 0.17]);
+  cyl(r, 'clock_cavity', 0.17, 0.04, '#3b2a20', [0, 1.74, 0.17], 32, FINE).rotation.x = PI / 2;
   const heart = clockHeart(); heart.position.set(0, 1.68, 0.17); r.add(heart);
+  const pendulum = group('clock_pendulum'); pendulum.position.set(0, 0.58, 0.12); r.add(pendulum);
+  cyl(pendulum, 'pendulum_rod', 0.006, 0.52, '#a88b68', [0, 0.3, 0], 6, FINE);
+  ball(pendulum, 'pendulum_bob', 0.075, '#b08a4e', [0, 0.02, 0], [1, 0.45, 0.7], FINE);
   const st = { x: 12, dots: 3, open: 0 };
   const apply = () => {
     handX.rotation.z = -st.x * PI / 6; handDots.rotation.z = -st.dots * PI / 6;

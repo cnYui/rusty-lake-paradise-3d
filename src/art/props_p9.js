@@ -239,6 +239,10 @@ function bonfire() {
     const a = -PI / 2 + (i / 12) * 2 * PI, x = Math.cos(a) * 0.95, z = Math.sin(a) * 0.95;
     const s = add(r, new THREE.Mesh(new THREE.DodecahedronGeometry(0.17, 0), toon('#6f6c69', FINE)), 'fire_stone', [x, 0.08, z]);
     s.scale.set(1.2, 0.62, 1); s.rotation.y = -a;
+    for (let k = 0; k < 2; k++) {
+      const crack = box(r, 'fire_stone_crack', [0.05, 0.004, 0.008], '#4a4641', [x + Math.cos(a + k) * 0.04, 0.19, z + Math.sin(a + k) * 0.04], unlit('#4a4641'));
+      crack.rotation.y = a + k * 0.7;
+    }
     const glyph = tex(128, 128, () => {});
     const mark = add(r, new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), unlit('#ffffff', { map: glyph, transparent: true, depthWrite: false })), 'fire_glyph', [x, 0.19, z]);
     mark.rotation.set(-PI / 2, 0, -a - PI / 2); mark.renderOrder = 2;
@@ -413,6 +417,8 @@ function woodpeckerBirch({ loose = 3 } = {}) {
     g.fillStyle = '#ecebe5'; g.fillRect(0, 0, w, h);
     for (let i = 0; i < 70; i++) { g.fillStyle = i % 4 ? '#2e2b28' : '#5c5852'; const y = (i * 151) % h, x = (i * 97) % w; g.fillRect(x, y, 18 + (i % 5) * 10, 3 + (i % 3) * 2); }
     g.fillStyle = 'rgba(160,150,130,0.25)'; for (let i = 0; i < 30; i++) g.fillRect(0, (i * 337) % h, w, 2);
+    g.strokeStyle = 'rgba(80,76,70,0.42)'; g.lineWidth = 2;
+    for (let i = 0; i < 12; i++) { const x = 16 + (i * 43) % (w - 32), y = (i * 71) % h; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (i % 2 ? 7 : -5), y + 80 + (i % 4) * 28); g.stroke(); }
   });
   const trunk = add(r, new THREE.Mesh(new THREE.CylinderGeometry(R0 * 0.75, R0, H, 20), toon('#ffffff', { ...FINE, map: t })), 'birch_trunk', [0, H / 2, 0]);
   trunk.castShadow = true;
@@ -444,6 +450,13 @@ function woodpeckerBirch({ loose = 3 } = {}) {
   const beak = add(head, new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.07, 8), toon('#4a4642', FINE)), 'wp_beak', [0, -0.005, 0.055]); beak.rotation.x = PI / 2;
   const tail = box(bird, 'wp_tail', [0.04, 0.09, 0.015], '#1f1e1f', [0, -0.12, -0.02], toon('#1f1e1f', FINE)); tail.rotation.x = 0.4;
   ball(bird, 'wp_under', 0.03, '#c42a24', [0, -0.08, 0.03], [0.8, 0.7, 0.5], FINE);
+  for (const s of [-1, 1]) {
+    const claw = group('wp_claw'); claw.position.set(s * 0.035, -0.09, 0.035); bird.add(claw);
+    for (let i = -1; i <= 1; i++) {
+      const toe = cyl(claw, 'wp_toe', 0.004, 0.04, '#b08a5a', [i * 0.018, -0.014, 0.015], 6, FINE);
+      toe.rotation.x = -0.8;
+    }
+  }
   const surf = (y) => R0 * (1 - y / H * 0.25);
   // 趴在树干正面偏右（side 弧度）、嘴朝着树干
   const placeBird = (y, side = 0.55) => { bird.position.set(Math.sin(side) * (surf(y) + 0.05), y, Math.cos(side) * (surf(y) + 0.05)); bird.rotation.set(0, side + PI, 0); };
@@ -513,24 +526,42 @@ function grinder() {
   const r = group('p9_grinder');
   const PINK = '#c98f86', DARK = '#8a5a52';
   box(r, 'grinder_base', [0.52, 0.12, 0.42], DARK, [0, 0.06, 0], toon(DARK, FINE));
-  box(r, 'grinder_body', [0.4, 0.62, 0.32], PINK, [0, 0.43, 0], toon(PINK, FINE));
-  box(r, 'grinder_top', [0.5, 0.08, 0.4], DARK, [0, 0.78, 0], toon(DARK, FINE));
-  const hopper = add(r, new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.08, 0.2, 18, 1, true), toon(PINK, { ...FINE, side: THREE.DoubleSide })), 'grinder_hopper', [0, 0.92, 0]);
-  add(r, new THREE.Mesh(new THREE.CircleGeometry(0.08, 16), unlit('#2a1d1a')), 'grinder_mouth', [0, 0.83, 0]).rotation.x = -PI / 2;
+  box(r, 'grinder_base_step', [0.46, 0.035, 0.36], PINK, [0, 0.137, 0], toon(PINK, FINE));
+  box(r, 'grinder_body', [0.31, 0.58, 0.27], '#a8a38a', [0, 0.45, 0], toon('#a8a38a', FINE));
+  for (const x of [-0.16, 0.16]) box(r, 'grinder_column', [0.025, 0.58, 0.025], '#c1b69c', [x, 0.45, 0.14], toon('#c1b69c', FINE));
+  // 原作的方口料斗向下收窄，正面连杆带动内部研磨机构。
+  const hopperGeo = new THREE.CylinderGeometry(0.23 * Math.SQRT2, 0.18 * Math.SQRT2, 0.2, 4, 1, true).rotateY(PI / 4); hopperGeo.scale(1, 1, 0.7);
+  add(r, new THREE.Mesh(hopperGeo, toon(PINK, { ...FINE, side: THREE.DoubleSide })), 'grinder_hopper', [0, 0.86, 0]);
+  box(r, 'grinder_mouth', [0.35, 0.012, 0.24], '#2a1d1a', [0, 0.765, 0], unlit('#2a1d1a'));
+  for (const z of [-0.17, 0.17]) box(r, 'grinder_top', [0.52, 0.06, 0.025], PINK, [0, 0.99, z], toon(PINK, FINE));
+  for (const x of [-0.2475, 0.2475]) box(r, 'hopper_rim', [0.025, 0.06, 0.32], PINK, [x, 0.99, 0], toon(PINK, FINE));
+  const frontCrank = group('grinder_front_crank'); frontCrank.position.set(0, 0.85, 0.19); r.add(frontCrank);
+  cyl(frontCrank, 'front_axle', 0.035, 0.025, '#777d78', [0, 0, 0], 16, FINE).rotation.x = PI / 2;
+  box(frontCrank, 'front_arm', [0.018, 0.24, 0.014], '#85897a', [0, 0.11, 0.02], toon('#85897a', FINE));
+  cyl(frontCrank, 'front_knob', 0.027, 0.04, PINK, [0, 0.24, 0.025], 12, FINE).rotation.x = PI / 2;
   // 正面玻璃窗里一排彩色粉末管
-  box(r, 'grinder_window', [0.26, 0.2, 0.01], '#2a2422', [0, 0.52, 0.162], toon('#2a2422', FINE));
-  ['#c23a2e', '#4f86c6', '#6e9c58', '#efece4', '#8a5a32'].forEach((c, i) => cyl(r, 'grinder_tube', 0.016, 0.16, c, [-0.096 + i * 0.048, 0.52, 0.168], 8, FINE));
+  box(r, 'grinder_window', [0.26, 0.2, 0.01], '#777866', [0, 0.6, 0.142], toon('#777866', FINE));
+  ['#6e9c58', '#4f86c6', '#c23a2e', '#8a5a32', '#efece4'].forEach((c, i) => {
+    const x = -0.096 + i * 0.048;
+    cyl(r, 'grinder_tube', 0.016, 0.16, c, [x, 0.6, 0.15], 8, FINE);
+    const mark = tex(48, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#484439'; g.font = '36px serif'; g.textAlign = 'center'; g.fillText(['I', 'II', 'III', 'IV', 'V'][i], w / 2, h * 0.6); });
+    add(r, new THREE.Mesh(new THREE.PlaneGeometry(0.025, 0.08), unlit('#ffffff', { map: mark, transparent: true })), 'grinder_tube_mark', [x, 0.6, 0.168]);
+  });
   // 出料口和下面的小托盘（磨好的粉末堆在托盘里）
   box(r, 'grinder_spout', [0.12, 0.06, 0.1], DARK, [0, 0.25, 0.2], toon(DARK, FINE));
   const tray = add(r, new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.04, 18), toon('#b08a3e', FINE)), 'grinder_tray', [0, 0.14, 0.26]);
   const heap = add(r, new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.07, 18), toon('#8a5a32', FINE)), 'grinder_heap', [0, 0.195, 0.26]);
+  box(r, 'grinder_cubby', [0.25, 0.24, 0.012], '#292721', [0, 0.31, 0.143], unlit('#292721'));
+  for (const x of [-0.135, 0.135]) box(r, 'grinder_cubby_side', [0.02, 0.26, 0.12], PINK, [x, 0.3, 0.21], toon(PINK, FINE));
+  box(r, 'grinder_cubby_lintel', [0.29, 0.025, 0.12], PINK, [0, 0.435, 0.21], toon(PINK, FINE));
   // 侧面的摇柄
   const crank = group('grinder_crank'); crank.position.set(0.21, 0.55, 0); r.add(crank);
+  cyl(r, 'crank_bearing', 0.024, 0.115, '#5d5250', [0.1825, 0.55, 0], 10, FINE).rotation.z = PI / 2;
   cyl(crank, 'crank_axle', 0.02, 0.06, '#5d5250', [0.03, 0, 0], 8, FINE).rotation.z = PI / 2;
   box(crank, 'crank_arm', [0.03, 0.22, 0.03], '#5d5250', [0.06, 0.1, 0], toon('#5d5250', FINE));
   const knob = cyl(crank, 'crank_knob', 0.022, 0.08, '#e0d0b8', [0.1, 0.2, 0], 10, FINE); knob.rotation.z = PI / 2;
   // 放进去的东西露出一点（用一个小块表示）
-  const inside = ball(r, 'grinder_inside', 0.05, '#a39a8c', [0, 0.88, 0], [1.2, 0.6, 1], FINE);
+  const inside = ball(r, 'grinder_inside', 0.05, '#a39a8c', [0, 0.95, 0], [1.2, 0.6, 1], FINE);
   hitBox(r, 'hopper_hit', [0.36, 0.22, 0.36], [0, 0.93, 0]);
   hitBox(r, 'crank_hit', [0.18, 0.4, 0.2], [0.29, 0.6, 0]);
   hitBox(r, 'tray_hit', [0.3, 0.14, 0.26], [0, 0.18, 0.27]);
@@ -539,10 +570,11 @@ function grinder() {
     inside.visible = !!input; if (input) inside.material.color.set(input);
     heap.visible = !!output; if (output) heap.material.color.set(output);
     crank.rotation.x = 0;
+    frontCrank.rotation.z = -0.25;
   };
   /** 摇三圈：放进去的东西不见了，托盘里堆起粉末。 */
-  r.crank = (color) => animate(2100, (k) => { crank.rotation.x = -k * 6 * PI; inside.scale.setScalar(Math.max(0.01, 1 - k)); if (k > 0.6) { heap.visible = true; heap.material.color.set(color); heap.scale.setScalar((k - 0.6) / 0.4); } }, Ease.inOutSine)
-    .then(() => { inside.visible = false; inside.scale.setScalar(1); heap.scale.setScalar(1); crank.rotation.x = 0; });
+  r.crank = (color) => animate(2100, (k) => { crank.rotation.x = -k * 6 * PI; frontCrank.rotation.z = -0.25 + k * 6 * PI; inside.scale.setScalar(Math.max(0.01, 1 - k)); if (k > 0.6) { heap.visible = true; heap.material.color.set(color); heap.scale.setScalar((k - 0.6) / 0.4); } }, Ease.inOutSine)
+    .then(() => { inside.visible = false; inside.scale.setScalar(1); heap.scale.setScalar(1); crank.rotation.x = 0; frontCrank.rotation.z = -0.25; });
   r.setState();
   return r;
 }

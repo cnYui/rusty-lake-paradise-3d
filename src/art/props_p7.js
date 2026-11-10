@@ -80,7 +80,14 @@ function strawberry() {
 function iceCream(flavour) {
   const r = group(`p7_ice_cream_${flavour}`);
   const c = cone(r, 'cone', 0.032, 0.13, '#d5a865', [0, 0.065, 0]); c.rotation.x = PI;
-  ball(r, 'scoop', 0.038, flavour === 'pistachio' ? '#9cc070' : '#efa8b4', [0, 0.14, 0], [1, 0.9, 1], FINE);
+  // 原作特写能读出甜筒的横向压纹和冰淇淋上的颗粒，补上这些识别点避免变成单色圆锥。
+  for (const y of [0.035, 0.065, 0.095]) ring(r, 'cone_ridge', 0.032 * y / 0.13, 0.0009, '#b57f4c', [0, y, 0], { outline: false }).rotation.x = PI / 2;
+  const scoopColor = flavour === 'pistachio' ? '#9cc070' : '#efa8b4';
+  ball(r, 'scoop', 0.038, scoopColor, [0, 0.14, 0], [1, 0.9, 1], FINE);
+  for (let i = 0; i < 7; i++) {
+    const a = i * 2.4, y = 0.2 + (i % 3) * 0.22, radius = 0.038 * Math.sqrt(1 - y * y);
+    ball(r, 'scoop_chip', 0.002, flavour === 'pistachio' ? '#6f8e4a' : '#c87f8d', [Math.cos(a) * radius, 0.14 + y * 0.0342, Math.sin(a) * radius], [1, 0.7, 1], { outline: false });
+  }
   return r;
 }
 // Gerard 送给玩家的帽子：和他头上（网格 Gerard）那顶一样的灰色圆顶礼帽，圆冠、卷边帽檐、深灰帽带
@@ -145,6 +152,7 @@ function vase() {
 function squirrelTree() {
   const r = group('p7_squirrel');
   const trunk = cyl(r, 'sq_trunk', 0.22, 3.2, '#6f6458', [0, 1.6, -0.5], 10); trunk.name = 'sq_trunk';
+  for (let i = 0; i < 5; i++) ring(r, 'sq_bark_ridge', 0.216, 0.004, '#514a42', [0, 0.35 + i * 0.55, -0.5], FINE).rotation.x = PI / 2;
   const br = cyl(r, 'sq_branch', 0.06, 1.6, '#6f6458', [0.55, 2.3, -0.2], 8); br.rotation.z = PI / 2 - 0.25;
   const icicles = group('sq_icicles'); r.add(icicles);
   for (let i = 0; i < 6; i++) { const c = cone(icicles, 'icicle', 0.03, 0.35 + (i % 3) * 0.08, '#d6ecf3', [0.2 + i * 0.18, 2.05 - (i % 3) * 0.04, -0.2], { outline: false }); c.rotation.x = PI; }
@@ -154,6 +162,8 @@ function squirrelTree() {
   for (const s of [-1, 1]) cone(sq, 'sq_ear', 0.015, 0.04, '#b58424', [s * 0.025, 0.3, 0.0]);
   for (const s of [-1, 1]) ball(sq, 'sq_eye', 0.008, '#1b1512', [s * 0.02, 0.26, 0.065], [1, 1, 0.5], FINE);
   const tail = ball(sq, 'sq_tail', 0.07, '#b58424', [0, 0.18, -0.1], [0.7, 1.4, 0.6], FINE); tail.rotation.x = -0.4;
+  for (let i = 0; i < 4; i++) cone(sq, 'sq_tail_tuft', 0.012, 0.08, '#d0a13e', [(i - 1.5) * 0.024, 0.24 + i * 0.018, -0.14], { outline: false }).rotation.x = -0.65;
+  for (const s of [-1, 1]) ball(sq, 'sq_paw', 0.018, '#8e6728', [s * 0.045, 0.09, 0.07], [1, 0.65, 1.3], FINE);
   hitBox(sq, 'sq_hit', [0.3, 0.42, 0.3], [0, 0.18, 0]);
   const fallen = group('sq_fallen'); r.add(fallen);
   for (const [x, a] of [[0.62, 0.3], [0.78, -0.4]]) { const c = cone(fallen, 'fallen_icicle', 0.03, 0.4, '#d6ecf3', [x, 0.18, 0.1], { outline: false }); c.rotation.set(PI + a, 0, 0.2); }
@@ -323,6 +333,7 @@ function machine() {
   box(r, 'mach_base', [0.5, 0.15, 0.5], GOLD, [0, 0.075, 0], toon('#b8902f'));
   box(r, 'mach_body', [0.42, 0.9, 0.42], GOLD, [0, 0.6, 0]);
   box(r, 'mach_top', [0.48, 0.08, 0.48], '#b8902f', [0, 1.09, 0]);
+  ring(r, 'mach_top_trim', 0.135, 0.009, '#e3c35c', [0, 1.145, 0], FINE).rotation.x = PI / 2;
   const slots = [];
   for (const [i, x, y] of [[0, -0.1, 0.72], [1, 0.1, 0.72], [2, 0, 0.53]]) {
     const s = group(`mach_slot_${i}`); s.position.set(x, y, 0.215); r.add(s);
@@ -333,6 +344,9 @@ function machine() {
   }
   hitBox(r, 'mach_hit', [0.44, 0.5, 0.1], [0, 0.65, 0.22]);
   const globe = crystalBall({ glow: true }); globe.scale.setScalar(2); globe.position.set(0, 1.13, 0); globe.name = 'mach_ball'; r.add(globe);
+  const globeHalo = add(globe, new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.003, 8, 28), toon('#ead67c', FINE)), 'mach_globe_ring', [0, 0.043, 0]); globeHalo.rotation.x = PI / 2;
+  // 球体可被取走，雪粒必须随球体一起隐藏。
+  for (let i = 0; i < 5; i++) ball(globe, 'mach_snow', 0.004, '#f5fbff', [(i - 2) * 0.018, 0.052 + (i % 2) * 0.02, (i % 3 - 1) * 0.017], [1, 0.7, 1], { outline: false });
   hitBox(globe, 'globe_hit', [0.16, 0.18, 0.16], [0, 0.08, 0]);
   const light = globe.children.find((o) => o.isLight);
   r.userData = { ...r.userData, slots, ball: globe };
