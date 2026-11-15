@@ -336,7 +336,7 @@ function defineViews(ctx) {
   view('p10_tower', cam([-1.5, 2.0, 21.0], [-10.0, 1.4, 13.5], 52), { back: 'p10_forest', right: 'p10_clearing' });
   view('p10_clearing', cam([11.5, 1.9, 10.5], [17.5, 1.2, 4.5], 52), { back: 'p10_forest', left: 'p10_tower', up: 'p10_house' });
   view('p10_house', cam([4.5, 2.2, -3.0], [3, 1.5, -11]), { back: 'p10_clearing', right: 'p10_temple' });
-  const [ox, oz] = owlPoint(-0.12, 14), [tx, tz] = owlPoint(0, 0);   // 稍微偏左，门右边的大石头只占画面右边
+  const [ox, oz] = owlPoint(-.48, 19), [tx, tz] = owlPoint(0, 0);   // 给完整的展翼构架留出距离，避开右侧石头的遮挡
   view('p10_temple', cam([ox, 2.4, oz], [tx, 5.2, tz], 58), { back: 'p10_house' });   // 漫游镜头：只用来定位置和朝向（抬头看到猫头鹰的眼睛）
 
   const st = W.stump.position;

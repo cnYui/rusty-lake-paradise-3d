@@ -5,6 +5,7 @@ import {
   THREE, TAU, tmat, umat, group, mesh, lathe, rod, merge, cached, lumpGeo, canvasTexture, rng, mosquitoGeometry,
   POT, potProfile, potOpen, mergeGeometries, INK,
 } from './props_p3_shared.js';
+import { specimen, rebuildItems } from './reference_items.js';
 
 // ---------------------------------------------------------------------------------------------
 // 小工具
@@ -558,3 +559,5 @@ export const FACTORIES = {
   p3_vase_urn: makeVaseUrn,
   p3_vase_bottle: makeVaseBottle,
 };
+rebuildItems(FACTORIES,{p3_swatter:()=>specimen('swatter'),p3_snail:()=>specimen('snail'),p3_mussel:()=>specimen('mussel'),p3_honey:()=>specimen('honey'),p3_ear:()=>{const r=specimen('ear');r.rotation.z=-Math.PI/2;return r;},p3_berries:()=>specimen('berries')});
+makeSwatter=FACTORIES.p3_swatter;makeSnail=FACTORIES.p3_snail;makeMussel=FACTORIES.p3_mussel;makeHoney=FACTORIES.p3_honey;makeEar=FACTORIES.p3_ear;makeBerries=FACTORIES.p3_berries;

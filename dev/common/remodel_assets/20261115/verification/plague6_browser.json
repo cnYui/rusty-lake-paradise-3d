@@ -1,0 +1,38 @@
+{
+  "autoplay": {
+    "steps": 138,
+    "total": 138,
+    "warnings": [
+      "#52: hotspot \"p6_grandma\" is off screen in \"p6_grandma\"",
+      "#53: hotspot \"p6_grandma\" is off screen in \"p6_grandma\"",
+      "#54: hotspot \"p6_grandma\" is off screen in \"p6_grandma\"",
+      "#57: hotspot \"p6_flask_zoom\" is off screen in \"p6_room\"",
+      "#71: hotspot \"p6_tooth_0\" is off screen in \"p6_mouth\"",
+      "#72: hotspot \"p6_tooth_1\" is off screen in \"p6_mouth\"",
+      "#73: hotspot \"p6_tooth_1\" is off screen in \"p6_mouth\"",
+      "#74: hotspot \"p6_tooth_2\" is off screen in \"p6_mouth\"",
+      "#75: hotspot \"p6_tooth_2\" is off screen in \"p6_mouth\"",
+      "#76: hotspot \"p6_tooth_3\" is off screen in \"p6_mouth\"",
+      "#77: hotspot \"p6_tooth_4\" is off screen in \"p6_mouth\"",
+      "#78: hotspot \"p6_tooth_5\" is off screen in \"p6_mouth\"",
+      "#79: hotspot \"p6_tooth_5\" is off screen in \"p6_mouth\"",
+      "#80: hotspot \"p6_tooth_6\" is off screen in \"p6_mouth\"",
+      "#81: hotspot \"p6_tooth_6\" is off screen in \"p6_mouth\"",
+      "#82: hotspot \"p6_tooth_7\" is off screen in \"p6_mouth\"",
+      "#85: hotspot \"p6_clock_zoom\" is off screen in \"p6_room\"",
+      "#104: hotspot \"p6_trunk_zoom\" is off screen in \"p6_room\""
+    ]
+  },
+  "new_game_reset": true,
+  "wrong_pour_resets": true,
+  "real_mouse_and_keyboard": 111,
+  "partial_and_complete_save_load": [
+    "boils",
+    "flask",
+    "teeth",
+    "temple"
+  ],
+  "gates": true,
+  "menu_wip_and_unlock": true,
+  "touch_boils_and_inventory": true
+}

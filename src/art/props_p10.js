@@ -3,6 +3,7 @@
 // 本文件会被小红书包静态打进去：字符串里不放章节文案。
 // 黄昏的天空、星星、仓鸮、黑影剪影复用 props_p9；面具模型在 characters.js 的 makeMaskModel（章节里用）。
 import * as THREE from 'three';
+import { tool, food, rebuildItems, specimen, batchStaticSurfaces } from './reference_items.js';
 import { toon, unlit, flat, canvasTexture } from './materials.js';
 import { animate, Ease } from '../core/tween.js';
 import { PI, group, add, box, ball, cyl } from './p5_kit.js';
@@ -48,40 +49,50 @@ function woodOwl() {
   const lightMat = toon('#ffffff', { map: planks('#c39467', '#6e4a2c', 10, 5, { repeat: [3, 1] }), side: THREE.DoubleSide, outline: 0.003 });
   const darkMat = toon('#3a2416', FINE);
   const G = WOOD_OWL.gap;
-  // 身体：下半截在正面留门洞，上半截（头）整圈
-  add(r, new THREE.Mesh(new THREE.LatheGeometry(V2([[4.1, -0.4], [4.3, 1.2], [4.45, 3.1]]), 44, G / 2, 2 * PI - G), woodMat), 'owl_body_lower');
-  add(r, new THREE.Mesh(new THREE.LatheGeometry(V2([[4.45, 3.1], [4.55, 4.8], [4.4, 6.4], [3.95, 7.9], [3.2, 9.1], [2.1, 9.9], [0.9, 10.3], [0.02, 10.4]]), 44), woodMat), 'owl_body_upper');
-  box(r, 'owl_lintel', [3.7, 0.32, 0.5], '#5a3a22', [0, 3.15, 4.2], darkMat);
-  for (const s of [-1, 1]) box(r, 'owl_jamb', [0.3, 3.2, 0.5], '#5a3a22', [s * 1.72, 1.5, 3.95], darkMat);
-  // 脸盘、眉、眼睛、嘴
-  const face = add(r, new THREE.Mesh(new THREE.SphereGeometry(1, 36, 20), lightMat), 'owl_face', [0, 7.35, 3.75]);
-  face.scale.set(2.75, 2.15, 0.85);
-  const eyeOff = new THREE.Color('#2b1a10'), eyeOn = new THREE.Color('#ffae3a');
-  const irisMats = [], glows = [];
-  for (const s of [-1, 1]) {
-    const eye = group('owl_eye'); eye.position.set(s * 1.12, 7.55, 4.55); eye.rotation.y = s * 0.2; r.add(eye);
-    add(eye, new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.13, 10, 36), darkMat), 'owl_eye_rim');
-    const irisMat = unlit('#2b1a10'); irisMats.push(irisMat);
-    add(eye, new THREE.Mesh(new THREE.CircleGeometry(0.72, 36), irisMat), 'owl_iris', [0, 0, 0.02]);
-    add(eye, new THREE.Mesh(new THREE.CircleGeometry(0.26, 24), unlit('#0c0806')), 'owl_pupil', [0, 0, 0.04]);
-    const gl = add(eye, new THREE.Mesh(new THREE.CircleGeometry(1.35, 36), glow('#ff9a30', { opacity: 0 })), 'owl_eye_glow', [0, 0, 0.06]);
-    glows.push(gl);
-    const brow = box(r, 'owl_brow', [1.75, 0.2, 0.18], '#3a2416', [s * 0.95, 8.55, 4.42], darkMat); brow.rotation.z = -s * 0.32;
+  // 原作是张开双翼的木梁构架：门洞、交叉胸梁、辐射眼圈和木板羽毛，不是实心圆桶。
+  const timber=(name,a,b,width=.22,depth=.18,mat=woodMat)=>{
+    const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),d=B.clone().sub(A);
+    const m=add(r,new THREE.Mesh(new THREE.BoxGeometry(width,d.length(),depth),mat),name,A.clone().add(B).multiplyScalar(.5).toArray());
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());return m;
+  };
+  for(const side of [-1,1]){
+    for(const z of [-2.8,3.8])timber('owl_corner_post',[side*2.35,0,z],[side*2.35,6.5,z],.30,.27);
+    timber('owl_door_jamb',[side*1.42,0,4.05],[side*1.42,3.15,4.05],.27,.32);
+    for(let i=0;i<7;i++)timber('owl_side_slat',[side*2.35,.5+i*.82,-2.8],[side*2.35,.5+i*.82,3.8],.18,.17);
+    for(let i=0;i<4;i++)timber('owl_lower_front_slat',[side*1.55,.48+i*.72,4.0],[side*2.36,.48+i*.72,4.0],.16,.18);
+    // 每根羽板有自己的端点，侧面可见板厚，木纹顺着木梁方向。
+    for(let i=0;i<9;i++){
+      const a=[side*(1.95+i*.12),5.95-i*.04,3.65];
+      const b=[side*(3.25+i*.43),3.45+i*.085,3.50+(i%2)*.04];
+      timber('owl_wing_feather_'+side+'_'+i,a,b,.25,.14,i%3?woodMat:lightMat);
+    }
+    timber('owl_wing_leading_rail',[side*2.0,6.18,3.58],[side*6.82,4.30,3.52],.28,.19,darkMat);
+    timber('owl_wing_lower_rail',[side*2.45,3.8,3.46],[side*6.78,4.05,3.48],.18,.18);
+    timber('owl_brow',[0,8.60,4.50],[side*2.66,10.48,4.32],.31,.22);
+    timber('owl_outer_ear',[side*1.9,8.5,4.35],[side*3.05,10.6,4.25],.27,.21);
+    timber('owl_cheek',[side*2.32,8.55,4.18],[side*.22,6.05,4.30],.24,.22);
+    timber('owl_breast_brace',[side*2.2,6.25,4.0],[-side*1.7,3.5,4.03],.21,.19);
   }
-  const beak = add(r, new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.15, 10), toon('#c9a043', FINE)), 'owl_beak', [0, 6.75, 4.6]);
-  beak.rotation.x = PI + 0.25;
-  // 耳羽、翅膀、胸口的 V 形羽毛、两只爪子
-  for (const s of [-1, 1]) {
-    const ear = add(r, new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.8, 10), woodMat), 'owl_ear', [s * 1.65, 10.0, 1.0]); ear.rotation.z = -s * 0.38;
-    const wing = add(r, new THREE.Mesh(new THREE.SphereGeometry(1, 28, 18), woodMat), 'owl_wing', [s * 4.25, 5.4, -0.4]);
-    wing.scale.set(0.85, 3.1, 2.4); wing.rotation.z = s * 0.1;
-    const foot = group('owl_foot'); foot.position.set(s * 1.3, 0.45, 4.75); r.add(foot);
-    box(foot, 'foot_block', [0.95, 0.5, 0.95], '#6e4a2c', [0, 0, 0], darkMat);
-    for (const x of [-0.3, 0, 0.3]) { const t = add(foot, new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.6, 8), toon('#2c2018', FINE)), 'owl_talon', [x, -0.12, 0.6]); t.rotation.x = PI / 2; }
+  for(const y of [3.28,3.75,4.25,4.75,5.25,5.75])timber('owl_chest_crossbar',[-2.35,y,3.92],[2.35,y,3.92],.18,.20);
+  timber('owl_door_lintel',[-1.6,3.15,4.05],[1.6,3.15,4.05],.27,.30);
+  for(const x of [-1.1,-.55,0,.55,1.1])timber('owl_forehead_slats',[x,6.30,4.18],[x*.60,9.35,4.14],.19,.17);
+  const eyeOff=new THREE.Color('#2b1a10'),eyeOn=new THREE.Color('#ffae3a'),irisMats=[],glows=[];
+  for(const side of [-1,1]){
+    const center=[side*1.22,7.63,4.4];
+    const eye=group('owl_eye');eye.position.fromArray(center);r.add(eye);
+    add(eye,new THREE.Mesh(new THREE.TorusGeometry(.95,.13,8,36),woodMat),'owl_eye_structural_ring');
+    add(eye,new THREE.Mesh(new THREE.TorusGeometry(.70,.075,8,32),lightMat),'owl_eye_inner_ring',[0,0,.06]);
+    for(let i=0;i<20;i++){
+      const a=i*PI/10,A=[center[0]+Math.sin(a)*.87,center[1]+Math.cos(a)*.87,4.38],B=[center[0]+Math.sin(a)*1.17,center[1]+Math.cos(a)*1.17,4.38];
+      timber('owl_eye_radial_plank',A,B,.12,.15,i%2?woodMat:lightMat);
+    }
+    const irisMat=unlit('#2b1a10');irisMats.push(irisMat);
+    add(eye,new THREE.Mesh(new THREE.CircleGeometry(.65,36),irisMat),'owl_iris',[0,0,.10]);
+    add(eye,new THREE.Mesh(new THREE.CircleGeometry(.23,24),unlit('#0c0806')),'owl_pupil',[0,0,.12]);
+    const gl=add(eye,new THREE.Mesh(new THREE.CircleGeometry(1.14,36),glow('#ff9a30',{opacity:0})),'owl_eye_glow',[0,0,.14]);glows.push(gl);
   }
-  for (const y of [3.75, 4.6, 5.45]) for (const x of [-1.3, 0, 1.3]) for (const s of [-1, 1]) {
-    const v = box(r, 'owl_chevron', [0.5, 0.09, 0.08], '#4a2c1a', [x + s * 0.2, y, 4.62 - Math.abs(x) * 0.12], darkMat); v.rotation.z = s * 0.55;
-  }
+  const beakShape=new THREE.Shape(V2([[-.27,7.28],[.27,7.28],[0,6.46]]));
+  add(r,new THREE.Mesh(new THREE.ExtrudeGeometry(beakShape,{depth:.31,bevelEnabled:true,bevelSize:.025,bevelThickness:.025,bevelSegments:2}),lightMat),'owl_wooden_beak',[0,0,4.25]);
   // 门前的半圆栅栏和栅门（铰链在门缝两边，往里开）
   const R = WOOD_OWL.gateR, GATE = 0.16, fenceMat = toon('#6b4a2e', FINE);
   for (let a = -0.95; a <= 0.95 + 1e-6; a += 0.075) {
@@ -114,6 +125,7 @@ function woodOwl() {
   r.userData.gate = r.getObjectByName('gate_hit'); r.userData.door = r.getObjectByName('door_hit'); r.userData.owl = r.getObjectByName('owl_hit');
   r.userData.state = st;
   r.setState();
+  batchStaticSurfaces(r,n=>(n.name.startsWith('owl_')&&!['owl_iris','owl_pupil','owl_eye_glow'].includes(n.name))||n.name.startsWith('fence_'));
   return r;
 }
 
@@ -787,4 +799,6 @@ export const FACTORIES = {
   p10_hen: hen, p10_well: well, p10_stove: stove, p10_table: table, p10_mask_painting: maskPainting, p10_owl_painting: owlPainting,
   p10_crypt: crypt, p10_vision: vision, p10_owl_mask: owlMask,
 };
+rebuildItems(FACTORIES,{p10_apple:()=>food('apple'),p10_worm:()=>{const r=food('worm');r.rotation.y=Math.PI/2;return r;},p10_egg:()=>food('egg'),p10_bow:()=>tool('bow'),p10_feather:()=>specimen('feather')});
+apple=FACTORIES.p10_apple;worm=FACTORIES.p10_worm;egg=FACTORIES.p10_egg;bow=FACTORIES.p10_bow;featherModel=FACTORIES.p10_feather;
 export { FACE_START };

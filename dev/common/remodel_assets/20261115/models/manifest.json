@@ -1,0 +1,871 @@
+{
+  "project": "paradise",
+  "date": "2026-11-15",
+  "models": [
+    {
+      "module": "props_p10",
+      "id": "p10_wood_owl",
+      "source": "src/art/props_p10.js",
+      "sizeMeters": [
+        13.744904518127441,
+        10.674167518503964,
+        8.923363643405832
+      ],
+      "vertices": 16652,
+      "triangles": 5692,
+      "glb": "props_p10__p10_wood_owl.glb",
+      "image": "props_p10__p10_wood_owl.png",
+      "bytes": 623656,
+      "sha256": "f745063217cc276dfaf52f435f0d2ebed48482095ab22074bd386da054efd344"
+    },
+    {
+      "module": "props_p10",
+      "id": "p10_feather",
+      "source": "src/art/props_p10.js",
+      "sizeMeters": [
+        0.1850000023841858,
+        0.004727744963020086,
+        0.05394173040986061
+      ],
+      "vertices": 1383,
+      "triangles": 1420,
+      "glb": "props_p10__p10_feather.glb",
+      "image": "props_p10__p10_feather.png",
+      "bytes": 134108,
+      "sha256": "bf3a724127f872fb0ded3b42f4882445f275b350a43efe48a5cf991ea0dda204"
+    },
+    {
+      "module": "props_p10",
+      "id": "p10_apple",
+      "source": "src/art/props_p10.js",
+      "sizeMeters": [
+        0.08523526042699814,
+        0.09565631416626275,
+        0.08878467231988907
+      ],
+      "vertices": 11293,
+      "triangles": 4448,
+      "glb": "props_p10__p10_apple.glb",
+      "image": "props_p10__p10_apple.png",
+      "bytes": 371644,
+      "sha256": "63cd32e0316c1cbe7730578d1683ca5a18dac90a43213616d422344e57134ddc"
+    },
+    {
+      "module": "props_p10",
+      "id": "p10_worm",
+      "source": "src/art/props_p10.js",
+      "sizeMeters": [
+        0.11561499908566475,
+        0.012989799724891782,
+        0.06254415214061737
+      ],
+      "vertices": 30947,
+      "triangles": 10640,
+      "glb": "props_p10__p10_worm.glb",
+      "image": "props_p10__p10_worm.png",
+      "bytes": 995132,
+      "sha256": "8180c90e85fb184405ad53c8d5a4a374e674ee92233ea290ddb51f55a050ab79"
+    },
+    {
+      "module": "props_p10",
+      "id": "p10_egg",
+      "source": "src/art/props_p10.js",
+      "sizeMeters": [
+        0.037142857909202576,
+        0.05720000056317076,
+        0.037142857909202576
+      ],
+      "vertices": 287,
+      "triangles": 480,
+      "glb": "props_p10__p10_egg.glb",
+      "image": "props_p10__p10_egg.png",
+      "bytes": 13544,
+      "sha256": "3e838ef07b7e11a7e38d88187a0f3929d28ea75f342b5211182f64c33dddb809"
+    },
+    {
+      "module": "props_p10",
+      "id": "p10_bow",
+      "source": "src/art/props_p10.js",
+      "sizeMeters": [
+        0.12796200439333916,
+        0.9067540168762207,
+        0.04293415695428848
+      ],
+      "vertices": 21574,
+      "triangles": 7840,
+      "glb": "props_p10__p10_bow.glb",
+      "image": "props_p10__p10_bow.png",
+      "bytes": 722084,
+      "sha256": "87c9888525204f8fe2f578db1133ab972075294ffabf8f6062e31208af2cfb6a"
+    },
+    {
+      "module": "props_p3_beach",
+      "id": "p3_mussel_shell",
+      "source": "src/art/props_p3_beach.js",
+      "sizeMeters": [
+        0.058188311755657196,
+        0.12999999284744268,
+        0.04100000184774399
+      ],
+      "vertices": 4713,
+      "triangles": 9176,
+      "glb": "props_p3_beach__p3_mussel_shell.glb",
+      "image": "props_p3_beach__p3_mussel_shell.png",
+      "bytes": 317396,
+      "sha256": "330a01fd762e8e1876a29281b97e8a26cdd4c618bb5f652a6fd795d8c227e4a6"
+    },
+    {
+      "module": "props_p3_beach",
+      "id": "p3_stump",
+      "source": "src/art/props_p3_beach.js",
+      "sizeMeters": [
+        0.6800000071525574,
+        1.049429461219185,
+        0.6000000238418579
+      ],
+      "vertices": 24065,
+      "triangles": 16826,
+      "glb": "props_p3_beach__p3_stump.glb",
+      "image": "props_p3_beach__p3_stump.png",
+      "bytes": 918368,
+      "sha256": "7b2c3fa1e92201fb148e07be3fda3c88cf876ec4e4e5d52fafb2f9aa0be53d1f"
+    },
+    {
+      "module": "props_p3_items",
+      "id": "p3_swatter",
+      "source": "src/art/props_p3_items.js",
+      "sizeMeters": [
+        0.4774899482727051,
+        0.18504640460014343,
+        0.02672484517097473
+      ],
+      "vertices": 87936,
+      "triangles": 29312,
+      "glb": "props_p3_items__p3_swatter.glb",
+      "image": "props_p3_items__p3_swatter.png",
+      "bytes": 2841832,
+      "sha256": "6f50de28bd0f72ac0ea633351530d4e2a36521b61f6faa65811eec0c8fd48ff0"
+    },
+    {
+      "module": "props_p3_items",
+      "id": "p3_snail",
+      "source": "src/art/props_p3_items.js",
+      "sizeMeters": [
+        0.10929999873042107,
+        0.061595333740115166,
+        0.03664411976933479
+      ],
+      "vertices": 20970,
+      "triangles": 13168,
+      "glb": "props_p3_items__p3_snail.glb",
+      "image": "props_p3_items__p3_snail.png",
+      "bytes": 726424,
+      "sha256": "095702ab7627194b451bb9e55d087040f3f7e45de82c34e6c644401f59226a68"
+    },
+    {
+      "module": "props_p3_items",
+      "id": "p3_honey",
+      "source": "src/art/props_p3_items.js",
+      "sizeMeters": [
+        0.1071167029440403,
+        0.020718715153634548,
+        0.08121735602617264
+      ],
+      "vertices": 1775,
+      "triangles": 1170,
+      "glb": "props_p3_items__p3_honey.glb",
+      "image": "props_p3_items__p3_honey.png",
+      "bytes": 64808,
+      "sha256": "e102f4d051df70524e0e6d7a48231f3468d417cb6f3716adf3ff8442851750d0"
+    },
+    {
+      "module": "props_p3_items",
+      "id": "p3_ear",
+      "source": "src/art/props_p3_items.js",
+      "sizeMeters": [
+        0.0957375019788742,
+        0.0634602066129446,
+        0.03253006376326084
+      ],
+      "vertices": 5624,
+      "triangles": 3680,
+      "glb": "props_p3_items__p3_ear.glb",
+      "image": "props_p3_items__p3_ear.png",
+      "bytes": 199224,
+      "sha256": "0f67fb979fc5030aa78e9a70e802dce7804a29f8a9693d12aa1a5fcb2a727ae8"
+    },
+    {
+      "module": "props_p3_items",
+      "id": "p3_mussel",
+      "source": "src/art/props_p3_items.js",
+      "sizeMeters": [
+        0.09414627403020859,
+        0.08983960561454296,
+        0.053788065910339355
+      ],
+      "vertices": 7286,
+      "triangles": 10304,
+      "glb": "props_p3_items__p3_mussel.glb",
+      "image": "props_p3_items__p3_mussel.png",
+      "bytes": 401896,
+      "sha256": "e793320438062404def53038134f4da0a8ba6f768db246a15ad2aebf7ca3f550"
+    },
+    {
+      "module": "props_p3_items",
+      "id": "p3_berries",
+      "source": "src/art/props_p3_items.js",
+      "sizeMeters": [
+        0.06780015304684639,
+        0.09834447503089905,
+        0.06087294593453407
+      ],
+      "vertices": 90026,
+      "triangles": 30368,
+      "glb": "props_p3_items__p3_berries.glb",
+      "image": "props_p3_items__p3_berries.png",
+      "bytes": 2889588,
+      "sha256": "835be13a01b8a0053af920560f5d71ebe9b7494b3538702fd6c9017e3f3e9443"
+    },
+    {
+      "module": "props_p5",
+      "id": "p5_lettuce",
+      "source": "src/art/props_p5.js",
+      "sizeMeters": [
+        0.2526538074016571,
+        0.15202885307371616,
+        0.2534586489200592
+      ],
+      "vertices": 41472,
+      "triangles": 13824,
+      "glb": "props_p5__p5_lettuce.glb",
+      "image": "props_p5__p5_lettuce.png",
+      "bytes": 1342268,
+      "sha256": "c12eecdb546876e1bdd8ae7ea3b0066f1b8ee517b2365eee8ced3d3547582d7b"
+    },
+    {
+      "module": "props_p5",
+      "id": "p5_tomato",
+      "source": "src/art/props_p5.js",
+      "sizeMeters": [
+        0.09098000079393387,
+        0.07381361350417137,
+        0.08391885459423065
+      ],
+      "vertices": 8127,
+      "triangles": 3904,
+      "glb": "props_p5__p5_tomato.glb",
+      "image": "props_p5__p5_tomato.png",
+      "bytes": 275288,
+      "sha256": "f8a154cce147a3a6247d52c0733fa80f522f70f696440aa615bd9782a62ad9c3"
+    },
+    {
+      "module": "props_p5",
+      "id": "p5_cucumber",
+      "source": "src/art/props_p5.js",
+      "sizeMeters": [
+        0.24079090356826782,
+        0.04616904995054938,
+        0.04616905003786087
+      ],
+      "vertices": 10025,
+      "triangles": 3920,
+      "glb": "props_p5__p5_cucumber.glb",
+      "image": "props_p5__p5_cucumber.png",
+      "bytes": 327652,
+      "sha256": "fc97d4b0312a87fc4bcecf5e7257a7777041173d65c1a037937374e6b06eb47f"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_skull",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.8618946075439453,
+        0.32285750139504676,
+        0.507737696170807
+      ],
+      "vertices": 27533,
+      "triangles": 54264,
+      "glb": "props_p6__p6_skull.glb",
+      "image": "props_p6__p6_skull.png",
+      "bytes": 1016372,
+      "sha256": "3d1b35ccd3a5a106789563714870e9bef4924f124d3487dc70094ef522d3012d"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_empty_bottle",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.05000000074505806,
+        0.12899999518413097,
+        0.05000000074505806
+      ],
+      "vertices": 1580,
+      "triangles": 2800,
+      "glb": "props_p6__p6_empty_bottle.glb",
+      "image": "props_p6__p6_empty_bottle.png",
+      "bytes": 95028,
+      "sha256": "db2275d079cf275152b0f93ffee11fa11499c6261f6680f890ec2bef137e0282"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_bottles",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.17000000074505806,
+        0.12899999518413097,
+        0.07000000074505806
+      ],
+      "vertices": 4740,
+      "triangles": 8400,
+      "glb": "props_p6__p6_bottles.glb",
+      "image": "props_p6__p6_bottles.png",
+      "bytes": 239300,
+      "sha256": "ab3eb2580bf3277770de4a5a569c1086849045d530d821f883e2bfc1f5ef6452"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_blood",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.05000000074505806,
+        0.12899999518413097,
+        0.05000000074505806
+      ],
+      "vertices": 2195,
+      "triangles": 3840,
+      "glb": "props_p6__p6_blood.glb",
+      "image": "props_p6__p6_blood.png",
+      "bytes": 123284,
+      "sha256": "d005824f6226cb89da66f402d81417b0cd8365177f7d362317373dc9d312e546"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_tears",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.05000000074505806,
+        0.12899999518413097,
+        0.05000000074505806
+      ],
+      "vertices": 2195,
+      "triangles": 3840,
+      "glb": "props_p6__p6_tears.glb",
+      "image": "props_p6__p6_tears.png",
+      "bytes": 123276,
+      "sha256": "3b4f9876b1a25a54758444cd8f9bba73855d2b8dda622a7911903dcb8313e458"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_snot",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.05000000074505806,
+        0.12899999518413097,
+        0.05000000074505806
+      ],
+      "vertices": 2195,
+      "triangles": 3840,
+      "glb": "props_p6__p6_snot.glb",
+      "image": "props_p6__p6_snot.png",
+      "bytes": 123280,
+      "sha256": "c50b159039dab6cde360073a62cb6e7170f61fc2b0dff8416d3ec9b32a98bb0b"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_saliva",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.05000000074505806,
+        0.12899999518413097,
+        0.05000000074505806
+      ],
+      "vertices": 2195,
+      "triangles": 3840,
+      "glb": "props_p6__p6_saliva.glb",
+      "image": "props_p6__p6_saliva.png",
+      "bytes": 123276,
+      "sha256": "cb7405fc1db767c6c23482323c6043f14b7fa1efdf28698f3e053a65af6de84e"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_medicine",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.05000000074505806,
+        0.12899999518413097,
+        0.05000000074505806
+      ],
+      "vertices": 2195,
+      "triangles": 3840,
+      "glb": "props_p6__p6_medicine.glb",
+      "image": "props_p6__p6_medicine.png",
+      "bytes": 123280,
+      "sha256": "33b1753e4974953b4fb0e96302fd69dd2e6677dd91e7d7928228ec2379b846bd"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_mushroom",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.07466666400432587,
+        0.07633744343183935,
+        0.07466666400432587
+      ],
+      "vertices": 8214,
+      "triangles": 14960,
+      "glb": "props_p6__p6_mushroom.glb",
+      "image": "props_p6__p6_mushroom.png",
+      "bytes": 381192,
+      "sha256": "d714f8ca3debcca7dfab22bb987469b2b96c257fc266fedefc9c8419783e1e8e"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_onion",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.07804115116596222,
+        0.1171451173722744,
+        0.07804115116596222
+      ],
+      "vertices": 7987,
+      "triangles": 14560,
+      "glb": "props_p6__p6_onion.glb",
+      "image": "props_p6__p6_onion.png",
+      "bytes": 370488,
+      "sha256": "0ab527d54993162abb272b05a50eae6e9656d04ecb92adda3ae7f0586e8222c1"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_onion_plant",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.15726928412914276,
+        0.32524844631552696,
+        0.11943904310464859
+      ],
+      "vertices": 9576,
+      "triangles": 17360,
+      "glb": "props_p6__p6_onion_plant.glb",
+      "image": "props_p6__p6_onion_plant.png",
+      "bytes": 446504,
+      "sha256": "1b82346c8f9b236279036ad93711ed5b9358aef647ad67673d004b298cd3c444"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_pepper",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.09000000357627869,
+        0.015545453876256943,
+        0.09000000357627869
+      ],
+      "vertices": 45647,
+      "triangles": 15600,
+      "glb": "props_p6__p6_pepper.glb",
+      "image": "props_p6__p6_pepper.png",
+      "bytes": 1466928,
+      "sha256": "7adc07aa1797ef0685841574284cb28c27fcb598c6cbb5fc2acae18d051fa8d3"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_needle_thread",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.04516145307570696,
+        0.06644421117380261,
+        0.02388414368033409
+      ],
+      "vertices": 62550,
+      "triangles": 22400,
+      "glb": "props_p6__p6_needle_thread.glb",
+      "image": "props_p6__p6_needle_thread.png",
+      "bytes": 2043188,
+      "sha256": "af65326295bb30c4764e1a77013f48b51c116cbbbb352826f3af95a803c81c11"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_stump",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.7734496811417015,
+        0.6131164615858423,
+        0.6800000071525574
+      ],
+      "vertices": 8462,
+      "triangles": 15116,
+      "glb": "props_p6__p6_stump.glb",
+      "image": "props_p6__p6_stump.png",
+      "bytes": 441320,
+      "sha256": "12f72f7377041dfe8012294455a8182b9e4222e8f035a794cb54ca075dfd2f33"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_well",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        1.4583244323730469,
+        0.6940000006780029,
+        1.4583244323730469
+      ],
+      "vertices": 27157,
+      "triangles": 9512,
+      "glb": "props_p6__p6_well.glb",
+      "image": "props_p6__p6_well.png",
+      "bytes": 922072,
+      "sha256": "e784d11204f5017e342d8a8132767cf014e3dac6570a5872d2a969924a9d62fa"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_staff",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.11189734190702438,
+        1.655829906463623,
+        0.03823256865143776
+      ],
+      "vertices": 20139,
+      "triangles": 8000,
+      "glb": "props_p6__p6_staff.glb",
+      "image": "props_p6__p6_staff.png",
+      "bytes": 683672,
+      "sha256": "7b76226e7158fd6bc6d11b11c28d31f4bac70aa275dadc340e06c7104298de26"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_clock",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.6320000290870667,
+        2.21164704233408,
+        0.43799999864399436
+      ],
+      "vertices": 48633,
+      "triangles": 25472,
+      "glb": "props_p6__p6_clock.glb",
+      "image": "props_p6__p6_clock.png",
+      "bytes": 1745116,
+      "sha256": "c9983509e3244eb1595c6ab198919cf4d73ee784750bf4ac8fb4cc6063bac905"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_clock_heart",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.0949999988079071,
+        0.11943599623441696,
+        0.031000000424683094
+      ],
+      "vertices": 33754,
+      "triangles": 12776,
+      "glb": "props_p6__p6_clock_heart.glb",
+      "image": "props_p6__p6_clock_heart.png",
+      "bytes": 1101692,
+      "sha256": "cea76354542e48b5bdee76868f26dcf62dc7d3211314e5df96a509ca0f463632"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_sick_heart",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.08672004950046538,
+        0.14059598743915558,
+        0.05767989726661457
+      ],
+      "vertices": 26587,
+      "triangles": 16844,
+      "glb": "props_p6__p6_sick_heart.glb",
+      "image": "props_p6__p6_sick_heart.png",
+      "bytes": 863788,
+      "sha256": "294a8b73f4c8223669348fe7c11978d46e8fdc735ffa4618bb56382e6b1d87dd"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_flask",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.10400000214576721,
+        0.2566720000488311,
+        0.10493600107429922
+      ],
+      "vertices": 6775,
+      "triangles": 4280,
+      "glb": "props_p6__p6_flask.glb",
+      "image": "props_p6__p6_flask.png",
+      "bytes": 241536,
+      "sha256": "24988f140265795023571b1098d03fc4e1f893cb5034755d99b7ed0e222edf83"
+    },
+    {
+      "module": "props_p6",
+      "id": "p6_chest",
+      "source": "src/art/props_p6.js",
+      "sizeMeters": [
+        0.2915000005364419,
+        0.087499343371461,
+        0.1782200005364418
+      ],
+      "vertices": 13247,
+      "triangles": 12232,
+      "glb": "props_p6__p6_chest.glb",
+      "image": "props_p6__p6_chest.png",
+      "bytes": 749536,
+      "sha256": "aa1f40aba76aa311e44c30c96679a0a81e138bcbb47fa4d4226a79b57a3d1f15"
+    },
+    {
+      "module": "props_p7",
+      "id": "p7_hammer",
+      "source": "src/art/props_p7.js",
+      "sizeMeters": [
+        0.19067758321762085,
+        0.3524999880790711,
+        0.05788806453347206
+      ],
+      "vertices": 4427,
+      "triangles": 1800,
+      "glb": "props_p7__p7_hammer.glb",
+      "image": "props_p7__p7_hammer.png",
+      "bytes": 170928,
+      "sha256": "e53a39fa939933247242ce87c6303c5b601cfdd6962b5c8ffc40247509496d5b"
+    },
+    {
+      "module": "props_p7",
+      "id": "p7_pistachio",
+      "source": "src/art/props_p7.js",
+      "sizeMeters": [
+        0.07915384322404861,
+        0.019958002725616097,
+        0.032510463148355484
+      ],
+      "vertices": 25920,
+      "triangles": 8640,
+      "glb": "props_p7__p7_pistachio.glb",
+      "image": "props_p7__p7_pistachio.png",
+      "bytes": 831836,
+      "sha256": "bf69360630b84662807b0d9dbcad7caabf5abf281b0f84379109ee677fbb8bf3"
+    },
+    {
+      "module": "props_p7",
+      "id": "p7_horn",
+      "source": "src/art/props_p7.js",
+      "sizeMeters": [
+        0.10820557549595833,
+        0.25820122845470905,
+        0.07097450643777847
+      ],
+      "vertices": 622,
+      "triangles": 1064,
+      "glb": "props_p7__p7_horn.glb",
+      "image": "props_p7__p7_horn.png",
+      "bytes": 29952,
+      "sha256": "a5f685d53ea8959e722820da40f091bcacf25408c49470b270c4b52c24431800"
+    },
+    {
+      "module": "props_p7",
+      "id": "p7_strawberry",
+      "source": "src/art/props_p7.js",
+      "sizeMeters": [
+        0.0955730453133583,
+        0.04059888399206102,
+        0.05660676769912243
+      ],
+      "vertices": 372222,
+      "triangles": 124704,
+      "glb": "props_p7__p7_strawberry.glb",
+      "image": "props_p7__p7_strawberry.png",
+      "bytes": 11931480,
+      "sha256": "3f41c33c9dcb88154602c85ef7d08176a8f90e013305c99dfc5905649b3e1047"
+    },
+    {
+      "module": "props_p7",
+      "id": "p7_ice_cream_strawberry",
+      "source": "src/art/props_p7.js",
+      "sizeMeters": [
+        0.07530929520726204,
+        0.17419999599456792,
+        0.0744866207242012
+      ],
+      "vertices": 49311,
+      "triangles": 17952,
+      "glb": "props_p7__p7_ice_cream_strawberry.glb",
+      "image": "props_p7__p7_ice_cream_strawberry.png",
+      "bytes": 1593848,
+      "sha256": "9385ec8039681d2f606c912b2a60d40584e99239a07b0c408d47c42dcbfd4edf"
+    },
+    {
+      "module": "props_p7",
+      "id": "p7_ice_cream_pistachio",
+      "source": "src/art/props_p7.js",
+      "sizeMeters": [
+        0.07530929520726204,
+        0.17419999599456792,
+        0.0744866207242012
+      ],
+      "vertices": 49311,
+      "triangles": 17952,
+      "glb": "props_p7__p7_ice_cream_pistachio.glb",
+      "image": "props_p7__p7_ice_cream_pistachio.png",
+      "bytes": 1593848,
+      "sha256": "b5fcf3dcba73a6a93b3b79fd3940b66fc8a20c57313e5a05dd2453f6f672fb0f"
+    },
+    {
+      "module": "props_p7",
+      "id": "p7_carrot",
+      "source": "src/art/props_p7.js",
+      "sizeMeters": [
+        0.18000763654708862,
+        0.0690852701663971,
+        0.03478261083364487
+      ],
+      "vertices": 23762,
+      "triangles": 8480,
+      "glb": "props_p7__p7_carrot.glb",
+      "image": "props_p7__p7_carrot.png",
+      "bytes": 771412,
+      "sha256": "1908b56b583f8dc75663e554da88319660e5f93502ebb41d7d8cee549c1db635"
+    },
+    {
+      "module": "props_p7",
+      "id": "p7_skull_pile",
+      "source": "src/art/props_p7.js",
+      "sizeMeters": [
+        0.9810873225857047,
+        0.8570261945250689,
+        0.9330627475094044
+      ],
+      "vertices": 28986,
+      "triangles": 56624,
+      "glb": "props_p7__p7_skull_pile.glb",
+      "image": "props_p7__p7_skull_pile.png",
+      "bytes": 1086240,
+      "sha256": "1e16b16510df2682d017ca5aa45914dfcd6559c2daa00acd9b7f2937d5c70e82"
+    },
+    {
+      "module": "props_p8",
+      "id": "p8_axe",
+      "source": "src/art/props_p8.js",
+      "sizeMeters": [
+        0.2579021602869034,
+        0.6250000023841857,
+        0.06135886535048485
+      ],
+      "vertices": 766,
+      "triangles": 904,
+      "glb": "props_p8__p8_axe.glb",
+      "image": "props_p8__p8_axe.png",
+      "bytes": 56452,
+      "sha256": "e6001a9a64f99c2d87b6f0b95f19e969bc10cd09d8676eae24ef139c1f3b48bb"
+    },
+    {
+      "module": "props_p8",
+      "id": "p8_shovel",
+      "source": "src/art/props_p8.js",
+      "sizeMeters": [
+        0.22938717901706696,
+        1.2430000603199005,
+        0.056968048214912415
+      ],
+      "vertices": 1063,
+      "triangles": 1520,
+      "glb": "props_p8__p8_shovel.glb",
+      "image": "props_p8__p8_shovel.png",
+      "bytes": 93144,
+      "sha256": "f0831e8e475eca82d4740060f203b5a1ac4725bcbf766c6ce15eb4014901fb2e"
+    },
+    {
+      "module": "props_p8",
+      "id": "p8_key",
+      "source": "src/art/props_p8.js",
+      "sizeMeters": [
+        0.04963231086730957,
+        0.15100000146776438,
+        0.011777158826589584
+      ],
+      "vertices": 4680,
+      "triangles": 1560,
+      "glb": "props_p8__p8_key.glb",
+      "image": "props_p8__p8_key.png",
+      "bytes": 151932,
+      "sha256": "bfd862464fc37abbe0fca31befb09beb3c8b484a3424c51981bf25a5913b997a"
+    },
+    {
+      "module": "props_p8",
+      "id": "p8_mandolin",
+      "source": "src/art/props_p8.js",
+      "sizeMeters": [
+        0.2932679355144501,
+        0.6624999940395355,
+        0.15257972478866577
+      ],
+      "vertices": 47776,
+      "triangles": 16980,
+      "glb": "props_p8__p8_mandolin.glb",
+      "image": "props_p8__p8_mandolin.png",
+      "bytes": 1617984,
+      "sha256": "655442d525f7683819797b64a66cf1d0ce862af1f8dfd8f8dfcc719e79fc54a8"
+    },
+    {
+      "module": "props_p8",
+      "id": "p8_lantern",
+      "source": "src/art/props_p8.js",
+      "sizeMeters": [
+        0.7124633856117726,
+        2.36749995239079,
+        0.21079999208450317
+      ],
+      "vertices": 2343,
+      "triangles": 3728,
+      "glb": "props_p8__p8_lantern.glb",
+      "image": "props_p8__p8_lantern.png",
+      "bytes": 131264,
+      "sha256": "d5990c276c81944156bf57f8323de171b5e2b493fe88f0d7585ae91040029e0f"
+    },
+    {
+      "module": "props_p8",
+      "id": "p8_bones",
+      "source": "src/art/props_p8.js",
+      "sizeMeters": [
+        0.9305375878019773,
+        0.2853880165267594,
+        1.4188694144330711
+      ],
+      "vertices": 27877,
+      "triangles": 54544,
+      "glb": "props_p8__p8_bones.glb",
+      "image": "props_p8__p8_bones.png",
+      "bytes": 1041240,
+      "sha256": "b222d83f754ce2cf556200135c109aae98dc87a37fc07c6b45ff79e3c51d6a7f"
+    },
+    {
+      "module": "props_p9",
+      "id": "p9_bones",
+      "source": "src/art/props_p9.js",
+      "sizeMeters": [
+        0.20583498917334964,
+        0.15845536494922166,
+        0.1439999967813492
+      ],
+      "vertices": 5247,
+      "triangles": 8292,
+      "glb": "props_p9__p9_bones.glb",
+      "image": "props_p9__p9_bones.png",
+      "bytes": 238828,
+      "sha256": "e7ac04cdf03b2231d37b5c1261072467d456cc6eead23698aa1406439107537e"
+    },
+    {
+      "module": "props_p9",
+      "id": "p9_copper_key",
+      "source": "src/art/props_p9.js",
+      "sizeMeters": [
+        0.055877435952425,
+        0.16999999713152647,
+        0.013259053230285645
+      ],
+      "vertices": 2374,
+      "triangles": 1560,
+      "glb": "props_p9__p9_copper_key.glb",
+      "image": "props_p9__p9_copper_key.png",
+      "bytes": 86024,
+      "sha256": "51137b6ebcc4cd162e56764eb6389e495eac8a11ef2c0d0140cb79732b105446"
+    }
+  ],
+  "errors": []
+}

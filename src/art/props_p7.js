@@ -1,6 +1,8 @@
 // 第七灾（雹灾）专属道具工厂：id 一律 p7_ 前缀（设计见 docs/plague6_7_design.md）。
 // 模型只呈现传入的状态（setState / setParts …），玩法真值在章节的 flags 和物品栏里。全部按真实尺寸建（米）。
 import * as THREE from 'three';
+import { makeGoatBone } from './skulls.js';
+import { food, tool, rebuildItems, clusterFood, iceCream as referenceIceCream } from './reference_items.js';
 import { toon, unlit, flat, canvasTexture } from './materials.js';
 import { PI, group, add, box, ball, cyl, ring, clear } from './p5_kit.js';
 import { plaguePainting } from './props_p6.js';
@@ -397,10 +399,9 @@ function hintPicture() {
 function skullPile() {
   const r = group('p7_skull_pile');
   for (let i = 0; i < 7; i++) { const s = ball(r, 'pile_stone', 0.22 - (i % 3) * 0.03, i % 2 ? '#8d8a84' : '#a3a09a', [Math.cos(i * 1.7) * 0.25 * (i < 5 ? 1 : 0.4), 0.12 + (i > 4 ? 0.22 : 0), Math.sin(i * 1.7) * 0.2 * (i < 5 ? 1 : 0.4)], [1.2, 0.6, 1]); s.rotation.y = i; }
-  ball(r, 'pile_skull', 0.12, '#e7e0cf', [0, 0.5, 0.05], [1, 0.8, 1.2]);
-  ball(r, 'pile_snout', 0.07, '#e2dac7', [0, 0.47, 0.2], [0.9, 0.7, 1.5]);
-  const hornL = horn(); hornL.position.set(-0.1, 0.55, 0.0); hornL.rotation.z = 0.9; r.add(hornL);
-  const hornR = horn(); hornR.position.set(0.1, 0.55, 0.0); hornR.rotation.z = -0.9; hornR.scale.x = -1; hornR.name = 'pile_horn'; r.add(hornR);
+  const skull=makeGoatBone({size:.29,horns:false});skull.name='pile_skull';skull.rotation.x=PI/2;skull.position.set(0,.50,.12);r.add(skull);
+  const hornL = horn(); hornL.position.set(-.039,.624,.157); hornL.rotation.z = 0.9; r.add(hornL);
+  const hornR = horn(); hornR.position.set(.039,.624,.157); hornR.rotation.z = -0.9; hornR.scale.x = -1; hornR.name = 'pile_horn'; r.add(hornR);
   hitBox(hornR, 'horn_hit', [0.12, 0.25, 0.12], [0.04, 0.1, 0]);
   r.userData.horn = hornR;
   r.setHorn = (on) => { hornR.visible = !!on; };
@@ -517,4 +518,6 @@ export const FACTORIES = {
   p7_table: kitchenTable, p7_machine: machine, p7_dome: dome, p7_hint_picture: hintPicture,
   p7_skull_pile: skullPile, p7_woodpile: woodpile, p7_iceblock: iceBlock, p7_cage: cage, p7_painting: p7Painting,
 };
+rebuildItems(FACTORIES, {p7_hammer:()=>tool('hammer'),p7_pistachio:()=>clusterFood('pistachio',4),p7_horn:()=>tool('horn'),p7_strawberry:()=>clusterFood('strawberry',3),p7_carrot:()=>{const r=food('carrot');r.rotation.z=Math.PI/2;return r;},p7_ice_cream_strawberry:()=>referenceIceCream('strawberry'),p7_ice_cream_pistachio:()=>referenceIceCream('pistachio')});
+hammer=FACTORIES.p7_hammer;pistachio=FACTORIES.p7_pistachio;horn=FACTORIES.p7_horn;strawberry=FACTORIES.p7_strawberry;carrot=FACTORIES.p7_carrot;
 

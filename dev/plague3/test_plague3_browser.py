@@ -305,7 +305,9 @@ def test_grove_gate_and_roam(page):
 
 def test_menu(page, base):
     """从无参数首页进入（?wip=1 才会开放开发中的第三灾）：菜单里能点第三灾，启动后 RLP.bootError 为空。"""
-    page.goto(base + 'index.html?wip=1', wait_until='domcontentloaded')
+    # 菜单验收只依赖 DOM 与真实点击；关闭持续 WebGL，和其余章节菜单测试一致。
+    page.set_default_timeout(120000)
+    page.goto(base + 'index.html?norender=1&wip=1', wait_until='domcontentloaded')
     page.wait_for_function('window.RLP && RLP.ready')
     check('首页启动没有 bootError', not page.evaluate('RLP.bootError'))
     page.wait_for_selector('.plague')

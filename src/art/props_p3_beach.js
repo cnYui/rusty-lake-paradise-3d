@@ -7,6 +7,7 @@ import {
 } from './props_p3_shared.js';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { FACTORIES as ITEMS } from './props_p3_items.js';
+import { musselValve } from './reference_items.js';
 
 // ---------------------------------------------------------------------------------------------
 // 小工具
@@ -214,21 +215,18 @@ function musselTexture() {
 function makeMusselShell() {
   const root = group('p3_mussel_shell');
   const L = 0.13, W = 0.072, D = 0.017;
-  const outer = texToon('mussel', musselTexture);
-  const inner = bc('mussel:inner', () => toon('#3a2429', { side: THREE.BackSide, outline: false }));
-  const innerBowl = bc('mussel:bowl', () => toon('#3e262b', { outline: false }));
-  const geoF = valveGeometry(L, W, D, 1), geoB = valveGeometry(L * 0.97, W * 0.94, D, -1);
   // 后壳（固定在石头里，开口朝 +z）：里面是贝肉
   const back = group('mussel_back', root, [0, 0, -0.004]);
-  mesh(back, geoB, innerBowl, 'mussel_valve_back');
+  const backValve=musselValve({length:L,width:W,depth:D});backValve.name='mussel_valve_back';
+  backValve.geometry.rotateX(Math.PI/2).rotateZ(Math.PI/2).translate(0,L/2,0);back.add(backValve);
   const meat = group('mussel_meat', back);
   mesh(meat, lumpGeo(0.03, { seed: 5, amp: 0.1, squash: [0.78, 1.55, 0.3] }), tmat('#e4a02c'), 'mussel_meat_body', [0, 0.062, -0.006]);
   mesh(meat, new THREE.SphereGeometry(0.0045, 8, 6).scale(1, 1.5, 0.4), bc('mussel:glint', () => unlit('#fff6dc')), 'mussel_meat_glint', [-0.007, 0.082, 0.0035]);
   mesh(meat, new THREE.SphereGeometry(0.0025, 8, 6), bc('mussel:glint', () => unlit('#fff6dc')), 'mussel_meat_glint2', [0.002, 0.072, 0.0035]);
   // 前壳（外面朝 +z，闭合时盖住后壳）
   const front = group('mussel_front', root, [0, 0, 0.003]);
-  mesh(front, geoF, outer, 'mussel_valve_front');
-  mesh(front, geoF, inner, 'mussel_valve_front_inside');
+  const frontValve=musselValve({length:L,width:W,depth:D});frontValve.name='mussel_valve_front';
+  frontValve.geometry.rotateX(-Math.PI/2).rotateZ(Math.PI/2).translate(0,L/2,0);front.add(frontValve);
   hit(root, 'mussel_hit', [0.09, 0.14, 0.07], [0, 0.065, 0.015]);
 
   const st = { open: false, taken: false }, run = runner();
