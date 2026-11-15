@@ -1,0 +1,275 @@
+{
+  "models": [
+    {
+      "file": "props_p10__p10_wood_owl.glb",
+      "meshes": 24,
+      "vertices": 16652
+    },
+    {
+      "file": "props_p10__p10_feather.glb",
+      "meshes": 69,
+      "vertices": 1383
+    },
+    {
+      "file": "props_p10__p10_apple.glb",
+      "meshes": 5,
+      "vertices": 11293
+    },
+    {
+      "file": "props_p10__p10_worm.glb",
+      "meshes": 2,
+      "vertices": 30947
+    },
+    {
+      "file": "props_p10__p10_egg.glb",
+      "meshes": 1,
+      "vertices": 287
+    },
+    {
+      "file": "props_p10__p10_bow.glb",
+      "meshes": 3,
+      "vertices": 21574
+    },
+    {
+      "file": "props_p3_beach__p3_mussel_shell.glb",
+      "meshes": 9,
+      "vertices": 12785
+    },
+    {
+      "file": "props_p3_beach__p3_stump.glb",
+      "meshes": 19,
+      "vertices": 24193
+    },
+    {
+      "file": "props_p3_items__p3_swatter.glb",
+      "meshes": 5,
+      "vertices": 87936
+    },
+    {
+      "file": "props_p3_items__p3_snail.glb",
+      "meshes": 9,
+      "vertices": 20970
+    },
+    {
+      "file": "props_p3_items__p3_honey.glb",
+      "meshes": 3,
+      "vertices": 1775
+    },
+    {
+      "file": "props_p3_items__p3_ear.glb",
+      "meshes": 5,
+      "vertices": 5624
+    },
+    {
+      "file": "props_p3_items__p3_mussel.glb",
+      "meshes": 9,
+      "vertices": 15358
+    },
+    {
+      "file": "props_p3_items__p3_berries.glb",
+      "meshes": 6,
+      "vertices": 90026
+    },
+    {
+      "file": "props_p5__p5_lettuce.glb",
+      "meshes": 3,
+      "vertices": 41472
+    },
+    {
+      "file": "props_p5__p5_tomato.glb",
+      "meshes": 8,
+      "vertices": 8127
+    },
+    {
+      "file": "props_p5__p5_cucumber.glb",
+      "meshes": 2,
+      "vertices": 10025
+    },
+    {
+      "file": "props_p6__p6_skull.glb",
+      "meshes": 16,
+      "vertices": 27533
+    },
+    {
+      "file": "props_p6__p6_empty_bottle.glb",
+      "meshes": 4,
+      "vertices": 1580
+    },
+    {
+      "file": "props_p6__p6_bottles.glb",
+      "meshes": 12,
+      "vertices": 4740
+    },
+    {
+      "file": "props_p6__p6_blood.glb",
+      "meshes": 6,
+      "vertices": 2195
+    },
+    {
+      "file": "props_p6__p6_tears.glb",
+      "meshes": 6,
+      "vertices": 2195
+    },
+    {
+      "file": "props_p6__p6_snot.glb",
+      "meshes": 6,
+      "vertices": 2195
+    },
+    {
+      "file": "props_p6__p6_saliva.glb",
+      "meshes": 6,
+      "vertices": 2195
+    },
+    {
+      "file": "props_p6__p6_medicine.glb",
+      "meshes": 6,
+      "vertices": 2195
+    },
+    {
+      "file": "props_p6__p6_mushroom.glb",
+      "meshes": 24,
+      "vertices": 8214
+    },
+    {
+      "file": "props_p6__p6_onion.glb",
+      "meshes": 23,
+      "vertices": 7987
+    },
+    {
+      "file": "props_p6__p6_onion_plant.glb",
+      "meshes": 30,
+      "vertices": 9576
+    },
+    {
+      "file": "props_p6__p6_pepper.glb",
+      "meshes": 3,
+      "vertices": 45647
+    },
+    {
+      "file": "props_p6__p6_needle_thread.glb",
+      "meshes": 5,
+      "vertices": 62550
+    },
+    {
+      "file": "props_p6__p6_stump.glb",
+      "meshes": 31,
+      "vertices": 8910
+    },
+    {
+      "file": "props_p6__p6_well.glb",
+      "meshes": 44,
+      "vertices": 27157
+    },
+    {
+      "file": "props_p6__p6_staff.glb",
+      "meshes": 6,
+      "vertices": 20139
+    },
+    {
+      "file": "props_p6__p6_clock.glb",
+      "meshes": 55,
+      "vertices": 48633
+    },
+    {
+      "file": "props_p6__p6_clock_heart.glb",
+      "meshes": 12,
+      "vertices": 33754
+    },
+    {
+      "file": "props_p6__p6_sick_heart.glb",
+      "meshes": 13,
+      "vertices": 26587
+    },
+    {
+      "file": "props_p6__p6_flask.glb",
+      "meshes": 9,
+      "vertices": 6775
+    },
+    {
+      "file": "props_p6__p6_chest.glb",
+      "meshes": 191,
+      "vertices": 13247
+    },
+    {
+      "file": "props_p7__p7_hammer.glb",
+      "meshes": 4,
+      "vertices": 4427
+    },
+    {
+      "file": "props_p7__p7_pistachio.glb",
+      "meshes": 2,
+      "vertices": 25920
+    },
+    {
+      "file": "props_p7__p7_horn.glb",
+      "meshes": 3,
+      "vertices": 622
+    },
+    {
+      "file": "props_p7__p7_strawberry.glb",
+      "meshes": 21,
+      "vertices": 372222
+    },
+    {
+      "file": "props_p7__p7_ice_cream_strawberry.glb",
+      "meshes": 4,
+      "vertices": 49311
+    },
+    {
+      "file": "props_p7__p7_ice_cream_pistachio.glb",
+      "meshes": 4,
+      "vertices": 49311
+    },
+    {
+      "file": "props_p7__p7_carrot.glb",
+      "meshes": 8,
+      "vertices": 23762
+    },
+    {
+      "file": "props_p7__p7_skull_pile.glb",
+      "meshes": 19,
+      "vertices": 28986
+    },
+    {
+      "file": "props_p8__p8_axe.glb",
+      "meshes": 3,
+      "vertices": 766
+    },
+    {
+      "file": "props_p8__p8_shovel.glb",
+      "meshes": 4,
+      "vertices": 1063
+    },
+    {
+      "file": "props_p8__p8_key.glb",
+      "meshes": 2,
+      "vertices": 4680
+    },
+    {
+      "file": "props_p8__p8_mandolin.glb",
+      "meshes": 11,
+      "vertices": 47776
+    },
+    {
+      "file": "props_p8__p8_lantern.glb",
+      "meshes": 30,
+      "vertices": 2343
+    },
+    {
+      "file": "props_p8__p8_bones.glb",
+      "meshes": 25,
+      "vertices": 27877
+    },
+    {
+      "file": "props_p9__p9_bones.glb",
+      "meshes": 37,
+      "vertices": 5247
+    },
+    {
+      "file": "props_p9__p9_copper_key.glb",
+      "meshes": 4,
+      "vertices": 2374
+    }
+  ],
+  "errors": []
+}

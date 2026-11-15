@@ -3,6 +3,7 @@
 // 描边比大件细一点（FINE），否则 4 cm 的番茄会被墨线盖住。
 import * as THREE from 'three';
 import { toon } from './materials.js';
+import { food, rebuildItems } from './reference_items.js';
 import { animate, Ease } from '../core/tween.js';
 import { PI, group, add, box, ball, cyl, ring, clear } from './p5_kit.js';
 
@@ -272,3 +273,6 @@ export const FOOD_FACTORIES = {
   p5_bun_bottom: () => bun(false), p5_bun_top: () => bun(true), p5_burger: burger,
   p5_plate: plate, p5_pot: makePot, p5_chopping_block: choppingBlock,
 };
+rebuildItems(FOOD_FACTORIES,{p5_lettuce:()=>food('lettuce'),p5_tomato:()=>food('tomato'),p5_cucumber:()=>{const r=food('cucumber');r.rotation.z=-PI/2;return r;}});
+// 花盆、砧板和物品栏共用同一批叶片、萼片和瓜皮筋。
+lettuce=FOOD_FACTORIES.p5_lettuce;tomato=FOOD_FACTORIES.p5_tomato;cucumber=FOOD_FACTORIES.p5_cucumber;

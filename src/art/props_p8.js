@@ -2,6 +2,8 @@
 // 模型只呈现传入的状态（setState …），玩法真值在章节的 flags 和物品栏里。尺寸按米建；
 // 蝗虫、蚱蜢、螳螂是原作里的“巨大”版本（蝗虫 0.3 m、蚱蜢 1.5 m、螳螂站起来约 5 m，网格螳螂见 mantis_model.js）。
 import * as THREE from 'three';
+import { tool, mandolin as referenceMandolin, rebuildItems, lantern as referenceLantern } from './reference_items.js';
+import { makeGoatBone } from './skulls.js';
 import { toon, unlit, flat, canvasTexture } from './materials.js';
 import { animate, Ease } from '../core/tween.js';
 import { PI, group, add, box, ball, cyl, ring, rod } from './p5_kit.js';
@@ -475,9 +477,8 @@ function lantern() {
   box(r, 'lantern_arm', [0.68, 0.06, 0.06], '#5d4a38', [0.3, 2.28, 0]);
   const lamp = group('lantern_lamp'); lamp.position.fromArray(LANTERN.lamp); r.add(lamp);
   limb(lamp, 'lantern_chain', [0, 0.33, 0], [0, 0.17, 0], 0.006, '#2a2826');
-  box(lamp, 'lantern_glass', [0.18, 0.24, 0.18], '#ffe9a8', [0, 0, 0], unlit('#ffe9a8'));
-  for (const [x, z] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) box(lamp, 'lantern_frame', [0.02, 0.26, 0.02], '#2a2826', [x * 0.09, 0, z * 0.09], toon('#2a2826', FINE));
-  cone(lamp, 'lantern_cap', 0.15, 0.1, '#2a2826', [0, 0.17, 0]);
+  const detailedLamp=referenceLantern();detailedLamp.position.y=-.15;lamp.add(detailedLamp);
+  detailedLamp.traverse(o=>{if(o.isMesh)o.geometry=o.geometry.clone().scale(1.7,1.3,1.7);});
   const light = new THREE.PointLight('#ffd27a', 2.2, 6, 1.6); light.position.copy(lamp.position); r.add(light);
   // 蛾群：十几只发光的蛾子绕着灯飞
   const moths = [];
@@ -531,9 +532,7 @@ function bones() {
   cyl(r, 'bone_spine', 0.035, 0.95, B, [0, 0.07, 0], 8).rotation.x = PI / 2;
   for (let i = 0; i < 6; i++) add(r, new THREE.Mesh(new THREE.TorusGeometry(0.17 - Math.abs(i - 2.5) * 0.012, 0.014, 6, 16, PI * 1.1), toon(B)), 'bone_rib', [0, 0.06, -0.25 + i * 0.09]).rotation.z = -0.05 * PI;
   const skull = group('bone_skull'); skull.position.set(0.06, 0.08, 0.62); skull.rotation.y = 0.5; r.add(skull);
-  ball(skull, 'skull_cranium', 0.09, B, [0, 0.03, 0], [1, 0.9, 1.2]);
-  box(skull, 'skull_snout', [0.08, 0.06, 0.16], B, [0, 0, 0.13]);
-  for (const s of [-1, 1]) { const h = cone(skull, 'skull_horn', 0.025, 0.16, '#cfc5ad', [s * 0.05, 0.12, -0.04]); h.rotation.x = -0.9; }
+  skull.add(makeGoatBone({size:.25}));
   for (const [x, z, a] of [[0.32, 0.3, 0.4], [-0.3, 0.1, -0.7], [0.28, -0.4, 1.2], [-0.25, -0.45, 0.2]]) cyl(r, 'bone_leg', 0.02, 0.42, B, [x, 0.02, z], 6).rotation.set(PI / 2, 0, a);
   const eyes = goatEyes(); eyes.position.set(-0.34, 0.0, 0.12); eyes.rotation.y = -PI / 2; eyes.scale.setScalar(2.0); r.add(eyes);   // 骨架前面（转 90° 后朝向镜头那一侧）
   hitBox(eyes, 'eyes_hit', [0.22, 0.14, 0.16], [0, 0.04, 0]);
@@ -641,3 +640,5 @@ export const FACTORIES = {
   p8_owl: owlBird, p8_owl_tree: owlTree, p8_lantern: lantern, p8_eye_tree: eyeTree,
   p8_bones: bones, p8_chest: chest, p8_dig: digSpot, p8_boat: boat, p8_wall_text: wallText, p8_painting: p8Painting,
 };
+rebuildItems(FACTORIES, {p8_axe:()=>tool('axe'),p8_shovel:()=>tool('shovel'),p8_key:()=>tool('key'),p8_mandolin:referenceMandolin});
+axe=FACTORIES.p8_axe;shovel=FACTORIES.p8_shovel;key=FACTORIES.p8_key;mandolin=FACTORIES.p8_mandolin;

@@ -7,6 +7,10 @@ import { animate, Ease } from '../core/tween.js';
 import { PI, group, add, box, ball, cyl, ring, label, rod, clear } from './p5_kit.js';
 import { BOILS, BOIL_EDGES, BOIL_COLOR_HEX, HUMOR_COLOR, TOOTH_UPPER, TOOTH_MARKS, TRUNK_LETTERS } from '../chapters/plague6/rules.js';
 import { chestPoint } from './p6_patient_surface.js';
+import { bottle as referenceBottle, mushroom as referenceMushroom, onion as referenceOnion, food, tool, rebuildItems } from './reference_items.js';
+import { makeBovineBone } from './skulls.js';
+import { decorateClock, dressStump, rebuildWell } from './reference_furniture.js';
+import { organicHeart, mechanicalHeart } from './reference_hearts.js';
 
 const FINE = { outline: 0.0022 };
 const GLASS = (opts = {}) => toon('#dfe9ea', { transparent: true, opacity: 0.38, depthWrite: false, outline: false, ...opts });
@@ -21,47 +25,9 @@ const plane = (g, name, w, h, map, p, opts = {}) => add(g, new THREE.Mesh(new TH
 // ---------- 牛头骨（天堂门前地上）：眼窝里能渗出血 ----------
 function skull() {
   const r = group('p6_skull');
-  // 原作是收窄的鼻骨与空眼窝；用带孔的骨壳保留尖长轮廓。
-  const shape = new THREE.Shape();
-  shape.moveTo(-0.1, 0.12); shape.bezierCurveTo(-0.15, 0.08, -0.13, -0.01, -0.105, -0.07);
-  shape.lineTo(-0.055, -0.19); shape.lineTo(-0.025, -0.285);
-  shape.quadraticCurveTo(0, -0.305, 0.025, -0.285); shape.lineTo(0.055, -0.19);
-  shape.lineTo(0.105, -0.07); shape.bezierCurveTo(0.13, -0.01, 0.15, 0.08, 0.1, 0.12);
-  shape.quadraticCurveTo(0, 0.155, -0.1, 0.12);
-  for (const s of [-1, 1]) {
-    const hole = new THREE.Path(); hole.absellipse(s * 0.067, -0.015, 0.026, 0.034, 0, 2 * PI, true); shape.holes.push(hole);
-  }
-  const shell = new THREE.ExtrudeGeometry(shape, { depth: 0.065, bevelEnabled: true, bevelThickness: 0.009, bevelSize: 0.007, bevelSegments: 2, steps: 1, curveSegments: 16 });
-  shell.rotateX(-PI / 2);
-  const positions = shell.attributes.position;
-  for (let i = 0; i < positions.count; i++) {
-    const z = positions.getZ(i), taper = 1 - 0.65 * THREE.MathUtils.clamp((z - 0.02) / 0.28, 0, 1);
-    positions.setY(i, positions.getY(i) * taper + 0.045 + Math.max(0, 0.12 - z) * 0.16);
-  }
-  shell.computeVertexNormals();
-  add(r, new THREE.Mesh(shell, toon('#e7e0cf', FINE)), 'skull_cranium');
-  const ridge = rod(r, new THREE.Vector3(0, 0.153, -0.05), new THREE.Vector3(0, 0.081, 0.27), 0.009, '#d0c7b5', toon('#d0c7b5', FINE)); ridge.name = 'skull_snout';
-  for (const s of [-1, 1]) {
-    ball(r, 'skull_nostril', 0.011, '#382d28', [s * 0.021, 0.092, 0.19], [0.65, 0.25, 1.4], { outline: false });
-    const orbit = ring(r, 'skull_orbit', 0.028, 0.003, '#b9af9b', [s * 0.067, 0.133, 0.015], FINE); orbit.rotation.x = PI / 2; orbit.scale.y = 1.2;
-  }
-  for (const s of [-1, 1]) {
-    for (let i = 0; i < 5; i++) box(r, 'skull_tooth', [0.012, 0.019, 0.015], '#f2ead8', [s * (0.085 - i * 0.007), 0.04, 0.105 + i * 0.017], toon('#f2ead8', FINE));
-    ball(r, 'skull_eye', 0.028, '#3a3029', [s * 0.067, 0.12, 0.015], [1, 0.2, 1.2], { outline: false });
-    const path = new THREE.CatmullRomCurve3([new THREE.Vector3(s * 0.105, 0.135, -0.07), new THREE.Vector3(s * 0.25, 0.16, -0.12), new THREE.Vector3(s * 0.37, 0.24, -0.1), new THREE.Vector3(s * 0.42, 0.34, -0.06)]);
-    const horn = new THREE.TubeGeometry(path, 24, 0.032, 8, false), pos = horn.attributes.position;
-    for (let i = 0; i <= 24; i++) {
-      const t = i / 24, center = path.getPointAt(t), taper = 0.03 + 0.97 * Math.pow(1 - t, 0.7);
-      for (let j = 0; j <= 8; j++) { const n = i * 9 + j, p = new THREE.Vector3().fromBufferAttribute(pos, n).sub(center).multiplyScalar(taper).add(center); pos.setXYZ(n, p.x, p.y, p.z); }
-    }
-    horn.computeVertexNormals(); add(r, new THREE.Mesh(horn, toon('#d9d1bd', FINE)), 'skull_horn');
-    for (const t of [0.18, 0.35, 0.52, 0.68, 0.82]) {
-      const band = ring(r, 'skull_horn_seam', 0.032 * (0.03 + 0.97 * Math.pow(1 - t, 0.7)), 0.001, '#9f9686', path.getPointAt(t).toArray(), { outline: false });
-      band.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), path.getTangentAt(t));
-    }
-  }
-  const drip = cyl(r, 'skull_blood', 0.008, 0.07, '#9b1f22', [0.065, 0.1, 0.09], 8);
-  const pool = cyl(r, 'skull_blood_pool', 0.05, 0.004, '#8a1c1c', [0.07, 0.003, 0.14], 16);
+  r.add(makeBovineBone());
+  const drip = cyl(r, 'skull_blood', 0.005, 0.17, '#9b1f22', [0.089, 0.098, -0.056], 8);
+  const pool = cyl(r, 'skull_blood_pool', 0.035, 0.004, '#8a1c1c', [0.089, 0.003, -0.056], 16);
   r.setBleeding = (on) => { drip.visible = pool.visible = !!on; };
   r.setBleeding(false);
   return r;
@@ -69,15 +35,8 @@ function skull() {
 
 // ---------- 瓶子：空瓶 / 四体液 / 药 ----------
 function vial({ humor = null, cork = true } = {}) {
-  const r = group('p6_vial');
-  cyl(r, 'vial_glass', 0.026, 0.09, '#dfe9ea', [0, 0.045, 0], 16).material = GLASS();
-  ring(r, 'vial_shoulder', 0.024, 0.003, '#eef8f5', [0, 0.078, 0], FINE).rotation.x = PI / 2;
-  cyl(r, 'vial_neck', 0.011, 0.03, '#dfe9ea', [0, 0.105, 0], 12).material = GLASS();
-  ring(r, 'vial_lip', 0.013, 0.003, '#eef8f5', [0, 0.12, 0], FINE).rotation.x = PI / 2;
-  if (cork) cyl(r, 'vial_cork', 0.012, 0.018, '#a87a4f', [0, 0.124, 0], 10, FINE);
-  if (humor) cyl(r, 'vial_liquid', 0.022, 0.065, HUMOR_COLOR[humor], [0, 0.036, 0], 16, FINE);
-  const labelMat = unlit(humor ? HUMOR_COLOR[humor] : '#f1e7cf', { transparent: true, opacity: 0.82, side: THREE.DoubleSide });
-  add(r, new THREE.Mesh(new THREE.PlaneGeometry(0.039, 0.022), labelMat), 'vial_label', [0, 0.047, 0.027]);
+  const r = referenceBottle({color:humor?HUMOR_COLOR[humor]:null});r.name='p6_vial';
+  if(!cork){const c=r.getObjectByName('cork');if(c)c.visible=false;}
   return r;
 }
 function bottles(n = 3) {
@@ -88,17 +47,10 @@ function bottles(n = 3) {
 
 // ---------- 树林：劈开的树桩（刀 + 蘑菇）、洋葱、石井 ----------
 function mushroom() {
-  const r = group('p6_mushroom');
-  cyl(r, 'mushroom_stem', 0.012, 0.05, '#efe6d2', [0, 0.025, 0], 10, FINE);
-  ball(r, 'mushroom_cap', 0.032, '#9a5a35', [0, 0.05, 0], [1, 0.55, 1], FINE);
-  return r;
+  const r=referenceMushroom();r.name='p6_mushroom';return r;
 }
 function onion({ leaves = true } = {}) {
-  const r = group('p6_onion');
-  ball(r, 'onion_bulb', 0.04, '#d8b98d', [0, 0.04, 0], [1, 1.05, 1], FINE);
-  add(r, new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.03, 8), toon('#c9a676', FINE)), 'onion_tip', [0, 0.09, 0]);
-  if (leaves) for (const a of [-0.25, 0.05, 0.3]) { const l = cyl(r, 'onion_leaf', 0.005, 0.22, '#7c9a4a', [Math.sin(a) * 0.05, 0.2, 0], 6, FINE); l.rotation.z = -a; }
-  return r;
+  const r=referenceOnion(leaves);r.name='p6_onion';return r;
 }
 function stump() {
   const r = group('p6_stump');
@@ -111,6 +63,7 @@ function stump() {
   const m = mushroom(); m.name = 'stump_mushroom'; m.position.set(-0.28, 0.0, 0.2); m.scale.setScalar(1.3); r.add(m);
   r.userData.knifeSlot = knife; r.userData.mushroom = m;
   r.setState = ({ knife: k = true, mushroom: mu = true } = {}) => { knife.visible = !!k; m.visible = !!mu; };
+  dressStump(r);
   return r;
 }
 function well() {
@@ -125,6 +78,7 @@ function well() {
   const key = new THREE.Group(); key.name = 'well_key'; key.position.set(0.12, 0.34, -0.05); r.add(key);
   r.userData.keySlot = key; r.userData.water = water;
   r.setKey = (on) => { key.visible = !!on; };
+  rebuildWell(r);
   return r;
 }
 
@@ -160,13 +114,9 @@ function staff() {
 
 // ---------- 落地钟：两根针（× 和 ∶），钟面能像小门一样打开，里面是金色发条心 ----------
 function clockHeart() {
-  const r = group('p6_clock_heart');
-  ball(r, 'cheart_body', 0.05, GOLD, [0, 0.05, 0], [1, 1.1, 0.8], FINE);
-  ring(r, 'cheart_gear', 0.032, 0.006, '#e3c66c', [0.012, 0.06, 0.04], FINE);
-  ring(r, 'cheart_gear', 0.018, 0.005, '#8f6f2a', [-0.022, 0.035, 0.038], FINE);
-  cyl(r, 'cheart_key', 0.006, 0.05, '#e3c66c', [0, 0.11, 0], 6, FINE);
-  return r;
+  const r=mechanicalHeart();r.name='p6_clock_heart';return r;
 }
+function sickHeart(){const r=organicHeart();r.name='p6_sick_heart';return r;}
 function clockFaceTexture() {
   return tex(512, 512, (g, w) => {
     g.fillStyle = '#f2ece2'; g.beginPath(); g.arc(w / 2, w / 2, w / 2 - 4, 0, 2 * PI); g.fill();
@@ -236,6 +186,7 @@ function grandfatherClock() {
   r.open = () => animate(900, (k) => { st.open = k; apply(); }, Ease.inOutSine);
   r.userData = { ...r.userData, handX, handDots, heart, face: disc, state: st };
   apply();
+  decorateClock(r);
   return r;
 }
 
@@ -344,11 +295,8 @@ function roundTable() {
 // ---------- 量瓶：6 道刻度，一次倒一层；配好整瓶变绿 ----------
 function flask() {
   const r = group('p6_flask');
-  const H = 0.2, R = 0.055, LH = H * 0.8 / 6;
-  cyl(r, 'flask_body', R, H, '#dfe9ea', [0, H / 2, 0], 24).material = GLASS();
-  cyl(r, 'flask_neck', 0.022, 0.06, '#dfe9ea', [0, H + 0.03, 0], 16).material = GLASS();
-  ring(r, 'flask_lip', 0.024, 0.005, '#cfd8d9', [0, H + 0.06, 0], FINE).rotation.x = PI / 2;
-  for (let i = 1; i <= 6; i++) box(r, 'flask_mark', [0.028, 0.003, 0.002], '#b2433b', [-0.01, 0.008 + i * LH, R + 0.001]);
+  const H = 0.2, R = 0.0515, LH = H * 0.8 / 6;
+  r.add(referenceBottle({graduated:true,flask:true}));
   const layers = [];
   for (let i = 0; i < 6; i++) { const l = cyl(r, 'flask_layer', R - 0.006, LH * 0.98, '#ffffff', [0, 0.008 + LH * (i + 0.5), 0], 24, FINE); l.visible = false; layers.push(l); }
   r.setLayers = (list = [], medicine = false) => {
@@ -419,8 +367,10 @@ function chest() {
   const slit = wound('chest_slit', '#452221', 0.030, 0.019);
   const hole = wound('chest_hole', '#9b2528', 0.024, 0.014);
   const hp = chestPoint(0.085, 0.005, -0.002).toArray();
-  const heart = ball(r, 'chest_heart', 0.029, '#9b2a2a', hp, [0.78, 0.55, 1.5], FINE);
-  const cheart = clockHeart(); cheart.name = 'chest_clock_heart'; cheart.position.copy(chestPoint(0.085, 0.005, 0.004)); cheart.rotation.x = -PI / 2; cheart.scale.setScalar(0.60); r.add(cheart);
+  const heart=group('chest_heart'),heartBody=sickHeart();heart.position.fromArray(hp);heart.rotation.x=-PI/2;
+  heartBody.scale.setScalar(.55);heartBody.position.y=-.033;heart.add(heartBody);r.add(heart);
+  const cheart=group('chest_clock_heart'),mechanism=clockHeart();mechanism.position.y=-.048;cheart.add(mechanism);
+  cheart.position.copy(chestPoint(0.085,0.005,-.008));cheart.rotation.x=-PI/2;cheart.scale.setScalar(.50);r.add(cheart);
   const stitches = new THREE.Group(); stitches.name = 'chest_stitches'; r.add(stitches);
   for (let i = 0; i < 7; i++) {
     const z = -0.048 + i * 0.017;
@@ -616,7 +566,7 @@ export const FACTORIES = {
   p6_staff: staff,
   p6_clock: grandfatherClock,
   p6_clock_heart: clockHeart,
-  p6_sick_heart: () => { const r = group('p6_sick_heart'); ball(r, 'sick_heart', 0.05, '#8f2a2a', [0, 0.05, 0], [1, 1.15, 0.85], FINE); for (const [x, y] of [[0.02, 0.07], [-0.025, 0.04], [0.01, 0.02]]) ball(r, 'sick_spot', 0.009, '#d79a5c', [x, y, 0.04], [1, 1, 0.4], FINE); return r; },
+  p6_sick_heart: sickHeart,
   p6_cabinet: cabinet,
   p6_desk: desk,
   p6_bed: bed,
@@ -630,3 +580,6 @@ export const FACTORIES = {
   p6_memory: memoryRoom,
   p6_painting: p6Painting,
 };
+rebuildItems(FACTORIES, { p6_pepper:()=>food('pepper'), p6_needle_thread:()=>tool('needle_thread'),p6_staff:()=>tool('staff') });
+// 场景内的桌面和医生手里也使用同一件模型，避免只有物品栏更新。
+pepperBowl=FACTORIES.p6_pepper;needleThread=FACTORIES.p6_needle_thread;staff=FACTORIES.p6_staff;

@@ -3,6 +3,8 @@
 // 这里还有第九、十灾共用的东西：十二星座符号 zodiacGlyph、篝火烟里的黑影剪影 drawShadowFigure、远处的星星和月亮 p9_sky。
 // 塔里（一层白墙房间、阁楼、塔顶平台）的道具在 props_p9_tower.js。
 import * as THREE from 'three';
+import { makeHumanBone } from './skulls.js';
+import { tool, rebuildItems } from './reference_items.js';
 import { toon, unlit, flat, canvasTexture } from './materials.js';
 import { animate, Ease } from '../core/tween.js';
 import { PI, group, add, box, ball, cyl, ring } from './p5_kit.js';
@@ -152,9 +154,7 @@ function moonStone() {
 function bones() {
   const r = group('p9_bones');
   ball(r, 'bones_cloth', 0.08, '#9c8f78', [0, 0.05, 0], [1.2, 0.6, 0.9], FINE);
-  const skull = ball(r, 'bones_skull', 0.045, '#ece4d2', [0.02, 0.1, 0.02], [1, 0.95, 1.05], FINE);
-  for (const s of [-1, 1]) add(skull, new THREE.Mesh(new THREE.CircleGeometry(0.011, 10), unlit('#1d1a18')), 'skull_eye', [s * 0.016, 0.005, 0.044]);
-  box(r, 'bones_jaw', [0.05, 0.02, 0.04], '#e2d8c4', [0.02, 0.066, 0.03], toon('#e2d8c4', FINE));
+  const skull=makeHumanBone(.10);skull.name='bones_skull';skull.position.set(.02,.10,.02);skull.rotation.set(-.25,.08,-.08);r.add(skull);
   for (const s of [-1, 1]) { const b = cyl(r, 'bones_long', 0.009, 0.17, '#e9e1cf', [-0.03, 0.08, 0], 8, FINE); b.rotation.set(0.3, 0, s * 1.1); }
   return r;
 }
@@ -634,3 +634,4 @@ export const FACTORIES = {
   p9_birch: woodpeckerBirch, p9_crate: crate, p9_grinder: grinder, p9_wall_drawings: wallDrawings, p9_scroll: scroll,
   p9_painting: p9Painting,
 };
+rebuildItems(FACTORIES,{p9_copper_key:()=>{const r=tool('key');r.traverse(o=>{if(o.isMesh)o.material=toon('#b57c52',{outline:.0018});});return r;}});
