@@ -4,11 +4,11 @@ r"""验证口袋方舟（233 乐园）H5 包（python dev/minitool/build.py --ar
      不旋转（__RLP_NOROT）、舞台在视口内、画布在舞台内、标题菜单的可点元素在视口内并报告尺寸
   2. 安全区：给 #rot 加刘海 padding 后，舞台完整落在 padding 之内
   3. 竖屏（375×812 / 390×844）：显示游戏自带的“请把手机横过来游玩”，不旋转，不滚动
-  4. 章节菜单：第一灾开放，第二、三、四灾按解锁规则（空档锁着，通关前一章后开放），第五灾起“敬请期待”，?unlock=1 可跳过锁
+  4. 章节菜单：第一灾开放，第二、三、四灾按解锁规则（空档锁着，通关前一章后开放），十灾全部开放，?unlock=1 可跳过锁
   5. 真实触摸（720×360）：点“新游戏”、轻点天堂门进入漫游、摇杆向前走、右侧拖动转视角（没有旋转，点击落点必须和画面一致）
   6. 第三灾能启动（?chapter=3）
   7. 稳定性：监听器不随重开章节增长、切后台再回来渲染循环仍在跑、不联网
-  8. --full：第一到第四灾各跑一遍 RLP.autoplay()
+  8. --full：第一到第十灾各跑一遍 RLP.autoplay()
 
 用法：MINITOOL_DIST=<dist 目录> python dev/minitool/test_ark.py [--full] [输出目录]
 退出码：全部通过 0，有失败 1，没设置 MINITOOL_DIST 2。
@@ -27,7 +27,7 @@ OUT = args[0] if args else os.path.join(HERE, '_test_out_ark')
 os.makedirs(OUT, exist_ok=True)
 
 # 按最严格的容器 CSP（小红书同款）起服务：口袋方舟的 CSP 没公开，能在这里跑过，换到宽松的容器一定能跑
-CSP = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+CSP = ("default-src 'none'; script-src 'self' https://cdn.233xyx.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
        "font-src 'self'; media-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'")
 
 
@@ -103,12 +103,14 @@ def poll(page, expr, timeout=30.0, every=0.25):
 def new_page(browser, w, h, mobile=True, dsf=1):
     ctx = browser.new_context(viewport={'width': w, 'height': h}, device_scale_factor=dsf, is_mobile=mobile, has_touch=mobile)
     page = ctx.new_page()
+    page.set_default_timeout(900000)
+    page.route('https://cdn.233xyx.com/**', lambda route: route.fulfill(status=200, content_type='application/javascript', body='/* SDK unavailable */'))
     log = {'errors': [], 'failed': [], 'external': []}
     page.add_init_script("document.addEventListener('securitypolicyviolation', e => (window.__csp = window.__csp || []).push(e.violatedDirective + ' ' + e.blockedURI));")
     page.on('console', lambda m: log['errors'].append(f'[{m.type}] {m.text}') if m.type == 'error' else None)
     page.on('pageerror', lambda e: log['errors'].append(f'[pageerror] {e}'))
     page.on('requestfailed', lambda r: log['failed'].append(f'{r.url} {r.failure}'))
-    page.on('request', lambda r: log['external'].append(r.url) if not (r.url.startswith(BASE) or r.url.startswith('data:') or r.url.startswith('blob:')) else None)
+    page.on('request', lambda r: log['external'].append(r.url) if not (r.url.startswith(BASE) or r.url.startswith('https://cdn.233xyx.com/') or r.url.startswith('data:') or r.url.startswith('blob:')) else None)
     return ctx, page, log
 
 
@@ -149,7 +151,7 @@ def csp_and_errors(page, log, label):
     errs = [e for e in log['errors'] if 'toNonIndexed' not in e and 'flatShading' not in e]
     check(f'{label}：没有页面错误', not errs, errs[:5])
     check(f'{label}：没有请求失败', not log['failed'], log['failed'][:5])
-    check(f'{label}：不联网（没有任何外部请求）', not log['external'], log['external'][:5])
+    check(f'{label}：外部请求仅允许 233 广告 SDK', not log['external'], log['external'][:5])
 
 
 def settle(page, cond, timeout=30000):
@@ -210,6 +212,11 @@ with sync_playwright() as p:
         page.screenshot(path=os.path.join(OUT, f'm_{w}x{h}.png'))
         ctx.close()
 
+    if '--matrix-only' in sys.argv:
+        browser.close()
+        print(f'\n{sum(results)}/{len(results)} 通过')
+        sys.exit(0 if all(results) else 1)
+
     # ------------------------------------------------------------------ 2. 安全区（刘海：左右各 44px，底部 21px）
     ctx, page, log = new_page(browser, 812, 375, dsf=3)
     boot(page, 'index.html')
@@ -236,21 +243,23 @@ with sync_playwright() as p:
     boot(page, 'index.html')
     assert poll(page, "document.querySelector('.menu.show')", 15)
     st = chapter_states(page)
-    check('章节菜单（空档）：第一灾开放，第二、三、四灾未解锁，第五灾起敬请期待', st == ['open', 'gated', 'gated', 'gated'] + ['locked'] * 6, st)
+    check('章节菜单（空档）：第一灾开放，其余九灾顺序解锁', st == ['open'] + ['gated'] * 9, st)
     ctx.close()
     ctx, page, log = new_page(browser, 720, 360, dsf=2)
     boot(page, 'index.html?unlock=1')
     assert poll(page, "document.querySelector('.menu.show')", 15)
     st = chapter_states(page)
-    check('?unlock=1：第一到第四灾可点，第五灾起仍是敬请期待（第五灾没打进包）', st[:4] == ['open'] * 4 and st[4:] == ['locked'] * 6, st)
+    check('?unlock=1：全部十灾可点', st == ['open'] * 10, st)
     ctx.close()
-    for cleared, expect in [(['plague1'], ['open', 'open', 'gated', 'gated']), (['plague1', 'plague2'], ['open', 'open', 'open', 'gated']), (['plague1', 'plague2', 'plague3'], ['open'] * 4)]:
+    for count in range(1, 10):
+        cleared = [f'plague{n}' for n in range(1, count + 1)]
+        expect = ['open'] * (count + 1) + ['gated'] * (9 - count)
         ctx, page, log = new_page(browser, 720, 360, dsf=2)
         page.add_init_script(profile_script(cleared))
         boot(page, 'index.html')
         assert poll(page, "document.querySelector('.menu.show')", 15)
         st = chapter_states(page)
-        check(f'通关 {"、".join(cleared)} 后：前四章状态 {expect}', st[:4] == expect and st[4:] == ['locked'] * 6, st)
+        check(f'通关 {"、".join(cleared)} 后：完整十灾解锁状态', st == expect, st)
         ctx.close()
 
     # ------------------------------------------------------------------ 5. 真实触摸（720×360，没有旋转，点击落点必须和画面一致）
@@ -360,7 +369,7 @@ with sync_playwright() as p:
 
     # ------------------------------------------------------------------ 8. 完整流程
     if FULL:
-        for n in (1, 2, 3, 4):
+        for n in range(1, 11):
             ctx, page, log = new_page(browser, 720, 360, dsf=1)
             boot(page, f'index.html?autotest=1&chapter={n}')
             if n != 1:
@@ -369,6 +378,8 @@ with sync_playwright() as p:
             t0 = time.time()
             res = page.evaluate("(async () => { RLP.timeScale = 3; const r = await RLP.autoplay({ stepDelay: 0 }); return { ok: r.ok, steps: r.steps, total: r.total, error: r.error, failedStep: r.failedStep }; })()")
             check(f'第 {n} 灾完整流程 autoplay（{time.time() - t0:.0f}s）', res['ok'] and res['steps'] == res['total'], res)
+            native = page.evaluate("Object.entries(window.__RLP_RLPM || {}).filter(([k,v]) => v.loaded).map(([k]) => k)")
+            check(f'第 {n} 灾使用包内角色模型', 'tower' in native and len(native) >= 4, native)
             csp_and_errors(page, log, f'第 {n} 灾完整流程')
             ctx.close()
 

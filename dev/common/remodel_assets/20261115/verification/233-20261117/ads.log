@@ -1,0 +1,15 @@
+测试目录 D:\CodeWorkSpace\rusty-lake-paradise-3d-remodel\dev\minitool\dist-ark-leyuan-20261117
+PASS 包结构：ark_cfg.js 写了 __RLP_233，仍有原来的 __RLP_NOROT
+PASS 包结构：index.html 带广告 SDK 且是 async（不挡启动），在 ark_cfg.js 之后、game.js 之前
+PASS zip：根目录有 index.html，资源路径合法  ["ark_cfg.js", "audio_out.js", "compat.js", "game.js", "index.html", "model_boar.js", "model_cow.js", "model_david.js", "model_deer.js", "model_doctor.js", "model_elizabeth_owl.js", "model_fly.js", "model_gerard.js", "model_goat.js", "model_ida.js", "model_jakob_child.js", "model_mantis.js", "model_margaret.js", "model_musician_fat.js", "model_musician_feather.js", "model_musician_old.js", "model_nicholas.js", "model_pheasant.js", "model_pigeon.js", "model_rabbit.js", "model_soul.js", "model_tower.js", "native_models.json", "rotate.js", "style.css", "tex_boar.jpg", "tex_cow.jpg", "tex_david.jpg", "tex_deer.jpg", "tex_doctor.jpg", "tex_elizabeth_owl.jpg", "tex_fly.jpg", "tex_gerard.jpg", "tex_goat.jpg", "tex_ida.jpg", "tex_jakob_child.jpg", "tex_mantis.jpg", "tex_margaret.jpg", "tex_musician_fat.jpg", "tex_musician_feather.jpg", "tex_musician_old.jpg", "tex_nicholas.jpg", "tex_pheasant.jpg", "tex_pigeon.jpg", "tex_rabbit.jpg", "tex_soul.jpg", "tex_tower.jpg"]
+PASS 手机横屏：包里没带 ?leyuan 也显示灯泡  {"display": "block", "w": 22.53125, "h": 22.53125, "overlap": false, "touch": true}
+PASS 触屏：灯泡实际可点区域不小于 44px，且不盖住齿轮（齿轮可点区域仍不小于 40px）  {"bulb": {"w": 44, "h": 44}, "gear": {"w": 44, "h": 44}}
+PASS 触摸点灯泡：弹确认框（取消 / 观看广告）  {"text": ["观看一段广告后，可以获得一条提示。"], "btns": ["取消", "观看广告"]}
+PASS 本机没有 SDK：出现模拟广告选项（只在 localhost 出现）  {"text": ["这里没有真实广告，请选择广告结果："], "btns": ["中途关闭", "跳过广告", "播放失败", "完整观看"]}
+PASS 完整观看后显示当前提示  {"got": {"text": ["点击远处的天堂门走上沙滩，再点一下门本身，看看它有什么反应。"], "btns": ["知道了"]}, "want": "点击远处的天堂门走上沙滩，再点一下门本身，看看它有什么反应。"}
+PASS 真实 SDK、回调 0 → 3 → 4：不弹模拟框，放了 1 次广告，看完显示提示  {"ads": 1, "panel": {"text": ["点击远处的天堂门走上沙滩，再点一下门本身，看看它有什么反应。"], "btns": ["知道了"]}}
+PASS 真实 SDK、回调 0 → 1（中途关闭）：不给提示  {"ads": 1, "panel": {"text": ["广告没有看完，没有获得提示。"], "btns": ["知道了"]}}
+PASS 真实 SDK、isAdSupport 返回 0：直接说当前环境不支持广告，不弹确认框  {"text": ["当前环境暂不支持广告，请在 233 乐园 App 里打开游戏。"], "btns": ["知道了"]}
+PASS 全程没有页面错误 / 控制台错误  []
+
+12/12 通过

@@ -17,3 +17,7 @@ Thumbs.db
 # 本地建模验收与可重新生成的发布包
 .logs/
 upload/**/*.zip
+
+# 233 可重建发布目录和浏览器验收截图
+/dev/minitool/dist-*/
+/dev/minitool/_test_out_*/

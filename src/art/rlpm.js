@@ -83,14 +83,28 @@ function splitHead(m) {
 }
 
 async function fetchModel(key) {
-  if (!BASE) throw new Error('import.meta.url 不可用');
-  const buf = await (await fetch(BASE + key + '.rlpm')).arrayBuffer();
+  const embedded = typeof window !== 'undefined' && window.__RLP_RLPM && window.__RLP_RLPM[key];
+  let buf;
+  if (embedded) {
+    const bytes = new Uint8Array(embedded.bytes);
+    let offset = 0;
+    for (const chunk of embedded.data) {
+      const decoded = atob(chunk);
+      for (let i = 0; i < decoded.length; i++) bytes[offset++] = decoded.charCodeAt(i);
+    }
+    if (offset !== bytes.length) throw new Error('包内模型长度不符：' + key);
+    buf = bytes.buffer;
+  } else {
+    if (!BASE) throw new Error('import.meta.url 不可用');
+    buf = await (await fetch(BASE + key + '.rlpm')).arrayBuffer();
+  }
   const m = parse(buf);
   m.hdr.id = key;
   if (m.hdr.kind === undefined && m.hdr.joints.includes('head') && m.hdr.bind) splitHead(m);
-  const tex = await new THREE.TextureLoader().loadAsync(BASE + (m.hdr.texture || key + '.jpg'));
+  const tex = await new THREE.TextureLoader().loadAsync(embedded ? embedded.texture : BASE + (m.hdr.texture || key + '.jpg'));
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   m.texture = tex;
+  if (embedded) { embedded.loaded = true; delete embedded.data; }
   return m;
 }
 

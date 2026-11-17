@@ -111,3 +111,7 @@
 - 提示内容：每章 `src/chapters/plagueN/hints.js` 导出 `HINTS`（`id / after 前置 / done(s) / text`，纯数据，只读 `s.flag()` 和 `s.has()`），章节对象的 `hints` 字段指向它；`src/core/hints.js` 的 `nextHint` 只取“没做完且前置都做完”的第一条，通关后不放广告。文案只说去哪、做什么，不给谜题答案。新增 / 改章节谜题时同步改 `hints.js`，物品用掉会从物品栏消失，“做完没有”要用旗标判断。
 - 广告模拟：没有 `window.MetaH5Ad` 且（本机 localhost / 127.0.0.1，或乐园预览注入 `__PM_BUILD_PROFILE__ === 'fast'`）时用模拟广告（弹窗里选完整观看 / 中途关闭 / 跳过 / 失败）；真机乐园和线上发布永不模拟。`window.alert / confirm / prompt` 不能用，用 `ui.dialog()`。
 - 验收：`node --test dev/common/test_hints.mjs`（引擎、广告回调、每章表的结构和旗标）、`python dev/common/test_hints_browser.py`（五章逐步自动通关，每一步都有提示、通关后全部完成，以及灯泡流程）。设计与记录见 `docs/ai/context/20261025-133000-leyuan-hint-design.md`。233 乐园的专用打包还没做（要注入 `__RLP_233` 和 `metah5ad_v1.min.js`，线上路径里不能出现 `/vendor/`）。
+
+## 2026-11-17 完整 233 版本
+
+用户明确要求把最新完整版本上传并提审至 233。此前本文提到的 233 只开放前四灾限制已被本次指令取代。`build.py --ark` 提供完整十灾并保留源码顺序解锁；`pack_rlpm.py` 将现有 22 个模型及贴图随包发布，`rlpm.js` 兼容该注册表，不再因 IIFE 缺少 import.meta.url 而回退。`make_leyuan.py` 加入可选广告提示与异步 SDK。小红书包仍遵守其 10 MB 限制；233 包单独记录实际大小。发布记录和验收见 docs/ai/context/20261117-233完整十灾打包.md。
