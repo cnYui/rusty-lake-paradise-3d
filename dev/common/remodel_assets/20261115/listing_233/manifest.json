@@ -1,0 +1,42 @@
+[
+  {
+    "file": "detail-1.jpg",
+    "bytes": 118161,
+    "sha256": "e50e7c2bbba58307771eab09837f4fa21204d5fa859f23dcffa868cd80916259"
+  },
+  {
+    "file": "detail-2.jpg",
+    "bytes": 141795,
+    "sha256": "7ae620e02a5f04b73fc706ffc0cdf7af0f3dfc6606229e78b62a5f77992f82ad"
+  },
+  {
+    "file": "detail-3.jpg",
+    "bytes": 169237,
+    "sha256": "0601fc64c7a26351eb8bf25bffab46c78eeb1f83c6283b63971de5dbe7dcaa85"
+  },
+  {
+    "file": "detail-4.jpg",
+    "bytes": 156696,
+    "sha256": "6995b8fa3a55596f96b14fcb8938fed7f55ec306a75b6ccd46dd596c7b21963a"
+  },
+  {
+    "file": "detail-5.jpg",
+    "bytes": 162031,
+    "sha256": "450ecf383a4ef5fab90e866de0d4cd0c10b2b5d9cb3f76d6fbc3761917e374d6"
+  },
+  {
+    "file": "home-16x13.jpg",
+    "bytes": 218713,
+    "sha256": "f3a051eadfd492518908a4afc695b1d5884bad6bbb5cd2af11167625c8567a2c"
+  },
+  {
+    "file": "home-16x9.jpg",
+    "bytes": 276233,
+    "sha256": "53e89efe7c5357f3c41aac7825fdd2c5ab972620fb538c28049e93b04a4f552f"
+  },
+  {
+    "file": "icon-512.png",
+    "bytes": 186595,
+    "sha256": "c9eb9915cf3991995fe8b974aa0394826755a2d7d662d7f8632eec959e7f0821"
+  }
+]
