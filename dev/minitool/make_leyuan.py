@@ -7,7 +7,7 @@ r"""233 乐园版口袋方舟 H5 包 = `build.py --ark` 的产物 + 提示按钮
   3. 重新打 zip（根目录就是 index.html）
 
 用法：python dev/minitool/make_leyuan.py [--out <目录>] [--zip <zip 路径>]
-默认输出 dev/minitool/dist-ark-leyuan-<日期>/ 和 upload/ark/rusty-lake-ark-ch1234-leyuan-<日期>.zip。
+默认输出 dev/minitool/dist-ark-leyuan-<日期>/ 和 upload/ark/rusty-lake-ark-ch1-10-leyuan-<日期>.zip。
 验收：python dev/minitool/test_leyuan.py <目录>；再用 MINITOOL_DIST=<目录> python dev/minitool/test_ark.py --full 跑原有的 ark 验收。
 """
 import argparse
@@ -28,7 +28,7 @@ def main():
     day = datetime.date.today().strftime('%Y%m%d')
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', default=os.path.join(HERE, f'dist-ark-leyuan-{day}'))
-    ap.add_argument('--zip', default=os.path.join(ROOT, 'upload', 'ark', f'rusty-lake-ark-ch1234-leyuan-{day}.zip'))
+    ap.add_argument('--zip', default=os.path.join(ROOT, 'upload', 'ark', f'rusty-lake-ark-ch1-10-leyuan-{day}.zip'))
     a = ap.parse_args()
     out, final_zip = os.path.abspath(a.out), os.path.abspath(a.zip)
 

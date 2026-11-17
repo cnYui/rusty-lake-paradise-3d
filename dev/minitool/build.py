@@ -103,7 +103,7 @@ def main():
     ap = argparse.ArgumentParser(description='锈湖小红书小工具打包')
     ap.add_argument('--legacy', action='store_true', help='旧版（无声音线路补丁，ES2019，不转写 CSS），输出 dist/ + rusty-lake-minitool.zip')
     ap.add_argument('--release', action='store_true', help='声音版去掉屏幕上的声音调试状态条')
-    ap.add_argument('--ark', action='store_true', help='口袋方舟（233 乐园）H5 包：第一到第四灾（2026-10-24 起；之前是第一到第三灾），原生横屏外壳（不旋转竖屏）+ 安全区，等同 --release；输出 dist-ark-ch1234/ + upload/ark/rusty-lake-ark-ch1234.zip')
+    ap.add_argument('--ark', action='store_true', help='口袋方舟（233 乐园）H5 包：完整十灾、现有角色模型、原生横屏与安全区；等同 --release')
     ap.add_argument('--no-minify', action='store_true', help='不压缩、保留函数名（只用来做 CPU 采样 / 排查，不要上传）')
     ap.add_argument('--out', help='输出目录（默认见上）')
     ap.add_argument('--zip', help='zip 路径（默认见上）')
@@ -116,7 +116,7 @@ def main():
     if a.legacy:
         name_dist, name_zip = 'dist', 'rusty-lake-minitool.zip'
     elif a.ark:
-        name_dist, name_zip = 'dist-ark-ch1234', 'rusty-lake-ark-ch1234.zip'
+        name_dist, name_zip = 'dist-ark-ch1-10', 'rusty-lake-ark-ch1-10.zip'
     elif a.release:
         name_dist, name_zip = 'dist-audio-release', 'rusty-lake-minitool-audio-release.zip'
     else:
@@ -199,7 +199,7 @@ def main():
         ("  engine.start();\n  document.getElementById('boot')?.remove();\n",
          "  engine.start();\n  document.getElementById('boot')?.remove();\n  document.getElementById('stage').classList.remove('boot-early', 'boot-queued');\n"),
         ("    mark('worldImport');\n    await preloadModels(['tower']);   // 岛上的石塔是网格模型，世界建好之前先加载（失败回退程序化塔）\n    world = buildWorld(engine);\n",
-         "    mark('worldImport');\n    await __stage('搭建小岛…');\n    world = await buildWorld(engine);\n"),
+         "    mark('worldImport');\n    await __stage('搭建小岛…');\n" + ("    await preloadModels(['tower']);\n" if a.ark else "") + "    world = await buildWorld(engine);\n"),
         ("  await ensureChapter(bootChapterNumber());\n"
          "  mark('chapterSetup');\n  if (engine.renderEnabled) engine.render(); // compile shaders up front\n",
          "  await __stage('布置场景…');\n"
@@ -362,17 +362,11 @@ def main():
     # 第五灾的 setup 是 world.setup + puzzles.setup 两大块（牛、菜地、连线、厨房一次建完）：中间让出一帧
     patch('src/chapters/plague5/index.js', [("await world.setup(ctx);\n    await puzzles.setup(ctx);",
                                              "await world.setup(ctx);\n    if (window.__RLP_STAGE) await window.__RLP_STAGE();\n    await puzzles.setup(ctx);")])
-    # 开放范围：小红书小工具是第一到第十灾（第五灾 2026-10-29 起，第六到十灾 2026-11-09 起，解锁顺序同网页版：必须按顺序通关）；
-    # 口袋方舟（233 乐园）包仍是第一到第四灾——第五灾起只在小红书包里放开，--ark 这里把第五到十灾的 load 全部置空（菜单显示“敬请期待”，代码也不进包）。
+    # 两个平台均提供完整十灾，保持源码中的顺序解锁条件。
     _reg = rd(os.path.join(WORK, 'src/chapters/index.js'))
     assert "requires: ['plague1', 'plague2', 'plague3'], load: () => import('./plague4/index.js') }" in _reg, '源码注册表里第四灾的解锁条件变了（要先通关第一到第三灾）：更新 build.py'
     assert "requires: ['plague1', 'plague2', 'plague3', 'plague4'], load: () => import('./plague5/index.js') }" in _reg, '源码注册表里第五灾的解锁条件变了（要先通关第一到第四灾）：更新 build.py'
     assert not re.search(r"^\s*\{ number: .*wip: true", _reg, re.M), '源码注册表里还有 wip 章节：小红书包第一到第十灾都开放，确认后再改 build.py'
-    if a.ark:
-        _subs = [("load: () => import('./plague5/index.js') }", "load: null }")]
-        for _n in range(6, 11):
-            _subs.append((f"load: () => import('./plague{_n}/index.js') }}", "load: null }"))
-        patch('src/chapters/index.js', _subs)
     assert "requires: ['plague1', 'plague2'], load: () => import('./plague3/index.js') }" in rd(os.path.join(WORK, 'src/chapters/index.js')), '源码注册表里第三灾的解锁条件变了（要先通关第一、二灾）：更新 build.py'
 
     # ---- 补丁 4（声音版）：音频输出线路。audio.js 是程序合成（振荡器 / 噪声 / 卷积混响），总线最后一级 comp 原来直连 ac.destination；
@@ -529,6 +523,14 @@ def main():
     wr(os.path.join(DIST, 'style.css'), css)
     shutil.rmtree(WORK)
 
+    if a.ark:
+        from pack_rlpm import pack_models
+        tags = pack_models(ROOT, DIST)
+        anchor = '<script src="./game.js"></script>'
+        assert index.count(anchor) == 1, '找不到游戏脚本位置'
+        index = index.replace(anchor, tags + anchor)
+        wr(os.path.join(DIST, 'index.html'), index)
+
     # ---- 自检
     game = rd(os.path.join(DIST, 'game.js'))
     # willReadFrequently（补丁 3b）：压缩后的 game.js 里应该 >= 9 处 = sky.js 的 cpuCanvas 1 处（改前就有）
@@ -582,7 +584,7 @@ def main():
     size = os.path.getsize(ZIP)
     print(f'{ZIP}\n  {len(names)} 个文件，{size / 1024 / 1024:.2f} MB（{size} 字节，十进制 {size / 1e6:.2f} MB）：' +
           '，'.join(f'{n} {os.path.getsize(os.path.join(DIST, n)) // 1024} KB' for n in names))
-    assert size < 10 * 1000 * 1000 and len(names) <= 200, 'zip 超过 10 MB（十进制）或文件数超过 200'
+    assert (a.ark or size < 10 * 1000 * 1000) and len(names) <= 200, '小红书 zip 超过 10 MB（十进制）或文件数超过 200'
 
 
 if __name__ == '__main__':

@@ -45,3 +45,7 @@
 | `screenshots-ch123/` | 第一、二、三灾详情页截图（1280×720，5 张：ch1 总览 / 房子，ch2 湖边，ch3 林间空地 / 白桦林） |
 
 图标用 `dev/minitool/icon.png`（512×512）。上传和提交记录见 `docs/ai/context/20261014-134500-ark-upload.md`、`20261014-135500-ark-submit-confirmed.md`。资料里要如实写明《Rusty Lake Paradise》同人重制及原作来源，不宣称已获授权。
+
+## 2026-11-17 完整十灾 233 包
+
+`ark/rusty-lake-paradise-full10-20261117.zip`：32,231,578 字节，52 文件，SHA256 `912cd942b0543c8909dd900983113084a9f01c20caef4568f7e1502900a22a4f`。完整十灾、22份现有模型与贴图、54件重制道具代码、原生横屏和可选广告提示。构建与验收详见 `docs/ai/context/20261117-233完整十灾打包.md`；实际后台状态另行记录。

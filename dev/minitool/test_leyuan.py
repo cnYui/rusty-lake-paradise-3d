@@ -112,10 +112,10 @@ def main():
     check('包结构：index.html 带广告 SDK 且是 async（不挡启动），在 ark_cfg.js 之后、game.js 之前',
           '<script async src="https://cdn.233xyx.com/h5ad/metah5ad_v1.min.js"></script>' in html
           and html.index('ark_cfg.js') < html.index('metah5ad_v1.min.js') < html.index('game.js'))
-    zips = sorted(glob.glob(os.path.join(HERE, '..', '..', 'upload', 'ark', 'rusty-lake-ark-ch1234-leyuan-*.zip')))
+    zips = sorted(glob.glob(os.path.join(HERE, '..', '..', 'upload', 'ark', 'rusty-lake-paradise-full10-*.zip')))
     if zips:
         with zipfile.ZipFile(zips[-1]) as z:
-            check('zip：根目录就是 index.html，没有多套一层目录', 'index.html' in z.namelist() and all('/' not in n for n in z.namelist()), z.namelist())
+            check('zip：根目录有 index.html，资源路径合法', 'index.html' in z.namelist() and all(not n.startswith('/') and '..' not in n.split('/') for n in z.namelist()), z.namelist())
 
     httpd, port = serve(dist)
     base = f'http://127.0.0.1:{port}/'
