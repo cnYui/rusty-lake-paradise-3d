@@ -104,6 +104,15 @@ function makeScene() {
   return sc;
 }
 
+/** 画布是不是全透明（抽样看 alpha）。读不出来（被禁用）按“不是空白”处理。 */
+function isBlankCanvas(c) {
+  try {
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    for (let i = 3; i < d.length; i += 12) if (d[i] > 8) return false;
+    return true;
+  } catch { return false; }
+}
+
 function renderIconCanvas(id) {
   const def = defs.get(id);
   if (!def || !ready) return null;
@@ -120,6 +129,8 @@ function renderIconCanvas(id) {
     const c = document.createElement('canvas');
     c.width = c.height = ICON;
     c.getContext('2d').drawImage(renderer.domElement, 0, 0);
+    // 有的手机上第二个 WebGL 上下文画不出东西（评论：“拿到的道具都是空白的框”）：整张全透明就当渲染失败，调用方改用文字图标
+    if (isBlankCanvas(c)) { console.warn(`[items] icon "${id}" rendered blank; using the text placeholder`); return null; }
     return c;
   } finally {
     restore();
@@ -225,7 +236,8 @@ export const items = {
   icon(id) {
     if (iconCache.has(id)) return iconCache.get(id).url;
     const c = renderIconCanvas(id);
-    const entry = c ? { url: c.toDataURL('image/png'), canvas: c } : { url: placeholderIcon(defs.has(id) ? '·' : '?'), canvas: null };
+    const nm = defs.has(id) ? String(this.name(id) || '').replace(/\s+/g, '').slice(0, 2) : '';
+    const entry = c ? { url: c.toDataURL('image/png'), canvas: c } : { url: placeholderIcon(nm || (defs.has(id) ? '·' : '?')), canvas: null };
     iconCache.set(id, entry);
     return entry.url;
   },

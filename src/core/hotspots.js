@@ -257,6 +257,27 @@ function drawDebug() {
   }
 }
 
+// 漫游时正对着一个“进入 / 凑近”类入口（goto 热点）站着不动或一直往里走：提示一次“点一下就会进去”。
+// 评论里十几个人以为门要走进去（小屋、石屋、爸爸的房间……），其实要点一下；走路撞上门只会被挡住，没有任何反馈。
+const NUDGE_RANGE = 3.4;     // 屏幕中心射线命中入口、且离入口不超过这么远（米）
+const NUDGE_AFTER = 4;       // 对着同一个入口累计这么多秒还没点它，就提示
+const _ndc0 = new THREE.Vector2(0, 0);
+const nudge = { id: null, t: 0, acc: 0 };
+function updateNudge(frameDt) {
+  // 射线要扫所有热点，慢手机上别每帧做：每 0.25 秒查一次
+  nudge.acc += frameDt;
+  if (nudge.acc < 0.25) return;
+  const dt = nudge.acc;
+  nudge.acc = 0;
+  if (!views.freeMode || ui.locked || ui.modalOpen || views.transitioning || running > 0) { nudge.id = null; nudge.t = 0; return; }
+  const hit = pickNdc(_ndc0);
+  const spec = hit && hit.spec;
+  if (!spec || !spec.goto || hit.distance > NUDGE_RANGE) { nudge.id = null; nudge.t = 0; return; }
+  if (nudge.id !== spec.id) { nudge.id = spec.id; nudge.t = 0; }
+  nudge.t += dt;
+  if (nudge.t >= NUDGE_AFTER) { nudge.t = -1e9; ctx.hintOnce(`nudge_${spec.id}`, '想进去 / 凑近看，直接点一下它就行，不用走到跟前。'); }
+}
+
 export const hotspots = {
   debug: DEBUG,
   get busy() { return running > 0; },
@@ -274,8 +295,9 @@ export const hotspots = {
       pointer.inside = false;
       if (!downs.has(ev.pointerId)) setCursor('default');
     });
-    engine.onFrame(() => {
+    engine.onFrame((realDt) => {
       updateHover();
+      updateNudge(realDt || 0);
       if (DEBUG) drawDebug();
     });
     // locking / view changes must refresh the cursor

@@ -3,6 +3,7 @@ import { makeProp } from '../../art/props.js';
 import { W, SPOTS } from './world.js';
 import { character, prop, closeup, instant, numberFlag } from './shared.js';
 import { LILY_LEVELS, lilyLevel, lilyTargets, lilyReach, lilyJump, sameCell } from './puzzles.js';
+import { T } from './text.js';
 let S;
 function readLily(ctx) {
   const level=Math.min(5,Math.max(1,numberFlag(ctx,'lily_level',1))),def=lilyLevel(level);
@@ -20,7 +21,7 @@ export async function setup(ctx) {
   const lily=prop(ctx,'lily_board',SPOTS.lilyBoard);S={david,looseFrog,lily};Object.assign(W,S);
   closeup(ctx,'david',david.root,'beach_left',{target:[0,1.24,0],eye:[0,1.3,2.25],fov:37});
   closeup(ctx,'david_rock',david.root,'david',{target:[.17,.17,.15],eye:[.17,.88,1.72],fov:43});
-  closeup(ctx,'lily_pads',lily,'beach_right',{target:[1.375,0,1.1],eye:[1.375,3.8,1.13],fov:52});
+  closeup(ctx,'lily_pads',lily,'beach_right',{target:[1.375,0,1.1],eye:[1.375,3.8,1.13],fov:52,onEnter:(c)=>{c.hintOnce('lily_rule',T.lilyRule,{ms:8000});}});
   ctx.hotspots.define({id:'david',views:['beach_left','david'],object:david.root,cursor:'talk',onClick:async()=>{
     if(ctx.state.view!=='david')return ctx.go('david');if(!ctx.flag('david_belt')){ctx.sfx('frog_croak');await david.eatFrog();}else if(!ctx.flag('david_frog_taken'))return ctx.go('david_rock');
   },onItem:{belt:()=>ctx.cutscene(async()=>{if(ctx.flag('david_belt'))return;ctx.take('belt');ctx.setFlag('david_belt');await david.setBelt(true);looseFrog.visible=true;await ctx.go('david_rock');})}});
@@ -33,7 +34,7 @@ export async function setup(ctx) {
     },onClick:()=>ctx.cutscene(async()=>{
       const p=readLily(ctx),to=[c,r],next=lilyJump(p.def,p.left,p.from,to);if(next.kind==='illegal')return;
       ctx.sfx('frog_hop');await lily.jumpTo(to);
-      if(next.kind==='fail'||next.stuck){ctx.sfx('lily_splash');await lily.fail();ctx.setFlag('lily_progress',null);restoreLily(ctx);return;}
+      if(next.kind==='fail'||next.stuck){ctx.sfx('lily_splash');await lily.fail();ctx.setFlag('lily_progress',null);restoreLily(ctx);await ctx.say(next.kind==='fail'?T.lilyEarly:T.lilyStuck,{kind:'thought'});return;}
       if(next.kind==='win'){
         if(p.level===5){ctx.setFlag('lily_done');await lily.win();await ctx.give('frog',{from:lily.frog});return;}
         ctx.setFlag('lily_level',p.level+1);ctx.setFlag('lily_progress',null);await lily.setLevel(LILY_LEVELS[p.level]);
