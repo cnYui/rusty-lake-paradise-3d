@@ -40,7 +40,8 @@ def main():
         s = f.read()
     assert '__RLP_233' not in s, 'ark_cfg.js 已经有 __RLP_233'
     with open(cfg, 'w', encoding='utf-8', newline='') as f:
-        f.write(s.rstrip('\n') + '\n// 233 乐园版：显示提示按钮（看广告得提示，见 src/core/leyuan.js、hintflow.js）\nwindow.__RLP_233 = true;\n')
+        f.write(s.rstrip('\n') + '\n// 233 乐园版：显示提示按钮（看广告得提示，见 src/core/leyuan.js、hintflow.js）\nwindow.__RLP_233 = true;\n'
+                '// 每一关的提示次数（hintflow.js 读它；2026-11-20 用户定每关 3 次、灯泡下面显示 3/3、用完不恢复，用完后每条提示看一段广告）\nwindow.__RLP_HINTS_PER_LEVEL = 3;\n')
 
     idx = os.path.join(out, 'index.html')
     with open(idx, encoding='utf-8', newline='') as f:

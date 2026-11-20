@@ -6,6 +6,9 @@ r"""233 乐园版口袋方舟包验收（make_leyuan.py 的产物）：
   3. 真实 SDK 路径（页面里注入假的 MetaH5Ad，回调 0 → 3 → 4）：不弹模拟框，看完显示提示；
      回调 0 → 1（中途关闭）不给提示；SDK 不支持（isAdSupport 返回 0）只说当前环境不支持广告
   4. 没有 ?leyuan 也显示灯泡（包里写死了 __RLP_233）；全程没有页面错误
+  5. 每关 3 次提示（2026-11-20 用户定，ark_cfg.js 的 __RLP_HINTS_PER_LEVEL = 3）：灯泡下面显示 3/3 并随使用递减；前 3 次直接给提示、不放广告、
+     面板里带“本关提示还剩 N 次”；用完后先问观看广告（取消不扣不给，看完给一条且次数仍是 0）；重新载入后次数不恢复（localStorage 键 rlp3d.hintUsed.<章节 id>）；
+     上面 2、3 两项的广告路径测试先把本关次数用完
 
 用法：python dev/minitool/test_leyuan.py [dist 目录]（默认最新的 dist-ark-leyuan-*）
 截图写到 dev/minitool/_test_out_leyuan/。
@@ -82,7 +85,11 @@ def tap_btn(page, label):
     time.sleep(0.2)
 
 
-def open_game(browser, base, fake=None):
+CH_ID = 'plague1'
+USED_UP = {CH_ID: 3}      # 本关的 3 次先用完：广告路径（2、3 两项）才会出确认框
+
+
+def open_game(browser, base, fake=None, used=None):
     ctx = browser.new_context(viewport={'width': 844, 'height': 390}, has_touch=True, is_mobile=True, device_scale_factor=2)
     page = ctx.new_page()
     page.set_default_timeout(120000)
@@ -92,6 +99,8 @@ def open_game(browser, base, fake=None):
     page.route('https://cdn.233xyx.com/**', lambda r: r.fulfill(status=200, content_type='application/javascript', body='/* test stub */'))
     if fake:
         page.add_init_script(f'({FAKE_SDK})("{fake}")')
+    if used:
+        page.add_init_script('((m) => { for (const k in m) localStorage.setItem("rlp3d.hintUsed." + k, String(m[k])); })(' + json.dumps(used) + ')')
     page.goto(base + 'index.html?chapter=1&view=beach_mid&fresh=1', wait_until='domcontentloaded')
     assert poll(page, 'window.RLP && RLP.ready === true && document.getElementById("stage").classList.contains("inv-on")', 240), '游戏没有启动'
     assert page.evaluate('RLP.bootError') is None, page.evaluate('RLP.bootError')
@@ -108,7 +117,8 @@ def main():
     # 1. 包结构
     cfg = open(os.path.join(dist, 'ark_cfg.js'), encoding='utf-8').read()
     html = open(os.path.join(dist, 'index.html'), encoding='utf-8').read()
-    check('包结构：ark_cfg.js 写了 __RLP_233，仍有原来的 __RLP_NOROT', 'window.__RLP_233 = true;' in cfg and '__RLP_NOROT' in cfg)
+    check('包结构：ark_cfg.js 写了 __RLP_233、每关 3 次提示（__RLP_HINTS_PER_LEVEL = 3），仍有原来的 __RLP_NOROT',
+          'window.__RLP_233 = true;' in cfg and 'window.__RLP_HINTS_PER_LEVEL = 3;' in cfg and '__RLP_NOROT' in cfg)
     check('包结构：index.html 带广告 SDK 且是 async（不挡启动），在 ark_cfg.js 之后、game.js 之前',
           '<script async src="https://cdn.233xyx.com/h5ad/metah5ad_v1.min.js"></script>' in html
           and html.index('ark_cfg.js') < html.index('metah5ad_v1.min.js') < html.index('game.js'))
@@ -123,7 +133,7 @@ def main():
         browser = p.chromium.launch(args=['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'])
 
         # 2. 手机横屏 + 本机模拟广告
-        ctx, page = open_game(browser, base)
+        ctx, page = open_game(browser, base, used=USED_UP)
         r = page.evaluate("""() => { const b = document.querySelector('.hint-btn'), g = document.querySelector('.gear'), cs = getComputedStyle(b);
           const a = b.getBoundingClientRect(), c = g.getBoundingClientRect(); return { display: cs.display, w: a.width, h: a.height, overlap: !(a.right <= c.left || c.right <= a.left || a.bottom <= c.top || c.bottom <= a.top), touch: document.getElementById('stage').classList.contains('touch') }; }""")
         check('手机横屏：包里没带 ?leyuan 也显示灯泡', r['display'] != 'none', r)
@@ -152,7 +162,7 @@ def main():
 
         # 3. 真实 SDK 路径
         for mode, expect in (('rewarded', 'hint'), ('closed', 'none'), ('unsupported', 'unsupported')):
-            ctx, page = open_game(browser, base, fake=mode)
+            ctx, page = open_game(browser, base, fake=mode, used=USED_UP)
             page.evaluate("document.querySelector('.hint-btn').click()")
             time.sleep(0.3)
             if mode == 'unsupported':
@@ -169,6 +179,54 @@ def main():
                 else:
                     check('真实 SDK、回调 0 → 1（中途关闭）：不给提示', ads == 1 and p and want not in ''.join(p['text']) and '没有获得提示' in ''.join(p['text']), {'ads': ads, 'panel': p})
             ctx.close()
+
+        # 5. 每关 3 次提示：全新玩家 → 3/3 → 直接给 3 次 → 第 4 次问观看广告 → 取消 → 看完（次数仍是 0）→ 重新载入后不恢复
+        count = lambda pg: pg.evaluate("(document.querySelector('.hint-btn .hint-count') || {}).textContent || null")
+        ctx, page = open_game(browser, base)
+        check('每关 3 次：全新玩家灯泡下面写 3/3，localStorage 里没有记录', count(page) == '3/3' and page.evaluate(f"localStorage.getItem('rlp3d.hintUsed.{CH_ID}')") is None, count(page))
+        page.screenshot(path=os.path.join(OUT, 'count_3of3.png'))
+        want = page.evaluate('RLP.hints.next().text')
+        for i in (1, 2, 3):
+            page.evaluate("document.querySelector('.hint-btn').click()")
+            time.sleep(0.4)
+            p = panel(page)
+            tail = ('（本关提示还剩 %d 次）' % (3 - i)) if i < 3 else '（本关提示用完了，之后每条提示要观看一段广告。）'
+            check(f'每关 3 次 · 第 {i} 次：直接显示提示 + “{tail}”，只有“知道了”、没放广告',
+                  p and p['text'] == [want, tail] and p['btns'] == ['知道了'] and not page.evaluate('window.__ads'), p)
+            if i == 1:
+                page.screenshot(path=os.path.join(OUT, 'count_hint_1.png'))
+            tap_btn(page, '知道了')
+            time.sleep(0.2)
+            check(f'每关 3 次 · 第 {i} 次以后：灯泡下面写 {3 - i}/3、localStorage 记 {i}',
+                  count(page) == f'{3 - i}/3' and page.evaluate(f"localStorage.getItem('rlp3d.hintUsed.{CH_ID}')") == str(i), count(page))
+        page.screenshot(path=os.path.join(OUT, 'count_0of3.png'))
+        page.evaluate("document.querySelector('.hint-btn').click()")
+        time.sleep(0.4)
+        p = panel(page)
+        check('每关 3 次 · 第 4 次：先问观看广告（话里说本关已用完）、不直接给提示', p and p['btns'] == ['取消', '观看广告'] and '已用完' in ''.join(p['text']) and want not in ''.join(p['text']), p)
+        tap_btn(page, '取消')
+        time.sleep(0.2)
+        check('每关 3 次 · 取消：不扣不给，仍是 0/3', count(page) == '0/3' and panel(page) is None, count(page))
+        page.evaluate("document.querySelector('.hint-btn').click()")
+        time.sleep(0.3)
+        tap_btn(page, '观看广告')
+        time.sleep(0.3)
+        tap_btn(page, '完整观看')
+        time.sleep(0.3)
+        p = panel(page)
+        check('每关 3 次 · 用完后看完广告：给一条提示，灯泡下面仍是 0/3（看广告换的提示不扣次数）', p and p['text'] == [want] and count(page) == '0/3', {'panel': p, 'count': count(page)})
+        tap_btn(page, '知道了')
+        # 重新载入（同一个浏览器上下文 = 同一份 localStorage；?fresh=1 只清存档，不清提示次数）：退出重进不恢复
+        page.goto(base + 'index.html?chapter=1&view=beach_mid&fresh=1', wait_until='domcontentloaded')
+        assert poll(page, 'window.RLP && RLP.ready === true', 240), '重新载入后游戏没有启动'
+        time.sleep(1.5)
+        page.evaluate('RLP.idle()')
+        check('每关 3 次 · 重新载入后：次数没有恢复，仍是 0/3', count(page) == '0/3' and page.evaluate(f"localStorage.getItem('rlp3d.hintUsed.{CH_ID}')") == '3', count(page))
+        page.evaluate("document.querySelector('.hint-btn').click()")
+        time.sleep(0.4)
+        p = panel(page)
+        check('每关 3 次 · 重新载入后点灯泡：仍先问观看广告', p and p['btns'] == ['取消', '观看广告'], p)
+        ctx.close()
         browser.close()
     httpd.shutdown()
 
