@@ -28,7 +28,9 @@ export function sync(ctx) {
   else W.book.setOpen(false);
   const loaded = ctx.flag('p4_owl_loaded'), fed = count(ctx, 'p4_owl_count');
   W.owlHeart.visible = !!loaded; W.gem.visible = fed === 3 && !ctx.flag('p4_gem_taken');
-  W.owl.setLevel(fed * 4 / 3, { instant: true });
+  // 三颗心对应四格液面：向下取整，0 / 1 / 2 / 4。原来的 fed*4/3 经 setLevel 四舍五入会在
+  // 第二颗（2.67）就升到第 3 格，看起来像已经满了；第三颗之后才允许到 4。
+  W.owl.setLevel(Math.min(4, Math.floor(fed * 4 / 3)), { instant: true });
   W.holder.position.fromArray(W.holder.userData.home);
   if (ctx.flag('p4_holder_lowered')) W.holder.position.y -= 1.15;
   const holderState = W.holder.userData.state;
@@ -142,16 +144,23 @@ export function setup(ctx) {
       ctx.take(`${id}_heart`); ctx.setFlag('p4_owl_loaded', id); refresh(ctx); ctx.sfx('squish');
     }])),
   });
+  // 两只翅膀挂的是两个热点，公共 hotspots 的 busy 只按热点 id 去重：左、右翅膀先后点下去，
+  // 两段 flap 会同时播放，两个回调都读到同一颗已放入的心，count 一次加 2；第二颗喂完就
+  // count=3，第三颗被当成“已满”拒绝。这里用一把共享锁保证一次只结算一颗心。
+  let owlWingBusy = false;
   for (const side of ['l', 'r']) hs(`owl_wing_${side}`, ['owl'], W.owl.getObjectByName(`owl_wing_${side}`), { onClick: async () => {
-    if (count(ctx, 'p4_owl_count') >= 3) return;
-    const loaded = ctx.flag('p4_owl_loaded');
-    ctx.sfx('wing');
-    await W.owl.flap({ crush: !!loaded });
-    if (loaded) {
-      ctx.setFlag('p4_owl_count', count(ctx, 'p4_owl_count') + 1); ctx.setFlag('p4_owl_loaded', null);
-      if (count(ctx, 'p4_owl_count') === 3) { ctx.achieve('p4_hearts'); ctx.sfx('bell'); }
-    }
-    refresh(ctx);
+    if (owlWingBusy || count(ctx, 'p4_owl_count') >= 3) return;
+    owlWingBusy = true;
+    try {
+      const loaded = ctx.flag('p4_owl_loaded');
+      ctx.sfx('wing');
+      await W.owl.flap({ crush: !!loaded });
+      if (loaded) {
+        ctx.setFlag('p4_owl_count', count(ctx, 'p4_owl_count') + 1); ctx.setFlag('p4_owl_loaded', null);
+        if (count(ctx, 'p4_owl_count') === 3) { ctx.achieve('p4_hearts'); ctx.sfx('bell'); }
+      }
+      refresh(ctx);
+    } finally { owlWingBusy = false; }
   } });
   pickup('owl_gem', ['owl'], W.gem, 'gem', 'p4_gem_taken', () => count(ctx, 'p4_owl_count') === 3);
 
