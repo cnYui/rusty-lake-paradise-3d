@@ -48,7 +48,7 @@ export async function setup(ctx) {
   const basinFrog=basin.getObjectByName('basin_frog');
   ctx.hotspots.define({id:'spawn_frog',views:['spawn_basin'],object:basinFrog,cursor:'grab',when:()=>ctx.flag('spawn_cleared')&&!ctx.flag('spawn_frog_taken'),onClick:async()=>{ctx.setFlag('spawn_frog_taken');basin.hideFrog();await ctx.give('frog',{from:basinFrog});ctx.achieve('the_first_frog');}});
   ctx.hotspots.define({id:'spawn_water',views:['spawn_basin'],object:basin.getObjectByName('basin_water'),cursor:'pointer',when:()=>ctx.flag('spawn_frog_taken'),onClick:()=>ctx.cutscene(async()=>{
-    if(ctx.flag('reflection_seen'))return;const n=numberFlag(ctx,'reflection_taps')+1;ctx.setFlag('reflection_taps',n);if(n>=3){ctx.sfx('memory_whoosh');await basin.showVision(true);ctx.setFlag('reflection_seen');ctx.achieve('reflection_in_the_water');}
+    if(ctx.flag('reflection_seen'))return;const n=numberFlag(ctx,'reflection_taps')+1;ctx.setFlag('reflection_taps',n);if(n<3){await ctx.say(T.basinRipple,{kind:'thought'});return;}if(n>=3){ctx.sfx('memory_whoosh');await basin.showVision(true);ctx.setFlag('reflection_seen');ctx.achieve('reflection_in_the_water');}
   })});
 }
 export function sync(ctx) {
