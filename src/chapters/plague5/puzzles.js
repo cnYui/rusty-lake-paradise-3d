@@ -179,6 +179,8 @@ function setupDining(ctx) {
     refresh(ctx); ctx.sfx('click');
   }]));
   define(ctx, 'p5_plate', ['p5_table'], W.plate, { cursor: 'use', when: () => !ctx.flag('burger_complete'), onClick: () => ctx.say(T.plate), onItem });
+  // 汉堡越叠越高，玩家点的是叠起来的汉堡顶，射线打不到下面那只薄盘子（评论：“番茄片叠不到奶酪上面”）：在盘子上方再挂一个看不见的点击盒，处理一样
+  define(ctx, 'p5_plate_stack', ['p5_table'], ctx.hotspots.makeProxy(0.34, 0.3, 0.34, [0, 0.15, 0], W.plate), { cursor: 'use', when: () => !ctx.flag('burger_complete') && (ctx.flag('burger_layers') || []).length > 0, onClick: () => ctx.say(T.plate), onItem });
   pickup(ctx, 'p5_burger_pickup', ['p5_table'], W.burger, 'burger', 'burger_taken', () => !!ctx.flag('burger_complete'));
   define(ctx, 'p5_gerard', ['p5_dining'], W.gerard, {
     cursor: 'talk', when: () => !ctx.flag('gerard_fed'), onClick: () => ctx.say(T.gerard),

@@ -113,7 +113,10 @@ export async function setup(ctx) {
     ctx.sfx('goat');
     await Promise.all([goat.drink(), ctx.wait(1200).then(() => bucket.setFill(0.35))]);
   }) } });
-  ctx.hotspots.define({ id: 'goat', views: ['forest_clearing'], object: goat.root, cursor: 'talk', onClick: async () => {
+  ctx.hotspots.define({ id: 'goat', views: ['forest_clearing'], object: goat.root, cursor: 'talk',
+    // 评论里好几个人照原作拿弯刀去割山羊，没有任何反应：给一句话，指到喂水（2026-11-21）
+    onItem: { machete: async () => { ctx.state.select(null); await ctx.say(ctx.flag('goat_drank') ? T.goatMacheteDrank : T.goatMachete, { kind: 'thought' }); } },
+    onClick: async () => {
     if (ctx.flag('goat_drank') && !ctx.flag('goat_leech_taken')) {
       ctx.setFlag('goat_leech_taken');
       await goat.tongueLeech(false);

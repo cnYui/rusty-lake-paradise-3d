@@ -8,3 +8,8 @@ export function isLeyuan() {
     return false;
   }
 }
+
+/** 灯泡按钮要不要显示：233 乐园版，或没有广告但有每章次数限制的包（小红书，hint_cfg.js 写 window.__RLP_HINTS_NO_ADS = true）。 */
+export function hintsEnabled() {
+  try { return isLeyuan() || window.__RLP_HINTS_NO_ADS === true; } catch { return false; }
+}
