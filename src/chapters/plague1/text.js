@@ -26,6 +26,10 @@ export const T = {
   photoTitle: '艾兰德一家', portraitTitle: '卡罗琳·艾兰德',
   soul: ['只有把我的记忆带回锈湖……', '……锈湖才会停止流x。'],
   reflection: '这是……我。',
+  // 评论里不少人放进黑方块后不知道下一步（“没有变化了”），以及拿弯刀去割山羊没反应（2026-11-21）
+  holderClosed: '吊架合上了……圣水盆里好像有什么在回应，去看看水面。',
+  goatMachete: '对山羊动刀……不行。也许先给它弄点喝的。',
+  goatMacheteDrank: '它的舌头上粘着什么东西，直接点它看看。',
   memory: '请收下我们的献祭，指引我们吧。',
   ending: { zh: '第一灾 · 完', en: 'Plague I — complete' },
 };

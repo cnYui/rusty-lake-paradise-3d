@@ -17,7 +17,7 @@ import { ctx } from './context.js';
 import { views } from './views.js';
 import { animate, Ease } from './tween.js';
 import { chapterStatus, requiredChapter, resumeChapter, liveSave } from './progress.js';
-import { isLeyuan } from './leyuan.js';
+import { hintsEnabled } from './leyuan.js';
 
 let engine = null;
 const el = {};
@@ -665,7 +665,7 @@ export const ui = {
       if (this.locked || this.modalOpen) return;
       emit('hint-request');
     });
-    this.setHintButton(isLeyuan());
+    this.setHintButton(hintsEnabled());
     el.slots = [];
     for (let i = 0; i < MAX_SLOTS; i++) {
       // 第二列（第 7–12 格）在第一列左边，物品超过 6 件时才展开

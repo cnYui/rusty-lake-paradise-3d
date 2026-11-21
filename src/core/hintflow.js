@@ -27,6 +27,8 @@ export function hintsPerLevel() {
   const n = Math.floor(Number(typeof window !== 'undefined' ? window.__RLP_HINTS_PER_LEVEL : 0));
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
+/** 小红书包没有广告：次数用完就用完了，不再放广告（hint_cfg.js 写 window.__RLP_HINTS_NO_ADS = true；2026-11-21 起）。 */
+export function hintsNoAds() { return typeof window !== 'undefined' && window.__RLP_HINTS_NO_ADS === true; }
 /** 这一关已经用掉的次数（localStorage 和内存里取大的那个）。 */
 export function hintsUsed(levelId) {
   let v = 0;
@@ -89,7 +91,11 @@ export function initHints({ ui, state, ctx }) {
         renderCount(levelId());
         await show([].concat(first.text, left > 1
           ? `（本关提示还剩 ${left - 1} 次）`
-          : '（本关提示用完了，之后每条提示要观看一段广告。）'));
+          : (hintsNoAds() ? '（本章的提示用完了。）' : '（本关提示用完了，之后每条提示要观看一段广告。）')));
+        return;
+      }
+      if (total > 0 && hintsNoAds()) {                                       // 小红书：没有广告，用完即止
+        await show(['本章的提示次数用完了。', '到各处再仔细看看，能互动的东西多点几下。']);
         return;
       }
 

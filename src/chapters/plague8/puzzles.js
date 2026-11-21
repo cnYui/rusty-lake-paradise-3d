@@ -127,7 +127,9 @@ function setupForest(ctx) {
   define(ctx, 'p8_grasshopper', ['p8_forest'], W.grasshopper, { cursor: 'talk', when: () => !ctx.flag('mantis_awake'), onClick: () => ctx.say(T.grasshopper) });
   define(ctx, 'p8_egg', ['p8_forest', 'p8_locusts'], W.egg, { cursor: 'zoom', when: () => !ctx.flag('mantis_awake'), onClick: () => ctx.say(T.egg) });
   define(ctx, 'p8_shadow', ['p8_forest'], W.shadowRig.parts.body, { cursor: 'talk', onClick: () => ctx.say(T.shadow) });
-  define(ctx, 'p8_mantis', ROAM, W.mantis, {
+  // 合唱结束的过场停在 p8_locusts 特写里，螳螂就在这里从树后站起来；这个视图也必须能点它，
+  // 否则玩家看到刚孵出的螳螂直接点会完全没反应（只登记在漫游视图里）。其它特写不开放螳螂。
+  define(ctx, 'p8_mantis', [...ROAM, 'p8_locusts'], W.mantis, {
     cursor: 'talk', when: () => !!ctx.flag('mantis_awake') && !ctx.flag('horn_given'),
     onClick: () => { ctx.sfx('mantis'); return ctx.say(T.mantis); },
   });

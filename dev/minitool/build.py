@@ -383,6 +383,13 @@ def main():
     #      只在副本里把 state.js / audio.js / main.js 的存储读写交给 window.__RLP_STORE；网页版源码不动。
     #      口袋方舟包没有小红书 Storage API，不需要这个文件，也不打这些补丁。
     if audio and not a.ark:
+        # 每关提示次数（hintflow.js，233 线程的实现）直接读写 window.localStorage：小红书包改走存档层，和别的键一样（下面的自检要求 game.js 里不能再有直接访问）
+        patch('src/core/hintflow.js', [
+            ("  try { v = parseInt(window.localStorage.getItem(KEY_PREFIX + levelId), 10) || 0; } catch { v = 0; }",
+             "  try { v = parseInt((window.__RLP_STORE || window.localStorage).getItem(KEY_PREFIX + levelId), 10) || 0; } catch { v = 0; }"),
+            ("  try { window.localStorage.setItem(KEY_PREFIX + levelId, String(memUsed[levelId])); } catch { /* 存不了就只记在内存里 */ }",
+             "  try { (window.__RLP_STORE || window.localStorage).setItem(KEY_PREFIX + levelId, String(memUsed[levelId])); } catch { /* 存不了就只记在内存里 */ }"),
+        ])
         patch('src/core/state.js', [
             ("  try { return window.localStorage.getItem(key); } catch { return null; }",
              "  try { return (window.__RLP_STORE || window.localStorage).getItem(key); } catch { return null; }"),
@@ -485,6 +492,10 @@ def main():
             index = index.replace('<script src="./rotate.js"></script>\n',
                                   '<script src="./storage_xhs.js"></script>\n<script src="./rotate.js"></script>\n')
             assert index.count('./storage_xhs.js') == 1, 'index.html 里没找到 storage_xhs.js 的位置'
+            # 小红书包没有广告：灯泡按钮每章 3 次提示、用完即止（hint_cfg.js 写 __RLP_HINTS_PER_LEVEL / __RLP_HINTS_NO_ADS，见 src/core/hintflow.js、leyuan.js）
+            index = index.replace('<script src="./rotate.js"></script>\n',
+                                  '<script src="./hint_cfg.js"></script>\n<script src="./rotate.js"></script>\n')
+            assert index.count('./hint_cfg.js') == 1, 'index.html 里没找到 hint_cfg.js 的位置'
         if a.ark:   # ark_cfg.js 要在 rotate.js 读它之前加载
             index = index.replace('<script src="./rotate.js"></script>\n', '<script src="./ark_cfg.js"></script>\n<script src="./rotate.js"></script>\n')
             assert index.count('./ark_cfg.js') == 1, 'index.html 里没找到 rotate.js 的位置'
@@ -514,6 +525,7 @@ def main():
         shutil.copy(os.path.join(HERE, 'audio_out.js'), os.path.join(DIST, 'audio_out.js'))
         if not a.ark:
             shutil.copy(os.path.join(HERE, 'storage_xhs.js'), os.path.join(DIST, 'storage_xhs.js'))
+            wr(os.path.join(DIST, 'hint_cfg.js'), '// 小红书版：没有广告，提示按钮每章 3 次、用完不恢复、用完即止（2026-11-20 用户定）。build.py 生成。\nwindow.__RLP_HINTS_PER_LEVEL = 3;\nwindow.__RLP_HINTS_NO_ADS = true;\n')
         if a.ark:
             wr(os.path.join(DIST, 'ark_cfg.js'), '// 口袋方舟版：rotate.js 读到它就不旋转竖屏、不改事件坐标和元素矩形读数（平台 WebView 本来就是横屏）。build.py --ark 生成。\nwindow.__RLP_NOROT = true;\n')
         if not a.release:
